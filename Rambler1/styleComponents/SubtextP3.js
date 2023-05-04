@@ -3,7 +3,7 @@ import styled from 'styled-components/native';
 import { Text } from 'react-native';
 
 const Subtext3 = styled(Text)`
-  font-family: 'Cormorant Garamond';
+  fontFamily: 'CormorantGaramond-Regular';
   font-size: 20px;
   text-align: left;
   color: black;

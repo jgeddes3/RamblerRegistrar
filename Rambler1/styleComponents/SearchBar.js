@@ -14,7 +14,6 @@ const SearchBar = (props) => {
 
 const styles = StyleSheet.create({
   searchInput: {
-    fontFamily: 'Cormorant Garamond',
     fontSize: 19,
     color: '#000000',
     backgroundColor: '#D9D9D9',

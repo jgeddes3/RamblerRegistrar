@@ -18,7 +18,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: {
-    fontFamily: 'Cormorant Garamond',
     fontSize: 19,
     color: '#FFFFFF',
   },

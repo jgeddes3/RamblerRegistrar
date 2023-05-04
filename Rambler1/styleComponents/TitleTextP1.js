@@ -4,7 +4,7 @@ import { Text } from 'react-native';
 
 const TitleText1 = styled(Text)`
   position: absolute;
-  font-family: serif;
+  fontFamily: 'CormorantGaramond-Regular';
   font-size: 36px;
   text-align: center;
   color: black;
@@ -16,3 +16,4 @@ const TitleText1 = styled(Text)`
 `;
 
 export default TitleText1;
+

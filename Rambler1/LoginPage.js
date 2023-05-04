@@ -1,6 +1,6 @@
 // LoginPage.js
 import React, { useState } from 'react';
-import { View, TextInput } from 'react-native';
+import { View } from 'react-native';
 import BackgroundImage from './styleComponents/BackgroundImage';
 import LogoImage from './styleComponents/LogoImage1';
 import CustomButton from './styleComponents/customButton1';
@@ -24,32 +24,43 @@ const LoginPage = ({ navigation }) => {
   return (
     <BackgroundImage source={require('./assets/Backgrounds/Wallpaper-01.jpg')}>
       <LogoImage source={require('./assets/Icons/Logo-02.png')} />
-      <SearchBar
-        placeholder="Username"
-        value={username}
-        onChangeText={setUsername}
-        style={{ top: 354 }}
-      />
-      <TitleText1 style={{ position: 'absolute', top: 282 }}>Rambler Registrar</TitleText1>
-      <SearchBar
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry={true}
-        style={{ top: 400 }}
-      />
-      <CustomButton
-        onPress={handleLogin}
-        style={{ position: 'absolute', top: 465, left: 84 }}
+        <TitleText1>Rambler Registrar</TitleText1>
+      <View
+        style={{
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: 100,
+        }}
       >
-        Login
-      </CustomButton>
-      <CustomButton
-        onPress={handleSignup}
-        style={{ position: 'absolute', top: 465, left: 219 }}
-      >
-        Sign up
-      </CustomButton>
+        <SearchBar
+          placeholder="Username"
+          value={username}
+          onChangeText={setUsername}
+          style={{ marginTop: 20 }}
+        />
+        <SearchBar
+          placeholder="Password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry={true}
+          style={{ marginTop: 20 }}
+        />
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            marginTop: 20,
+            width: 220,
+          }}
+        >
+          <CustomButton onPress={handleLogin} style={{ width: 100, height: 50 }}>
+            Login
+          </CustomButton>
+          <CustomButton onPress={handleSignup} style={{ width: 100, height: 50 }}>
+            Sign up
+          </CustomButton>
+        </View>
+      </View>
     </BackgroundImage>
   );
 };

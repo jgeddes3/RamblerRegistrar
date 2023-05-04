@@ -1,5 +1,7 @@
 // App.js
-import React from 'react';
+import React, { useState } from 'react';
+import AppLoading from 'expo-app-loading';
+import { useFonts } from 'expo-font';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import LoginPage from './LoginPage';
@@ -9,6 +11,13 @@ import PageSix from './PageSix';
 const Stack = createStackNavigator();
 
 const App = () => {
+  const [fontsLoaded] = useFonts({
+    'CormorantGaramond-Regular': require('./assets/Fonts/CormorantGaramond-Regular.ttf'),
+  });
+
+  if (!fontsLoaded) {
+    return <AppLoading />;
+  }
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Login">

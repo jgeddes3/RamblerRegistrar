@@ -6,7 +6,6 @@ const SearchBar = (props) => {
   return (
     <TextInput
       {...props}
-      placeholder="Search"
       style={styles.searchInput}
     />
   );
@@ -15,6 +14,7 @@ const SearchBar = (props) => {
 const styles = StyleSheet.create({
   searchInput: {
     fontSize: 19,
+    fontFamily: 'CormorantGaramond-Regular',
     color: '#000000',
     backgroundColor: '#D9D9D9',
     borderWidth: 1,
@@ -25,5 +25,6 @@ const styles = StyleSheet.create({
     height: 36,
   },
 });
+
 
 export default SearchBar;

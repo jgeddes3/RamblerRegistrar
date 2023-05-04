@@ -2,14 +2,9 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 
-const CustomButton1 = ({ onPress, children, width, height }) => {
-  const buttonStyles = [
-    styles.button,
-    { width: width || 87, height: height || 36 },
-  ];
-
+const CustomButton = ({ onPress, children, style, width, height }) => {
   return (
-    <TouchableOpacity onPress={onPress} style={buttonStyles}>
+    <TouchableOpacity onPress={onPress} style={[styles.button, style, {width, height}]}>
       <Text style={styles.buttonText}>{children}</Text>
     </TouchableOpacity>
   );
@@ -18,9 +13,9 @@ const CustomButton1 = ({ onPress, children, width, height }) => {
 const styles = StyleSheet.create({
   button: {
     backgroundColor: '#A30046',
+    borderRadius: 2,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 2,
   },
   buttonText: {
     fontFamily: 'Cormorant Garamond',
@@ -29,4 +24,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CustomButton1;
+export default CustomButton;

@@ -1,5 +1,5 @@
 // App.js
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import AppLoading from 'expo-app-loading';
 import { useFonts } from 'expo-font';
 import { NavigationContainer } from '@react-navigation/native';
@@ -8,7 +8,7 @@ import LoginPage from './LoginPage';
 import PageTwo from './PageTwo';
 import PageSix from './PageSix';
 import PageThree from './PageThree';
-
+import setupDatabase from './dbSetup';
 
 const Stack = createStackNavigator();
 

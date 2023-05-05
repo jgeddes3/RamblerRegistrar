@@ -1,6 +1,9 @@
 // LoginPage.js
-import React, { useState } from 'react';
-import { View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, ScrollView } from 'react-native';
+import { Asset } from 'expo-asset';
+import * as SQLite from 'expo-sqlite';
+import setupDatabase from './dbSetup'; 
 import BackgroundImage from './styleComponents/BackgroundImage';
 import LogoImage from './styleComponents/LogoImage1';
 import CustomButton from './styleComponents/customButton1';

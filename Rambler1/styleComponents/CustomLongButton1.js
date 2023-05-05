@@ -1,8 +1,7 @@
-// styleComponents/CustomLongButton1.js
 import React, { useState } from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 
-const CustomLongButton1 = ({ onPress, children }) => {
+const CustomLongButton1 = ({ onPress, text }) => {
   const [pressed, setPressed] = useState(false);
 
   const handlePress = () => {
@@ -24,10 +23,11 @@ const CustomLongButton1 = ({ onPress, children }) => {
 
   return (
     <TouchableOpacity onPress={handlePress} style={buttonStyles}>
-      <Text style={textStyles}>{children}</Text>
+      <Text style={textStyles}>{text}</Text>
     </TouchableOpacity>
   );
 };
+
 
 const styles = StyleSheet.create({
   button: {

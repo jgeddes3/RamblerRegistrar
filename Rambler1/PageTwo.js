@@ -5,7 +5,6 @@ import { useNavigation } from '@react-navigation/native';
 import CustomLongButton1 from './styleComponents/CustomLongButton1';
 import { ScrollView } from 'react-native';
 
-
 const db = SQLite.openDatabase('MajorMinor.db');
 
 const insertSampleData = () => {
@@ -60,62 +59,57 @@ const insertSampleData = () => {
       "INSERT INTO majmin (id, name, type, classesNeeded) VALUES (48, 'Cybersecurity', 'minor', 'Cybersecurity Fundamentals, Network Security');",
       "INSERT INTO majmin (id, name, type, classesNeeded) VALUES (49, 'Political Philosophy', 'minor', 'Political Philosophy, Ethics and Public Policy');",
       "INSERT INTO majmin (id, name, type, classesNeeded) VALUES (50, 'Computational Science', 'minor', 'Introduction to Computational Science, Scientific Computing');"
-      ];
-       db.transaction((tx) => {
-        sampleData.forEach((insertStatement) => {
+    ];
+    db.transaction((tx) => {
+      sampleData.forEach((insertStatement) => {
         tx.executeSql(
           insertStatement,
           [],
-      () => console.log('Sample data inserted successfully.'),
-      (_, error) => console.error('Error inserting sample data:', error)
-    );
-  });
-});
-};
-
-const PageTwo = () => {
-  const [majorsAndMinors, setMajorsAndMinors] = useState([]);
-  const navigation = useNavigation();
-
-  useEffect(() => {
-    db.transaction((tx) => {
-      tx.executeSql(
-        'CREATE TABLE IF NOT EXISTS majmin (id INTEGER PRIMARY KEY, name TEXT, type TEXT, classesNeeded TEXT);',
-        [],
-        () => {
-          insertSampleData();
-          tx.executeSql('SELECT * FROM majmin', [], (_, { rows }) => {
-            setMajorsAndMinors(rows._array);
-          });
-        },
-        (_, error) => console.error('Error creating table:', error)
-      );
+          () => console.log('Sample data inserted successfully.'),
+          (_, error) => console.error('Error inserting sample data:', error)
+        );
+      });
     });
-  }, []);
-
-  const handleMajorMinorPress = (item) => {
-    if (item.type === 'major') {
-      navigation.navigate('PageThree');
-    }
   };
-
-  return (
-    <View>
-      <Text>Major/Minor List:</Text>
-      <FlatList
-        data={majorsAndMinors}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => handleMajorMinorPress(item)}>
-            <Text>
-              {item.id}. {item.name} ({item.type})
-            </Text>
-          </TouchableOpacity>
-        )}
-      />
-
-    </View>
-  );
-};
-
-export default PageTwo;
+  
+  const PageTwo = () => {
+    const [majorsAndMinors, setMajorsAndMinors] = useState([]);
+    const navigation = useNavigation();
+  
+    useEffect(() => {
+      db.transaction((tx) => {
+        tx.executeSql(
+          'CREATE TABLE IF NOT EXISTS majmin (id INTEGER PRIMARY KEY, name TEXT, type TEXT, classesNeeded TEXT);',
+          [],
+          () => {
+            insertSampleData();
+            tx.executeSql('SELECT * FROM majmin', [], (_, { rows }) => {
+              setMajorsAndMinors(rows._array);
+            });
+          },
+          (_, error) => console.error('Error creating table:', error)
+        );
+      });
+    }, []);
+  
+    const handleMajorMinorPress = (item) => {
+      if (item.type === 'major') {
+        navigation.navigate('PageThree');
+      }
+    };
+  
+    return (
+      <View style={{ flex: 1 }}>
+        <Text>Major/Minor List:</Text>
+        <ScrollView contentContainerStyle={{ alignItems: 'center' }}>
+          {majorsAndMinors.map((item) => (
+            <TouchableOpacity key={item.id} onPress={() => handleMajorMinorPress(item)}>
+              <CustomLongButton1>{`${item.id}. ${item.name} (${item.type})`}</CustomLongButton1>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  };
+  
+  export default PageTwo;

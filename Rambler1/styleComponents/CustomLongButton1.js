@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 
-const CustomLongButton1 = ({ onPress, text }) => {
+const CustomLongButton1 = ({ onPress, children }) => {
   const [pressed, setPressed] = useState(false);
 
   const handlePress = () => {
@@ -23,12 +23,10 @@ const CustomLongButton1 = ({ onPress, text }) => {
 
   return (
     <TouchableOpacity onPress={handlePress} style={buttonStyles}>
-      <Text style={textStyles}>{text}</Text>
+      <Text style={textStyles}>{children}</Text>
     </TouchableOpacity>
   );
 };
-
-
 const styles = StyleSheet.create({
   button: {
     backgroundColor: '#D9D9D9',

@@ -1,9 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text,FlatList, TouchableOpacity } from 'react-native';
+import { View, Text,FlatList, TouchableOpacity, TouchableWithoutFeedback} from 'react-native';
 import * as SQLite from 'expo-sqlite';
 import { useNavigation } from '@react-navigation/native';
 import CustomLongButton1 from './styleComponents/CustomLongButton1';
 import { ScrollView } from 'react-native';
+import CustomButton2 from './styleComponents/customButton2';
+import BackgroundImage from './styleComponents/BackgroundImage';
+import TitleText2 from './styleComponents/TitleTextP2';
+
+
 
 const db = SQLite.openDatabase('MajorMinor.db');
 
@@ -74,6 +79,7 @@ const insertSampleData = () => {
   
   const PageTwo = () => {
     const [majorsAndMinors, setMajorsAndMinors] = useState([]);
+    const [selectedMajor, setSelectedMajor] = useState(null);
     const navigation = useNavigation();
   
     useEffect(() => {
@@ -82,34 +88,62 @@ const insertSampleData = () => {
           'CREATE TABLE IF NOT EXISTS majmin (id INTEGER PRIMARY KEY, name TEXT, type TEXT, classesNeeded TEXT);',
           [],
           () => {
-            insertSampleData();
-            tx.executeSql('SELECT * FROM majmin', [], (_, { rows }) => {
-              setMajorsAndMinors(rows._array);
-            });
+            console.log('Table created successfully');
           },
           (_, error) => console.error('Error creating table:', error)
         );
       });
     }, []);
   
-    const handleMajorMinorPress = (item) => {
-      if (item.type === 'major') {
-        navigation.navigate('PageThree');
-      }
-    };
+    useEffect(() => {
+      db.transaction((tx) => {
+        tx.executeSql('SELECT * FROM majmin', [], (_, { rows }) => {
+          if (rows.length === 0) {
+            insertSampleData();
+          } else {
+            setMajorsAndMinors(rows._array);
+          }
+        });
+      });
+    }, []);
+
+    useEffect(() => {
+  const unsubscribe = navigation.addListener('state', (e) => {
+    console.log('Navigation state changed:', e.data.state);
+  });
+
+  return unsubscribe;
+}, [navigation]);
+
   
+    
+    const handleNextButtonPress = () => {
+      console.log('handleNextButtonPress called with selectedMajor:', selectedMajor);
+      navigation.navigate('PageThree');
+    };
+    
     return (
+       <BackgroundImage source={require('./assets/Backgrounds/Wallpaper-01.jpg')}>
       <View style={{ flex: 1 }}>
-        <Text>Major/Minor List:</Text>
-        <ScrollView contentContainerStyle={{ alignItems: 'center' }}>
+      <TitleText2>Major/Minor List:</TitleText2>
+        <ScrollView contentContainerStyle={{ alignItems: 'center', marginTop: 120
+       }}>
+          <CustomButton2 onPress={handleNextButtonPress} style={{ width: 100, height: 50}}>
+            Next
+          </CustomButton2>
           {majorsAndMinors.map((item) => (
             <TouchableOpacity key={item.id} onPress={() => handleMajorMinorPress(item)}>
-              <CustomLongButton1>{`${item.id}. ${item.name} (${item.type})`}</CustomLongButton1>
+              <View>
+                <CustomLongButton1>
+                  {item.id}. {item.name} ({item.type})
+                </CustomLongButton1>
+              </View>
             </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
+      </BackgroundImage>
     );
-  };
+      };
   
   export default PageTwo;

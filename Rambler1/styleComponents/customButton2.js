@@ -5,7 +5,7 @@ import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 const CustomButton2 = ({ onPress, children, width, height }) => {
   const buttonStyles = [
     styles.button,
-    { width: width || 128, height: height || 53 },
+    { width: width || 128, height: height || 53  },
   ];
 
   return (

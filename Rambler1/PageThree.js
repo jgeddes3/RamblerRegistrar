@@ -234,8 +234,8 @@ const insertSampleData = () => {
     return (
       <BackgroundImage source={require('./assets/Backgrounds/Wallpaper-01.jpg')}>
         <View style={{ flex: 1 }}>
-          <TitleText2>Classes:</TitleText2>
-          <ScrollView contentContainerStyle={{ alignItems: 'center', marginTop: 120 }}>
+          <TitleText2>Choose the Classes You've taken</TitleText2>
+          <ScrollView contentContainerStyle={{ alignItems: 'center', marginTop: 160 }}>
             <CustomButton2 onPress={handleNextButtonPress} style={{ width: 100, height: 50 }}>
               Next
             </CustomButton2>

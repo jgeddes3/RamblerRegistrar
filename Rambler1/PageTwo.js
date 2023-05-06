@@ -125,8 +125,8 @@ const insertSampleData = () => {
     return (
        <BackgroundImage source={require('./assets/Backgrounds/Wallpaper-01.jpg')}>
       <View style={{ flex: 1 }}>
-      <TitleText2>Major/Minor List:</TitleText2>
-        <ScrollView contentContainerStyle={{ alignItems: 'center', marginTop: 120
+      <TitleText2>Choose Your Major/Minor</TitleText2>
+        <ScrollView contentContainerStyle={{ alignItems: 'center', marginTop: 160
        }}>
           <CustomButton2 onPress={handleNextButtonPress} style={{ width: 100, height: 50}}>
             Next

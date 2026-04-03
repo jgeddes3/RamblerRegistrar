@@ -268,6 +268,32 @@ export const fetchDegreeProgress = async (uid, programId) => {
 };
 
 // =============================================================================
+// STUDY ROOMS
+// =============================================================================
+
+export const fetchStudyRoomLocations = async () => {
+  return await apiFetch('/studyrooms/locations') || [];
+};
+
+export const fetchStudyRooms = async (filters = {}) => {
+  const params = [];
+  if (filters.campus) params.push(`campus=${filters.campus}`);
+  if (filters.building) params.push(`building=${encodeURIComponent(filters.building)}`);
+  if (filters.minCapacity) params.push(`minCapacity=${filters.minCapacity}`);
+  const query = params.length > 0 ? `?${params.join('&')}` : '';
+  return await apiFetch(`/studyrooms${query}`) || [];
+};
+
+export const fetchStudyRoomAvailability = async (locationName, date) => {
+  const dateParam = date ? `?date=${date}` : '';
+  return await apiFetch(`/studyrooms/availability/${encodeURIComponent(locationName)}${dateParam}`);
+};
+
+export const getStudyRoomBookingUrl = async (roomId) => {
+  return await apiFetch(`/studyrooms/book/${roomId}`);
+};
+
+// =============================================================================
 // ENROLLMENT TRENDS
 // =============================================================================
 

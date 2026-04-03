@@ -1,32 +1,24 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 
-const CustomLongButton1 = ({ onPress, children }) => {
-  const [pressed, setPressed] = useState(false);
-
-  const handlePress = () => {
-    setPressed(!pressed);
-    if (onPress) {
-      onPress();
-    }
-  };
-
+const CustomLongButton1 = ({ onPress, onLongPress, children, selected }) => {
   const buttonStyles = [
     styles.button,
-    pressed ? styles.pressedButton : {},
+    selected ? styles.pressedButton : {},
   ];
 
   const textStyles = [
     styles.buttonText,
-    pressed ? styles.pressedText : {},
+    selected ? styles.pressedText : {},
   ];
 
   return (
-    <TouchableOpacity onPress={handlePress} style={buttonStyles}>
+    <TouchableOpacity onPress={onPress} onLongPress={onLongPress} delayLongPress={400} style={buttonStyles}>
       <Text style={textStyles}>{children}</Text>
     </TouchableOpacity>
   );
 };
+
 const styles = StyleSheet.create({
   button: {
     backgroundColor: '#D9D9D9',
@@ -34,7 +26,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 2,
     width: 352,
-    height: 33,
+    minHeight: 33,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   pressedButton: {
     backgroundColor: '#A30046',
@@ -43,6 +37,7 @@ const styles = StyleSheet.create({
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 20,
     color: '#000000',
+    textAlign: 'center',
   },
   pressedText: {
     color: '#FFFFFF',

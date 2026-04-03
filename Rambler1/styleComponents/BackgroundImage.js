@@ -1,12 +1,18 @@
-// styleComponents/BackgroundImage.js
-import styled from 'styled-components/native';
-import { ImageBackground } from 'react-native';
+import React from 'react';
+import { ImageBackground, StyleSheet } from 'react-native';
 
-const BackgroundImage = styled(ImageBackground)`
-  flex: 1;
-  width: null;
-  height: null;
-  resizeMode: cover;
-`;
+const BackgroundImage = ({ source, children }) => {
+  return (
+    <ImageBackground source={source} style={styles.background} resizeMode="cover">
+      {children}
+    </ImageBackground>
+  );
+};
+
+const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+  },
+});
 
 export default BackgroundImage;

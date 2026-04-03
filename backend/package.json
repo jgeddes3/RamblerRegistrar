@@ -1,0 +1,19 @@
+{
+  "name": "rambler-backend",
+  "version": "1.0.0",
+  "description": "Backend server for RamblerRegistrar — scrapes LOCUS and serves course section data",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "scrape": "node scraper.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "firebase-admin": "^13.7.0",
+    "node-cron": "^3.0.3",
+    "puppeteer": "^24.40.0",
+    "sql.js": "^1.11.0"
+  }
+}

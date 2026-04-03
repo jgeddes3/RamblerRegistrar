@@ -1,18 +1,19 @@
-// styleComponents/TitleText.js
-import styled from 'styled-components/native';
-import { Text } from 'react-native';
+import React from 'react';
+import { Text, StyleSheet } from 'react-native';
 
-const TitleText2 = styled(Text)`
-  position: absolute;
-  fontFamily: 'CormorantGaramond-Regular';
-  font-size: 36px;
-  text-align: center;
-  color: black;
-  text-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
-  width: 270px;
-  height: 96px;
-  align-self: center;
-  top: 60px;
-`;
+const TitleText2 = ({ children }) => {
+  return <Text style={styles.text}>{children}</Text>;
+};
+
+const styles = StyleSheet.create({
+  text: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 36,
+    textAlign: 'center',
+    color: 'black',
+    alignSelf: 'center',
+    marginTop: 60,
+  },
+});
 
 export default TitleText2;

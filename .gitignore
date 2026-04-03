@@ -1,0 +1,28 @@
+# Claude Code
+.claude/
+
+# Environment variables (contains Firebase keys)
+.env
+*.env
+Rambler1/.env
+
+# Firebase service account (SECRET — never push this)
+backend/serviceAccountKey.json
+
+# Internal docs (not for public repo)
+archive/
+
+# Database files
+backend/locus.db
+backend/*.db-journal
+backend/*.db-wal
+
+# Node modules (covered by sub .gitignores but belt-and-suspenders)
+node_modules/
+
+# Test artifacts (scraped HTML, screenshots)
+backend/tests/samples/
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -455,6 +455,65 @@ app.get('/api/user/:uid/core-progress', (req, res) => {
 });
 
 // =============================================================================
+// STUDY ROOMS API (LibCal)
+// =============================================================================
+
+const { getAllRooms, filterRooms, getLocations, fetchLocationAvailability, LOCATIONS } = require('./services/studyrooms');
+
+// Get all study room locations (summary)
+app.get('/api/studyrooms/locations', (req, res) => {
+  res.json(getLocations());
+});
+
+// Get all rooms (with optional filters)
+app.get('/api/studyrooms', (req, res) => {
+  const { campus, building, minCapacity } = req.query;
+  const rooms = filterRooms({
+    campus: campus || null,
+    building: building || null,
+    minCapacity: minCapacity ? parseInt(minCapacity) : null,
+  });
+  res.json(rooms);
+});
+
+// Get availability for a location on a date
+app.get('/api/studyrooms/availability/:locationName', async (req, res) => {
+  const locationName = decodeURIComponent(req.params.locationName);
+  const date = req.query.date || new Date().toISOString().split('T')[0];
+
+  // Find the location
+  const loc = LOCATIONS[locationName];
+  if (!loc) {
+    return res.status(404).json({ error: 'Location not found', available: Object.keys(LOCATIONS) });
+  }
+
+  try {
+    const availability = await fetchLocationAvailability(loc.lid, loc.gid, date);
+    res.json({
+      location: locationName,
+      date,
+      rooms: loc.rooms,
+      availability: availability,
+      bookingBaseUrl: `https://libcal.luc.edu/spaces?lid=${loc.lid}`,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get a single room's booking URL (deep link for the student to book)
+app.get('/api/studyrooms/book/:roomId', (req, res) => {
+  const roomId = parseInt(req.params.roomId);
+  const allRooms = getAllRooms();
+  const room = allRooms.find(r => r.id === roomId);
+  if (!room) return res.status(404).json({ error: 'Room not found' });
+  res.json({
+    room,
+    bookingUrl: `https://libcal.luc.edu/space/${roomId}`,
+  });
+});
+
+// =============================================================================
 // ENROLLMENT TRENDS API
 // =============================================================================
 

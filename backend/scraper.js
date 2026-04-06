@@ -135,79 +135,96 @@ class LocusScraper {
     const $ = cheerio.load(html);
     const sections = [];
 
-    // PeopleSoft renders results in a table with specific IDs
-    // The exact selectors depend on LOCUS's HTML structure
-    $('tr[id^="trSSR_CLSRCH_MTG"]').each((i, row) => {
-      const cells = $(row).find('td');
-      if (cells.length < 4) return;
+    // LOCUS uses GROUPBOX3$N for each course — it contains both the course
+    // title and the MTG_ section rows.  GROUPBOX2GP$N is just the collapsible
+    // header and does NOT contain the MTG_ elements.
+    let groupIdx = 0;
+    while (true) {
+      const groupEl = $(`[id="win0divSSR_CLSRSLT_WRK_GROUPBOX3$${groupIdx}"]`);
+      if (groupEl.length === 0) break;
 
-      // Try to extract section data from the row
-      const section = {
-        subject: subject,
-        catalog_number: '',
-        section_number: '',
-        class_number: '',
-        title: '',
-        instructor: '',
-        meeting_days: '',
-        meeting_time_start: '',
-        meeting_time_end: '',
-        room: '',
-        enrollment_cap: 0,
-        enrollment_total: 0,
-        waitlist_cap: 0,
-        waitlist_total: 0,
-        instruction_mode: '',
-        component: '', // LEC, LAB, DIS, SEM
-        status: '', // Open, Closed, Waitlist
-      };
+      // The course title appears as text inside the group
+      const groupText = groupEl.text().trim();
+      const courseMatch = groupText.match(/([A-Z]+)\s+(\d+\w*)\s*-\s*([^\n]+)/);
+      const catalogNumber = courseMatch ? courseMatch[2].trim() : '';
+      const courseTitle = courseMatch ? courseMatch[3].trim() : '';
 
-      sections.push(section);
-    });
+      // Find MTG_INSTR spans within this group to get section indices
+      groupEl.find('span[id^="MTG_INSTR"]').each((_, instrEl) => {
+        const idMatch = ($(instrEl).attr('id') || '').match(/\$(\d+)$/);
+        if (!idMatch) return;
+        const i = idMatch[1];
 
-    // Alternative parsing: PeopleSoft sometimes uses different structures
-    // Look for the class search results table
-    $('table.PSLEVEL1GRIDNBO tr').each((i, row) => {
-      if (i === 0) return; // Skip header
+        const classNbr = $(`[id="MTG_CLASS_NBR$${i}"]`).text().trim();
+        const classNameText = $(`[id="MTG_CLASSNAME$${i}"]`).text().trim();
+        const dayTime = $(`[id="MTG_DAYTIME$${i}"]`).text().trim();
+        const room = $(`[id="MTG_ROOM$${i}"]`).text().trim();
+        const dates = $(`[id="MTG_TOPIC$${i}"]`).text().trim();
 
-      const cells = $(row).find('td');
-      if (cells.length < 2) return;
+        // Parse section info from MTG_CLASSNAME: "001-LEC\nRegular"
+        const sectionMatch = classNameText.match(/(\d+\w*)-(\w+)/);
+        const sectionNumber = sectionMatch ? sectionMatch[1] : '';
+        const component = sectionMatch ? sectionMatch[2] : '';
 
-      const text = cells.map((_, cell) => $(cell).text().trim()).get();
+        // Get status from icon alt text
+        const statusImg = $(`[id="win0divDERIVED_CLSRCH_SSR_STATUS_LONG$${i}"] img`);
+        const status = statusImg.attr('alt') || '';
 
-      if (text.length >= 6) {
+        // Parse days/times
+        const meetingDays = dayTime.replace(/\s*\d+.*/, '');
+        const timeStartMatch = dayTime.match(/(\d+:\d+[AP]M)/);
+        const timeEndMatch = dayTime.match(/- (\d+:\d+[AP]M)/);
+
         sections.push({
           subject: subject,
-          raw_data: text,
-          class_number: text[0] || '',
-          section_info: text[1] || '',
-          days_times: text[2] || '',
-          room: text[3] || '',
-          instructor: text[4] || '',
-          dates: text[5] || '',
-          status: text[6] || '',
+          catalog_number: catalogNumber,
+          title: courseTitle,
+          class_number: classNbr,
+          section_number: sectionNumber,
+          component: component,
+          instructor: $(instrEl).text().trim(),
+          meeting_days: meetingDays,
+          meeting_time_start: timeStartMatch ? timeStartMatch[1] : '',
+          meeting_time_end: timeEndMatch ? timeEndMatch[1] : '',
+          room: room,
+          building: room.split(' - ')[0] || '',
+          start_date: dates.split(' - ')[0] || '',
+          end_date: dates.split(' - ')[1] || '',
+          instruction_mode: '',
+          status: status,
+          enrollment_cap: 0,
+          enrollment_total: 0,
+          waitlist_cap: 0,
+          waitlist_total: 0,
         });
-      }
-    });
-
-    // Also try generic table row parsing as fallback
-    if (sections.length === 0) {
-      $('span[id^="MTG_INSTR"]').each((i, el) => {
-        const instructor = $(el).text().trim();
-        const dayTimeEl = $(`span[id="MTG_SCHED$${i}"]`);
-        const roomEl = $(`span[id="MTG_LOC$${i}"]`);
-        const datesEl = $(`span[id="MTG_DATE$${i}"]`);
-
-        if (instructor) {
-          sections.push({
-            subject: subject,
-            instructor: instructor,
-            days_times: dayTimeEl.text().trim(),
-            room: roomEl.text().trim(),
-            dates: datesEl.text().trim(),
-          });
-        }
       });
+
+      groupIdx++;
+    }
+
+    // Fallback: if no groups found, try flat MTG_ span parsing
+    if (sections.length === 0) {
+      let i = 0;
+      while (i < 500) {
+        const instrEl = $(`[id="MTG_INSTR$${i}"]`);
+        if (instrEl.length === 0) break;
+
+        const dayTime = $(`[id="MTG_DAYTIME$${i}"]`).text().trim();
+        const room = $(`[id="MTG_ROOM$${i}"]`).text().trim();
+        const dates = $(`[id="MTG_TOPIC$${i}"]`).text().trim();
+        const classNbr = $(`[id="MTG_CLASS_NBR$${i}"]`).text().trim();
+
+        sections.push({
+          subject: subject,
+          class_number: classNbr,
+          instructor: instrEl.text().trim(),
+          days_times: dayTime,
+          room: room,
+          dates: dates,
+        });
+
+        i++;
+      }
     }
 
     return sections;

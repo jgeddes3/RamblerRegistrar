@@ -148,86 +148,81 @@ class LocusPuppeteerScraper {
     const sections = await this.page.evaluate((subj) => {
       const results = [];
 
-      // Build a map of course group titles: index → "COMP 170 - Introduction to OOP"
-      const courseGroups = {};
+      // LOCUS uses GROUPBOX3$N for each course — it contains both the course
+      // title text and the MTG_ section rows.  GROUPBOX2GP$N is just the
+      // collapsible header and does NOT contain the MTG_ elements.
       let groupIdx = 0;
       while (true) {
-        const groupEl = document.getElementById(`win0divSSR_CLSRSLT_WRK_GROUPBOX2GP$${groupIdx}`);
+        const groupEl = document.getElementById(`win0divSSR_CLSRSLT_WRK_GROUPBOX3$${groupIdx}`);
         if (!groupEl) break;
-        courseGroups[groupIdx] = groupEl.textContent.trim();
+
+        // The course title appears as text inside the group, e.g.
+        // "COMP  122 - Introduction to Digital Music"
+        const groupText = groupEl.textContent.trim();
+        const courseMatch = groupText.match(/([A-Z]+)\s+(\d+\w*)\s*-\s*([^\n]+)/);
+        const catalogNumber = courseMatch ? courseMatch[2].trim() : '';
+        const courseTitle = courseMatch ? courseMatch[3].trim() : '';
+
+        // Find MTG_INSTR spans within this group to get section indices
+        const instrEls = groupEl.querySelectorAll('span[id^="MTG_INSTR"]');
+
+        instrEls.forEach(instrEl => {
+          const idMatch = instrEl.id.match(/\$(\d+)$/);
+          if (!idMatch) return;
+          const i = idMatch[1];
+
+          const classNbr = document.getElementById(`MTG_CLASS_NBR$${i}`);
+          const className = document.getElementById(`MTG_CLASSNAME$${i}`);
+          const dayTime = document.getElementById(`MTG_DAYTIME$${i}`);
+          const roomEl = document.getElementById(`MTG_ROOM$${i}`);
+          const datesEl = document.getElementById(`MTG_TOPIC$${i}`);
+          const campusEl = document.getElementById(`CAMPUS$${i}`);
+
+          // Parse section info from MTG_CLASSNAME: "001-LEC\nRegular"
+          const classNameText = className ? className.textContent.trim() : '';
+          const sectionMatch = classNameText.match(/(\d+\w*)-(\w+)/);
+          const sectionNumber = sectionMatch ? sectionMatch[1] : '';
+          const component = sectionMatch ? sectionMatch[2] : '';
+
+          // Get status from icon alt text (Open, Closed, Wait List)
+          const statusContainer = document.getElementById(`win0divDERIVED_CLSRCH_SSR_STATUS_LONG$${i}`);
+          const statusImg = statusContainer ? statusContainer.querySelector('img') : null;
+          const status = statusImg ? statusImg.alt : '';
+
+          const campusText = campusEl ? campusEl.textContent.trim() : '';
+
+          results.push({
+            subject: subj,
+            catalog_number: catalogNumber,
+            title: courseTitle,
+            class_number: classNbr ? classNbr.textContent.trim() : '',
+            section_number: sectionNumber,
+            component: component,
+            days_times: dayTime ? dayTime.textContent.trim() : '',
+            instructor: instrEl.textContent.trim(),
+            room: roomEl ? roomEl.textContent.trim() : '',
+            dates: datesEl ? datesEl.textContent.trim() : '',
+            campus: campusText,
+            instruction_mode: campusText === 'ONLN' ? 'Online' : 'In Person',
+            status: status,
+          });
+        });
+
         groupIdx++;
       }
 
-      // Extract sections using flat index (MTG_ fields are numbered sequentially across all courses)
-      let i = 0;
-      while (i < 500) {
-        const instrEl = document.getElementById(`MTG_INSTR$${i}`);
-        if (!instrEl) break;
-
-        const classNbr = document.getElementById(`MTG_CLASS_NBR$${i}`);
-        const className = document.getElementById(`MTG_CLASSNAME$${i}`);
-        const dayTime = document.getElementById(`MTG_DAYTIME$${i}`);
-        const roomEl = document.getElementById(`MTG_ROOM$${i}`);
-        const datesEl = document.getElementById(`MTG_TOPIC$${i}`);
-        const campusEl = document.getElementById(`LU_DER_CLSRCH_CAMPUS$${i}`);
-
-        // Parse section info from MTG_CLASSNAME: "001-LEC\nRegular"
-        const classNameText = className ? className.textContent.trim() : '';
-        const sectionMatch = classNameText.match(/(\d+\w*)-(\w+)/);
-        const sectionNumber = sectionMatch ? sectionMatch[1] : '';
-        const component = sectionMatch ? sectionMatch[2] : '';
-
-        // Get status from icon alt text (Open, Closed, Wait List)
-        const statusContainer = document.getElementById(`win0divDERIVED_CLSRCH_SSR_STATUS_LONG$${i}`);
-        const statusImg = statusContainer ? statusContainer.querySelector('img') : null;
-        const status = statusImg ? statusImg.alt : '';
-
-        results.push({
-          subject: subj,
-          class_number: classNbr ? classNbr.textContent.trim() : '',
-          section_number: sectionNumber,
-          component: component,
-          days_times: dayTime ? dayTime.textContent.trim() : '',
-          instructor: instrEl.textContent.trim(),
-          room: roomEl ? roomEl.textContent.trim() : '',
-          dates: datesEl ? datesEl.textContent.trim() : '',
-          campus: campusEl ? campusEl.textContent.trim() : '',
-          instruction_mode: campusEl && campusEl.textContent.trim() === 'ONLN' ? 'Online' : 'In Person',
-          status: status,
-        });
-
-        i++;
-      }
-
-      // Now map each section to its parent course group title
-      // Course groups are numbered sequentially, sections within each group are sequential
-      // We need to figure out which sections belong to which course
-      // The groupbox titles contain the course name
-      const groupTitles = Object.values(courseGroups);
-
-      return { sections: results, groupTitles };
+      return results;
     }, subject);
 
-    // Post-process: assign course titles to sections
-    // Parse group titles to extract catalog numbers
-    const courseGroupInfo = sections.groupTitles.map(title => {
-      // "COMP  170 - Introduction to Object-Oriented Programming"
-      const match = title.match(/([A-Z]+)\s+(\d+)\s*-\s*(.*)/);
-      return match ? { subject: match[1].trim(), catalog_number: match[2].trim(), title: match[3].trim() } : { title };
-    });
-
-    // Assign course info to sections (best effort — sections are in order within groups)
-    const finalSections = sections.sections.map(s => ({
+    // Post-process: parse days/times and room/building
+    const finalSections = sections.map(s => ({
       ...s,
-      // Parse days/times into components
-      meeting_days: s.days_times.replace(/\s*\d+.*/, ''),
-      meeting_time_start: s.days_times.match(/(\d+:\d+[AP]M)/)?.[1] || '',
-      meeting_time_end: s.days_times.match(/- (\d+:\d+[AP]M)/)?.[1] || '',
-      // Parse room into building and room number
-      building: s.room.split(' - ')[0] || '',
-      // Parse dates
-      start_date: s.dates.split(' - ')[0] || '',
-      end_date: s.dates.split(' - ')[1] || '',
+      meeting_days: s.days_times ? s.days_times.replace(/\s*\d+.*/, '') : '',
+      meeting_time_start: (s.days_times && s.days_times.match(/(\d+:\d+[AP]M)/)) ? s.days_times.match(/(\d+:\d+[AP]M)/)[1] : '',
+      meeting_time_end: (s.days_times && s.days_times.match(/- (\d+:\d+[AP]M)/)) ? s.days_times.match(/- (\d+:\d+[AP]M)/)[1] : '',
+      building: s.room ? s.room.split(' - ')[0] : '',
+      start_date: s.dates ? s.dates.split(' - ')[0] : '',
+      end_date: s.dates ? (s.dates.split(' - ')[1] || '') : '',
     }));
 
     return finalSections;
@@ -341,14 +336,6 @@ class LocusPuppeteerScraper {
     // Optionally fetch enrollment details (clicks into each section)
     if (fetchEnrollment && sections.length > 0) {
       sections = await this.fetchEnrollmentForSections(sections);
-    }
-
-    // Parse titles to extract catalog numbers
-    for (const section of sections) {
-      if (section.title) {
-        const parsed = this.parseCourseTitle(section.title);
-        Object.assign(section, parsed);
-      }
     }
 
     return sections;

@@ -19,6 +19,8 @@ import ProgramSelect from './ProgramSelect';
 import CourseSelect from './CourseSelect';
 import PreferenceQuiz from './PreferenceQuiz';
 import AccountSetup from './AccountSetup';
+import QuizResults from './screens/QuizResults';
+import SchedulingPrefs from './screens/SchedulingPrefs';
 
 // Main tab screens
 import Home from './Home';
@@ -48,6 +50,8 @@ const AuthStack = () => (
     <Stack.Screen name="ProgramSelect" component={ProgramSelect} />
     <Stack.Screen name="CourseSelect" component={CourseSelect} />
     <Stack.Screen name="PreferenceQuiz" component={PreferenceQuiz} />
+    <Stack.Screen name="QuizResults" component={QuizResults} />
+    <Stack.Screen name="SchedulingPrefs" component={SchedulingPrefs} />
     <Stack.Screen name="AccountSetup" component={AccountSetup} />
   </Stack.Navigator>
 );

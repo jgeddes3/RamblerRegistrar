@@ -90,6 +90,13 @@ const ProgramSelect =() => {
     setSelectedMinors((prev) => prev.filter((m) => m.id !== minorId));
   };
 
+  const handleUndecided = () => {
+    setSelectedProgram({ id: 'undecided', name: 'Undecided', type: 'major', degree: null });
+    setSelectedProgram2(null);
+    setSelectedMinors([]);
+    navigation.navigate('CourseSelect');
+  };
+
   const handleNextButtonPress = () => {
     if (phase === 'major' && selectedProgram) {
       setPhase('doubleMajor');
@@ -251,6 +258,14 @@ const ProgramSelect =() => {
           <Text style={{ fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#A30046', textAlign: 'center', marginTop: 4 }}>
             Maximum of 3 minors selected
           </Text>
+        )}
+
+        {/* Undecided option — only shown during major selection */}
+        {phase === 'major' && !selectedProgram && (
+          <TouchableOpacity style={s.undecidedButton} onPress={handleUndecided}>
+            <Text style={s.undecidedButtonText}>I'm Undecided</Text>
+            <Text style={s.undecidedHint}>We'll help you explore options</Text>
+          </TouchableOpacity>
         )}
 
         <View style={{ alignItems: 'center', marginTop: 10, marginBottom: 10 }}>
@@ -458,6 +473,29 @@ const s = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginTop: 10,
+  },
+  undecidedButton: {
+    alignSelf: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#A30046',
+    borderRadius: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  undecidedButtonText: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 20,
+    color: '#A30046',
+    fontWeight: 'bold',
+  },
+  undecidedHint: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 13,
+    color: '#888',
+    marginTop: 2,
   },
   retryButton: {
     backgroundColor: '#A30046',

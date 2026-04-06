@@ -4,17 +4,20 @@ import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
 import { useAppContext } from './AppContext';
 import { signUp, getIdToken } from './auth';
-import { saveUserProfile, addUserCourse } from './api';
+import { saveUserProfile, addUserCourse, saveQuizResults } from './api';
 import SearchBar from './styleComponents/SearchBar';
 import BackgroundImage from './styleComponents/BackgroundImage';
 
+const CLASS_YEARS = ['Freshman', 'Sophomore', 'Junior', 'Senior'];
+
 const AccountSetup =() => {
   const [year, setYear] = useState('');
+  const [classYearLocal, setClassYearLocal] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const { selectedProgram, selectedProgram2, selectedMinors, selectedCourses, setGraduationYear } = useAppContext();
+  const { selectedProgram, selectedProgram2, selectedMinors, selectedCourses, setGraduationYear, setClassYear, quizResults } = useAppContext();
 
   const navigation = useNavigation();
   const currentYear = new Date().getFullYear();
@@ -33,6 +36,7 @@ const AccountSetup =() => {
     try {
       const firebaseUser = await signUp(email, password);
       setGraduationYear(String(year));
+      setClassYear(classYearLocal);
 
       // Save onboarding selections to backend
       // Use the token directly from the new user (getIdToken might not work yet)
@@ -44,7 +48,21 @@ const AccountSetup =() => {
             selectedProgram2Id: selectedProgram2?.id || null,
             selectedMinors: (selectedMinors || []).map(m => m.id),
             graduationYear: String(year),
+            classYear: classYearLocal,
           }, token);
+
+          // Save quiz results to backend
+          if (quizResults) {
+            try {
+              await saveQuizResults(firebaseUser.uid, {
+                scores: quizResults.scores,
+                code: quizResults.code,
+                profileName: quizResults.profileName,
+                answers: quizResults.answers,
+                schedulingPrefs: quizResults.schedulingPrefs || {},
+              }, token);
+            } catch (e) {}
+          }
 
           // Also sync selected courses to backend
           if (selectedCourses && selectedCourses.length > 0) {
@@ -106,6 +124,19 @@ const AccountSetup =() => {
               <Picker.Item label={`${currentYear + 10}+`} value={`${currentYear + 10}+`} />
             </Picker>
           </View>
+          <Text style={s.label}>Current Class Year</Text>
+          <View style={s.pickerWrapper}>
+            <Picker
+              selectedValue={classYearLocal}
+              style={s.picker}
+              onValueChange={(itemValue) => setClassYearLocal(itemValue)}
+            >
+              <Picker.Item label="Select class year..." value="" />
+              {CLASS_YEARS.map((cy) => (
+                <Picker.Item key={cy} label={cy} value={cy} />
+              ))}
+            </Picker>
+          </View>
           <View style={s.labelBadge}>
             <Text style={s.label}>Pick an email and password</Text>
           </View>
@@ -119,7 +150,7 @@ const AccountSetup =() => {
           ) : null}
         </ScrollView>
         </KeyboardAvoidingView>
-        {year && email && password ? (
+        {year && classYearLocal && email && password ? (
           <View style={s.stickyBottom}>
             <TouchableOpacity style={s.nextButton} onPress={handleNextButtonPress} disabled={loading}>
               <Text style={s.nextButtonText}>{loading ? '...' : 'Next'}</Text>
@@ -179,7 +210,7 @@ const s = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 30,
-    paddingBottom: 20,
+    paddingBottom: 120,
     alignItems: 'center',
   },
   label: {
@@ -206,8 +237,8 @@ const s = StyleSheet.create({
     color: '#000000',
   },
   stickyBottom: {
-    paddingTop: 4,
-    paddingBottom: 8,
+    paddingTop: 6,
+    paddingBottom: 34,
     alignItems: 'center',
     backgroundColor: 'transparent',
   },

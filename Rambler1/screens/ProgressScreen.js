@@ -145,10 +145,19 @@ const ProgressScreen = () => {
   }
 
   // Calculate total credits (120 minimum for graduation)
-  const majorCredits = progress?.creditsCompleted || 0;
-  const coreCredits = coreProgress?.completedCredits || 0;
-  const totalCreditsCompleted = majorCredits + coreCredits;
+  const majorCreditsCompleted = progress?.creditsCompleted || 0;
+  const majorCreditsRequired = progress?.totalCreditsRequired || 0;
+  const coreCreditsCompleted = coreProgress?.completedCredits || 0;
+  const coreCreditsRequired = coreProgress?.totalCredits || 0;
   const totalCreditsNeeded = 120;
+
+  // Electives = everything not covered by major or core requirements
+  const accountedFor = majorCreditsRequired + coreCreditsRequired;
+  const electiveCreditsNeeded = Math.max(totalCreditsNeeded - accountedFor, 0);
+  // User's completed elective credits = total completed minus what counts toward major/core
+  const userTotalCompleted = (selectedCourses || []).length * 3; // rough: 3 credits per course
+  const electiveCreditsCompleted = Math.max(userTotalCompleted - majorCreditsCompleted - coreCreditsCompleted, 0);
+  const totalCreditsCompleted = majorCreditsCompleted + coreCreditsCompleted + Math.min(electiveCreditsCompleted, electiveCreditsNeeded);
 
   // ==================== ALL VIEW ====================
   const renderAllView = () => (
@@ -219,6 +228,18 @@ const ProgressScreen = () => {
             color="#7c3aed"
           />
         </TouchableOpacity>
+      )}
+
+      {/* Electives / Free credits bar */}
+      {electiveCreditsNeeded > 0 && (
+        <ProgressBar
+          label="Electives / Free Credits"
+          percent={Math.round((Math.min(electiveCreditsCompleted, electiveCreditsNeeded) / electiveCreditsNeeded) * 100)}
+          completed={Math.min(electiveCreditsCompleted, electiveCreditsNeeded)}
+          total={electiveCreditsNeeded}
+          unit="credits"
+          color="#d97706"
+        />
       )}
 
       {!selectedProgram && (

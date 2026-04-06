@@ -173,7 +173,59 @@ async function initDb() {
       selected_program2_id INTEGER,
       selected_minors TEXT,
       graduation_year TEXT,
+      class_year TEXT,
       updated_at TEXT
+    )
+  `);
+
+  // ---- RIASEC Quiz tables ----
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS quiz_results (
+      user_id TEXT PRIMARY KEY,
+      scores TEXT NOT NULL,
+      code TEXT NOT NULL,
+      profile_name TEXT,
+      answers TEXT,
+      scheduling_prefs TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS riasec_recommendations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL,
+      program_id INTEGER NOT NULL,
+      rank INTEGER DEFAULT 1,
+      rationale TEXT,
+      UNIQUE(code, program_id)
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS major_focus_areas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      program_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS focus_area_riasec (
+      focus_area_id INTEGER NOT NULL,
+      dimension TEXT NOT NULL,
+      weight INTEGER DEFAULT 1,
+      PRIMARY KEY (focus_area_id, dimension)
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS focus_area_courses (
+      focus_area_id INTEGER NOT NULL,
+      course_code TEXT NOT NULL,
+      PRIMARY KEY (focus_area_id, course_code)
     )
   `);
 
@@ -266,6 +318,13 @@ async function initDb() {
         [name, address, latitude, longitude, campus]
       );
     }
+  }
+
+  // Migrations — add columns to existing tables
+  try {
+    db.run('ALTER TABLE user_profiles ADD COLUMN class_year TEXT');
+  } catch (e) {
+    // Column already exists — ignore
   }
 
   save();
@@ -697,9 +756,9 @@ module.exports = {
   saveUserProfile(userId, data) {
     const minorsJson = data.selectedMinors ? JSON.stringify(data.selectedMinors) : '[]';
     db.run(
-      `INSERT OR REPLACE INTO user_profiles (user_id, selected_program_id, selected_program2_id, selected_minors, graduation_year, updated_at)
-       VALUES (?, ?, ?, ?, ?, datetime('now'))`,
-      [userId, data.selectedProgramId || null, data.selectedProgram2Id || null, minorsJson, data.graduationYear || '']
+      `INSERT OR REPLACE INTO user_profiles (user_id, selected_program_id, selected_program2_id, selected_minors, graduation_year, class_year, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
+      [userId, data.selectedProgramId || null, data.selectedProgram2Id || null, minorsJson, data.graduationYear || '', data.classYear || '']
     );
     save();
   },
@@ -842,6 +901,121 @@ module.exports = {
        ORDER BY max_percent DESC`,
       [termCode, termCode]
     );
+  },
+
+  // ===========================================================================
+  // RIASEC QUIZ
+  // ===========================================================================
+
+  saveQuizResults(userId, data) {
+    db.run(
+      `INSERT OR REPLACE INTO quiz_results (user_id, scores, code, profile_name, answers, scheduling_prefs, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
+      [
+        userId,
+        JSON.stringify(data.scores),
+        data.code,
+        data.profileName || '',
+        JSON.stringify(data.answers || {}),
+        JSON.stringify(data.schedulingPrefs || {}),
+      ]
+    );
+    save();
+  },
+
+  getQuizResults(userId) {
+    const rows = queryAll('SELECT * FROM quiz_results WHERE user_id = ?', [userId]);
+    if (rows.length === 0) return null;
+    const result = rows[0];
+    result.scores = JSON.parse(result.scores);
+    result.answers = result.answers ? JSON.parse(result.answers) : {};
+    result.scheduling_prefs = result.scheduling_prefs ? JSON.parse(result.scheduling_prefs) : {};
+    return result;
+  },
+
+  getRecommendationsForCode(code) {
+    // Try exact match first, then 2-letter prefix
+    let rows = queryAll(
+      `SELECT r.*, p.name as program_name, p.degree, p.school
+       FROM riasec_recommendations r
+       JOIN programs p ON p.id = r.program_id
+       WHERE r.code = ?
+       ORDER BY r.rank ASC`,
+      [code]
+    );
+    if (rows.length === 0 && code.length > 2) {
+      rows = queryAll(
+        `SELECT r.*, p.name as program_name, p.degree, p.school
+         FROM riasec_recommendations r
+         JOIN programs p ON p.id = r.program_id
+         WHERE r.code = ?
+         ORDER BY r.rank ASC`,
+        [code.substring(0, 2)]
+      );
+    }
+    return rows;
+  },
+
+  getFocusAreasForProgram(programId) {
+    const areas = queryAll(
+      `SELECT * FROM major_focus_areas WHERE program_id = ? ORDER BY id`,
+      [programId]
+    );
+    for (const area of areas) {
+      area.riasec = queryAll(
+        `SELECT dimension, weight FROM focus_area_riasec WHERE focus_area_id = ?`,
+        [area.id]
+      );
+      area.courses = queryAll(
+        `SELECT course_code FROM focus_area_courses WHERE focus_area_id = ?`,
+        [area.id]
+      ).map(r => r.course_code);
+    }
+    return areas;
+  },
+
+  getEnrichedRecommendations(code, userId, gradYear) {
+    const recs = this.getRecommendationsForCode(code);
+    const currentYear = new Date().getFullYear();
+    const gradYearNum = parseInt(gradYear) || (currentYear + 4);
+    const semestersLeft = Math.max((gradYearNum - currentYear) * 2, 1);
+    const coursesPerSemester = 5;
+
+    return recs.map(rec => {
+      const progress = this.getDegreeProgress(userId, rec.program_id);
+      if (!progress) {
+        return { ...rec, remainingCourses: null, feasible: null };
+      }
+
+      const remaining = progress.remainingCount;
+      const estimatedSemesters = Math.ceil(remaining / coursesPerSemester);
+      const feasible = remaining <= semestersLeft * coursesPerSemester;
+
+      return {
+        ...rec,
+        remainingCourses: remaining,
+        remainingCredits: progress.creditsRemaining,
+        totalRequired: progress.totalRequired,
+        completedCount: progress.completedCount,
+        percentComplete: progress.percentComplete,
+        estimatedSemesters,
+        feasible,
+        semestersLeft,
+      };
+    });
+  },
+
+  getRankedFocusAreas(programId, userScores) {
+    const areas = this.getFocusAreasForProgram(programId);
+    // Score each focus area against user's RIASEC scores
+    for (const area of areas) {
+      area.fitScore = 0;
+      for (const { dimension, weight } of area.riasec) {
+        area.fitScore += (userScores[dimension] || 0) * weight;
+      }
+    }
+    areas.sort((a, b) => b.fitScore - a.fitScore);
+    return areas;
   },
 
   close() {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, ActivityIndicator, StyleSheet, Platform, StatusBar } from 'react-native';
 import { useAppContext } from '../AppContext';
 import { signOut, getIdToken } from '../auth';
-import { fetchPrograms, fetchCourses, addUserCourse, saveUserProfile } from '../api';
+import { fetchPrograms, fetchCourses, addUserCourse, saveUserProfile, fetchEnrichedRecommendations, fetchQuizFocusAreas } from '../api';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
@@ -10,14 +10,20 @@ const ProfileScreen = ({ visible, onClose }) => {
   const {
     user, selectedProgram, setSelectedProgram, selectedProgram2, setSelectedProgram2,
     selectedMinors, setSelectedMinors, selectedCourses, setSelectedCourses, graduationYear,
+    classYear, quizResults, selectedFocus, setSelectedFocus,
   } = useAppContext();
 
+  const isUndecided = !selectedProgram || selectedProgram.id === 'undecided';
   const [mode, setMode] = useState('profile'); // 'profile', 'selectProgram', 'selectMinor', 'selectCourses'
   const [programs, setPrograms] = useState([]);
   const [minorsList, setMinorsList] = useState([]);
   const [courses, setCourses] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
+  const [recommendations, setRecommendations] = useState([]);
+  const [recsLoading, setRecsLoading] = useState(false);
+  const [focusAreas, setFocusAreas] = useState([]);
+  const [focusLoading, setFocusLoading] = useState(false);
 
   const initial = user?.displayName
     ? user.displayName.charAt(0).toUpperCase()
@@ -34,6 +40,14 @@ const ProfileScreen = ({ visible, onClose }) => {
         setLoading(false);
       });
     }
+    // Load enriched recommendations for undecided users
+    if (mode === 'selectProgram' && isUndecided && quizResults?.code && user) {
+      setRecsLoading(true);
+      fetchEnrichedRecommendations(quizResults.code, user.uid, graduationYear || '')
+        .then(data => setRecommendations(data || []))
+        .catch(() => {})
+        .finally(() => setRecsLoading(false));
+    }
     if (mode === 'selectMinor' && minorsList.length === 0) {
       setLoading(true);
       fetchPrograms('minor').then(data => {
@@ -49,6 +63,17 @@ const ProfileScreen = ({ visible, onClose }) => {
       });
     }
   }, [mode]);
+
+  // Load focus areas for decided (non-undecided) major
+  useEffect(() => {
+    if (visible && !isUndecided && selectedProgram?.id && user) {
+      setFocusLoading(true);
+      fetchQuizFocusAreas(selectedProgram.id, user.uid)
+        .then(data => setFocusAreas(data || []))
+        .catch(() => {})
+        .finally(() => setFocusLoading(false));
+    }
+  }, [visible, selectedProgram, user]);
 
   const handleSignOut = async () => {
     onClose();
@@ -155,6 +180,55 @@ const ProfileScreen = ({ visible, onClose }) => {
               <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 40 }} />
             ) : (
               <ScrollView contentContainerStyle={s.listContent}>
+                {/* Recommendations section for undecided users */}
+                {isUndecided && recommendations.length > 0 && !search && (
+                  <View style={s.recsSection}>
+                    <Text style={s.recsSectionTitle}>Recommended For You</Text>
+                    {quizResults && (
+                      <Text style={s.recsSectionSub}>
+                        Based on your {quizResults.code} — {quizResults.profileName} profile
+                      </Text>
+                    )}
+                    {recsLoading ? (
+                      <ActivityIndicator color="#A30046" style={{ marginTop: 12 }} />
+                    ) : (
+                      recommendations.map((rec, i) => (
+                        <TouchableOpacity
+                          key={rec.program_id || i}
+                          style={s.recItem}
+                          onPress={() => {
+                            const prog = programs.find(p => p.id === rec.program_id);
+                            if (prog) handleSelectProgram(prog);
+                          }}
+                        >
+                          <View style={s.recItemLeft}>
+                            <View style={[s.recRankBadge, rec.feasible === false && s.recRankBadgeWarn]}>
+                              <Text style={s.recRankText}>{i + 1}</Text>
+                            </View>
+                          </View>
+                          <View style={s.recItemRight}>
+                            <Text style={s.recItemName}>{rec.program_name}</Text>
+                            <Text style={s.recItemDegree}>{rec.degree} — {rec.school}</Text>
+                            {rec.rationale ? (
+                              <Text style={s.recItemRationale}>{rec.rationale}</Text>
+                            ) : null}
+                            {rec.feasible !== null && (
+                              <Text style={[s.recFeasibility, rec.feasible ? s.recFeasible : s.recNotFeasible]}>
+                                {rec.feasible
+                                  ? `Completable by ${graduationYear || 'graduation'} — ${rec.remainingCourses} courses left`
+                                  : `May need extra time — ${rec.remainingCourses} courses, ~${rec.estimatedSemesters} semesters`}
+                              </Text>
+                            )}
+                          </View>
+                        </TouchableOpacity>
+                      ))
+                    )}
+                    <View style={s.recsDivider}>
+                      <Text style={s.recsDividerText}>All Majors</Text>
+                    </View>
+                  </View>
+                )}
+
                 {filteredPrograms.map(prog => (
                   <TouchableOpacity
                     key={prog.id}
@@ -297,14 +371,20 @@ const ProfileScreen = ({ visible, onClose }) => {
 
             {/* Major */}
             {selectedProgram ? (
-              <TouchableOpacity style={s.infoBlock} onPress={() => setMode('selectProgram')}>
-                <Text style={s.label}>Major</Text>
-                <Text style={s.value}>{selectedProgram.name} ({selectedProgram.degree})</Text>
-                {selectedProgram.school && (
-                  <Text style={s.valueSmall}>{selectedProgram.school}</Text>
-                )}
-                <Text style={s.editHint}>Tap to change</Text>
-              </TouchableOpacity>
+              <View style={s.infoBlockRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.label}>Major</Text>
+                  <Text style={s.value}>
+                    {isUndecided ? 'Undecided' : `${selectedProgram.name} (${selectedProgram.degree})`}
+                  </Text>
+                  {!isUndecided && selectedProgram.school && (
+                    <Text style={s.valueSmall}>{selectedProgram.school}</Text>
+                  )}
+                </View>
+                <TouchableOpacity style={s.changeButton} onPress={() => setMode('selectProgram')}>
+                  <Text style={s.changeButtonText}>Change</Text>
+                </TouchableOpacity>
+              </View>
             ) : (
               <TouchableOpacity style={s.selectButton} onPress={() => setMode('selectProgram')}>
                 <Text style={s.selectButtonText}>Select Your Major</Text>
@@ -342,12 +422,126 @@ const ProfileScreen = ({ visible, onClose }) => {
               </View>
             ) : null}
 
+            {/* Class Year */}
+            {classYear ? (
+              <View style={s.infoBlock}>
+                <Text style={s.label}>Class Year</Text>
+                <Text style={s.value}>{classYear}</Text>
+              </View>
+            ) : null}
+
             {/* Courses completed */}
             <TouchableOpacity style={s.infoBlock} onPress={() => setMode('selectCourses')}>
               <Text style={s.label}>Courses Completed</Text>
               <Text style={s.value}>{(selectedCourses || []).length} courses</Text>
               <Text style={s.editHint}>Tap to add or remove</Text>
             </TouchableOpacity>
+
+            {/* Focus Area — only for decided majors */}
+            {!isUndecided && selectedProgram && (
+              <View style={s.infoBlock}>
+                <Text style={s.label}>Your Focus</Text>
+                {focusLoading ? (
+                  <ActivityIndicator color="#A30046" size="small" style={{ marginTop: 8 }} />
+                ) : focusAreas.length > 0 ? (
+                  <View>
+                    {selectedFocus ? (
+                      <View style={s.focusSelected}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.focusSelectedName}>{selectedFocus.name}</Text>
+                          {selectedFocus.description && (
+                            <Text style={s.focusSelectedDesc}>{selectedFocus.description}</Text>
+                          )}
+                          {selectedFocus.courses && selectedFocus.courses.length > 0 && (
+                            <Text style={s.focusSelectedCourses}>Key courses: {selectedFocus.courses.join(', ')}</Text>
+                          )}
+                        </View>
+                        <TouchableOpacity onPress={() => setSelectedFocus(null)} style={s.changeButton}>
+                          <Text style={s.changeButtonText}>Change</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <View>
+                        <Text style={s.focusPrompt}>Choose a specialization within {selectedProgram.name}:</Text>
+                        {focusAreas.map((area, i) => (
+                          <TouchableOpacity
+                            key={area.id || i}
+                            style={s.focusOption}
+                            onPress={() => setSelectedFocus(area)}
+                          >
+                            <View style={s.focusOptionLeft}>
+                              {i === 0 && area.fitScore ? (
+                                <View style={s.focusBestBadge}>
+                                  <Text style={s.focusBestText}>Best Fit</Text>
+                                </View>
+                              ) : null}
+                              <Text style={s.focusOptionName}>{area.name}</Text>
+                              {area.description && (
+                                <Text style={s.focusOptionDesc}>{area.description}</Text>
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ) : (
+                  <Text style={s.valueSmall}>No focus areas available for this major yet</Text>
+                )}
+              </View>
+            )}
+
+            <View style={s.divider} />
+
+            {/* RIASEC Quiz Results */}
+            {quizResults && quizResults.scores ? (
+              <View style={s.infoBlock}>
+                <Text style={s.label}>Personality Profile</Text>
+                <View style={s.riasecHeader}>
+                  <Text style={s.riasecCode}>{quizResults.code}</Text>
+                  <Text style={s.riasecProfileName}>{quizResults.profileName}</Text>
+                </View>
+                <View style={s.riasecBars}>
+                  {['R', 'I', 'A', 'S', 'E', 'C'].map((dim) => {
+                    const score = quizResults.scores[dim] || 0;
+                    const max = Math.max(...Object.values(quizResults.scores), 1);
+                    const pct = Math.round((score / max) * 100);
+                    const colors = { R: '#2E7D32', I: '#1565C0', A: '#7B1FA2', S: '#E65100', E: '#C62828', C: '#37474F' };
+                    const labels = { R: 'Realistic', I: 'Investigative', A: 'Artistic', S: 'Social', E: 'Enterprising', C: 'Conventional' };
+                    return (
+                      <View key={dim} style={s.riasecRow}>
+                        <Text style={s.riasecDim}>{dim}</Text>
+                        <View style={s.riasecBarBg}>
+                          <View style={[s.riasecBarFill, { width: `${pct}%`, backgroundColor: colors[dim] }]} />
+                        </View>
+                        <Text style={s.riasecScore}>{score}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
+
+            {/* Scheduling Preferences */}
+            {quizResults && quizResults.schedulingPrefs && Object.keys(quizResults.schedulingPrefs).length > 0 ? (
+              <View style={s.infoBlock}>
+                <Text style={s.label}>Scheduling Preferences</Text>
+                {Object.entries(quizResults.schedulingPrefs).map(([key, val]) => {
+                  const labels = {
+                    timePreference: 'Time',
+                    weekShape: 'Week Shape',
+                    classSize: 'Class Size',
+                    modality: 'Modality',
+                    campus: 'Campus',
+                  };
+                  return (
+                    <Text key={key} style={s.schedPref}>
+                      {labels[key] || key}: {val}
+                    </Text>
+                  );
+                })}
+              </View>
+            ) : null}
 
             <View style={s.divider} />
 
@@ -491,6 +685,250 @@ const s = StyleSheet.create({
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 18,
     color: '#A30046',
+    fontWeight: 'bold',
+  },
+  focusSelected: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8FA',
+    borderWidth: 1,
+    borderColor: '#E8C8D4',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 8,
+  },
+  focusSelectedName: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 18,
+    color: '#A30046',
+    fontWeight: 'bold',
+  },
+  focusSelectedDesc: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
+  focusSelectedCourses: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 12,
+    color: '#888',
+    marginTop: 4,
+  },
+  focusPrompt: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 15,
+    color: '#666',
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  focusOption: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 6,
+  },
+  focusOptionLeft: {
+    flex: 1,
+  },
+  focusOptionName: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 17,
+    color: '#333',
+    fontWeight: 'bold',
+  },
+  focusOptionDesc: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 13,
+    color: '#888',
+    marginTop: 2,
+  },
+  focusBestBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#A30046',
+    borderRadius: 10,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    marginBottom: 4,
+  },
+  focusBestText: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 11,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  riasecHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 10,
+    marginBottom: 12,
+  },
+  riasecCode: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 32,
+    color: '#A30046',
+    fontWeight: 'bold',
+    letterSpacing: 4,
+  },
+  riasecProfileName: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 18,
+    color: '#666',
+  },
+  riasecBars: {
+    width: '100%',
+  },
+  riasecRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  riasecDim: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    width: 18,
+  },
+  riasecBarBg: {
+    flex: 1,
+    height: 12,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginHorizontal: 8,
+  },
+  riasecBarFill: {
+    height: '100%',
+    borderRadius: 6,
+  },
+  riasecScore: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    width: 24,
+    textAlign: 'right',
+  },
+  schedPref: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 16,
+    color: '#555',
+    marginBottom: 4,
+  },
+  infoBlockRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  changeButton: {
+    backgroundColor: '#A30046',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    marginLeft: 12,
+  },
+  changeButtonText: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 15,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  recsSection: {
+    marginBottom: 8,
+  },
+  recsSectionTitle: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 20,
+    color: '#A30046',
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  recsSectionSub: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 13,
+    color: '#888',
+    marginBottom: 12,
+  },
+  recItem: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF8FA',
+    borderWidth: 1,
+    borderColor: '#E8C8D4',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+  },
+  recItemLeft: {
+    marginRight: 12,
+    justifyContent: 'flex-start',
+    paddingTop: 2,
+  },
+  recRankBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#A30046',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recRankBadgeWarn: {
+    backgroundColor: '#999',
+  },
+  recRankText: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 15,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  recItemRight: {
+    flex: 1,
+  },
+  recItemName: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 17,
+    color: '#333',
+    fontWeight: 'bold',
+  },
+  recItemDegree: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 13,
+    color: '#888',
+    marginTop: 2,
+  },
+  recItemRationale: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 13,
+    color: '#666',
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  recFeasibility: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 12,
+    marginTop: 6,
+    fontWeight: 'bold',
+  },
+  recFeasible: {
+    color: '#2E7D32',
+  },
+  recNotFeasible: {
+    color: '#C62828',
+  },
+  recsDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+    marginTop: 12,
+    marginBottom: 8,
+    paddingBottom: 8,
+  },
+  recsDividerText: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 16,
+    color: '#999',
     fontWeight: 'bold',
   },
   signOutButton: {

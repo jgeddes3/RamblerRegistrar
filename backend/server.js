@@ -455,6 +455,61 @@ app.get('/api/user/:uid/core-progress', (req, res) => {
 });
 
 // =============================================================================
+// RIASEC QUIZ API
+// =============================================================================
+
+// Save quiz results
+app.post('/api/user/:uid/quiz', requireAuth, (req, res) => {
+  if (req.user.uid !== req.params.uid) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  db.saveQuizResults(req.params.uid, req.body);
+  res.json({ success: true });
+});
+
+// Get quiz results
+app.get('/api/user/:uid/quiz', (req, res) => {
+  const results = db.getQuizResults(req.params.uid);
+  res.json(results || { error: 'No quiz results found' });
+});
+
+// Get enriched recommendations with feasibility data
+app.get('/api/quiz/recommendations/:code/enriched', (req, res) => {
+  const { uid, gradYear } = req.query;
+  if (!uid) return res.status(400).json({ error: 'uid required' });
+  const enriched = db.getEnrichedRecommendations(req.params.code.toUpperCase(), uid, gradYear || '');
+  // Sort: feasible first, then by original rank
+  enriched.sort((a, b) => {
+    if (a.feasible !== b.feasible) return a.feasible ? -1 : 1;
+    return (a.rank || 99) - (b.rank || 99);
+  });
+  res.json(enriched);
+});
+
+// Get major recommendations for a RIASEC code (for undecided students)
+app.get('/api/quiz/recommendations/:code', (req, res) => {
+  const recommendations = db.getRecommendationsForCode(req.params.code.toUpperCase());
+  res.json(recommendations);
+});
+
+// Get ranked focus areas for a decided student's program
+app.get('/api/quiz/focus/:programId', (req, res) => {
+  const uid = req.query.uid;
+  if (!uid) {
+    // No user context — just return focus areas unranked
+    const areas = db.getFocusAreasForProgram(parseInt(req.params.programId));
+    return res.json(areas);
+  }
+  const quiz = db.getQuizResults(uid);
+  if (!quiz) {
+    const areas = db.getFocusAreasForProgram(parseInt(req.params.programId));
+    return res.json(areas);
+  }
+  const ranked = db.getRankedFocusAreas(parseInt(req.params.programId), quiz.scores);
+  res.json(ranked);
+});
+
+// =============================================================================
 // STUDY ROOMS API (LibCal)
 // =============================================================================
 
@@ -627,6 +682,11 @@ app.listen(PORT, () => {
   console.log(`  GET  /api/core/areas`);
   console.log(`  GET  /api/core/areas/:school`);
   console.log(`  GET  /api/user/:uid/core-progress?school=...`);
+  console.log(`  --- RIASEC Quiz ---`);
+  console.log(`  POST /api/user/:uid/quiz`);
+  console.log(`  GET  /api/user/:uid/quiz`);
+  console.log(`  GET  /api/quiz/recommendations/:code`);
+  console.log(`  GET  /api/quiz/focus/:programId?uid=...`);
   console.log(`  --- Schedule Analysis ---`);
   console.log(`  POST /api/schedule/analyze`);
 });

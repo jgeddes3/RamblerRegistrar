@@ -269,6 +269,43 @@ export const fetchDegreeProgress = async (uid, programId) => {
 };
 
 // =============================================================================
+// RIASEC QUIZ
+// =============================================================================
+
+export const saveQuizResults = async (uid, quizData, authToken) => {
+  try {
+    const response = await fetch(`${API_BASE}/user/${uid}/quiz`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify(quizData),
+    });
+    return await response.json();
+  } catch (e) {
+    return null;
+  }
+};
+
+export const fetchQuizResults = async (uid) => {
+  return await apiFetch(`/user/${uid}/quiz`);
+};
+
+export const fetchEnrichedRecommendations = async (code, uid, gradYear) => {
+  return await apiFetch(`/quiz/recommendations/${code}/enriched?uid=${uid}&gradYear=${encodeURIComponent(gradYear)}`) || [];
+};
+
+export const fetchQuizRecommendations = async (code) => {
+  return await apiFetch(`/quiz/recommendations/${code}`) || [];
+};
+
+export const fetchQuizFocusAreas = async (programId, uid) => {
+  const uidParam = uid ? `?uid=${uid}` : '';
+  return await apiFetch(`/quiz/focus/${programId}${uidParam}`) || [];
+};
+
+// =============================================================================
 // STUDY ROOMS
 // =============================================================================
 

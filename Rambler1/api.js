@@ -3,6 +3,7 @@
 
 const API_BASE = __DEV__
   ? 'http://100.65.1.81:3001/api'
+  // ? 'http://192.168.1.70:3001/api'   // other network
   // ? 'http://10.246.110.54:3001/api'  // other network
   : 'https://your-production-url.com/api'; // Update for production
 

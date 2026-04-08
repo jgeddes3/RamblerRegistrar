@@ -624,11 +624,11 @@ app.post('/api/schedule/analyze', (req, res) => {
 // SCHEDULED SCRAPING
 // =============================================================================
 
-// Scrape every day at 4 AM (when LOCUS is least busy)
+// Scrape every day at 4 AM with enrollment data (when LOCUS is least busy)
 cron.schedule('0 4 * * *', async () => {
-  console.log(`[${new Date().toISOString()}] Running scheduled scrape...`);
+  console.log(`[${new Date().toISOString()}] Running scheduled scrape with enrollment data...`);
   try {
-    await scrape();
+    await scrape(null, null, true);
     console.log('Scheduled scrape complete.');
   } catch (err) {
     console.error('Scheduled scrape failed:', err);

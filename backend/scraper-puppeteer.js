@@ -28,7 +28,7 @@ class LocusPuppeteerScraper {
     console.log('Launching headless browser...');
     this.browser = await puppeteer.launch({
       headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     });
     this.page = await this.browser.newPage();
     await this.page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
@@ -41,7 +41,14 @@ class LocusPuppeteerScraper {
 
   async close() {
     if (this.browser) {
-      await this.browser.close();
+      try {
+        await this.page?.close().catch(() => {});
+        await new Promise(r => setTimeout(r, 2000)); // Let Chrome release file locks
+        await this.browser.close();
+      } catch (e) {
+        // Force kill if graceful close fails
+        try { this.browser.process()?.kill('SIGKILL'); } catch (k) {}
+      }
       this.browser = null;
       this.page = null;
     }
@@ -83,10 +90,15 @@ class LocusPuppeteerScraper {
   async selectSubject(subject) {
     console.log(`Setting subject: ${subject}...`);
     const subjectSelector = '[id="SSR_CLSRCH_WRK_SUBJECT$0"]';
+    // Clear field completely before typing
     await this.page.click(subjectSelector, { clickCount: 3 });
-    await this.page.type(subjectSelector, subject);
+    await this.page.keyboard.press('Backspace');
+    await new Promise(r => setTimeout(r, 300));
+    await this.page.click(subjectSelector);
+    await this.page.type(subjectSelector, subject, { delay: 50 });
     // Tab out to trigger validation
     await this.page.keyboard.press('Tab');
+    await new Promise(r => setTimeout(r, 1000));
     await this.waitForPeopleSoft();
   }
 
@@ -363,33 +375,53 @@ class LocusPuppeteerScraper {
     }
   }
 
-  // Scrape all subjects for a term
+  // Scrape all subjects for a term — restarts browser every BATCH_SIZE departments
+  // to avoid PeopleSoft stale session issues
   async scrapeAll(termCode, subjects, fetchEnrollment = false) {
-    await this.loadSearchForm();
-    await this.selectTerm(termCode);
-
+    const BATCH_SIZE = fetchEnrollment ? 5 : 15;
     const allSections = [];
 
-    for (const subject of subjects) {
-      console.log(`\n--- Scraping ${subject} ---`);
-      try {
-        const sections = await this.scrapeSubject(termCode, subject, fetchEnrollment);
-        allSections.push(...sections);
-        console.log(`  Found ${sections.length} sections for ${subject}`);
+    for (let batchStart = 0; batchStart < subjects.length; batchStart += BATCH_SIZE) {
+      const batch = subjects.slice(batchStart, batchStart + BATCH_SIZE);
+      const batchNum = Math.floor(batchStart / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(subjects.length / BATCH_SIZE);
 
-        // Go back to search form for next subject
-        if (subjects.indexOf(subject) < subjects.length - 1) {
-          await this.resetSearch();
-          await new Promise(r => setTimeout(r, 1500)); // Rate limit
-        }
-      } catch (err) {
-        console.error(`  Error scraping ${subject}: ${err.message}`);
-        // Try to recover by reloading
+      // Fresh browser session for each batch
+      if (batchStart > 0) {
+        console.log(`\n=== Restarting browser for batch ${batchNum}/${totalBatches} ===`);
+        await this.close();
+        await this.init();
+      }
+
+      await this.loadSearchForm();
+      await this.selectTerm(termCode);
+
+      for (let i = 0; i < batch.length; i++) {
+        const subject = batch[i];
+        console.log(`\n--- Scraping ${subject} (${batchStart + i + 1}/${subjects.length}) ---`);
         try {
-          await this.loadSearchForm();
-          await this.selectTerm(termCode);
-        } catch (e) {
-          console.error('  Recovery failed:', e.message);
+          const sections = await this.scrapeSubject(termCode, subject, fetchEnrollment);
+          allSections.push(...sections);
+          console.log(`  Found ${sections.length} sections for ${subject}`);
+
+          // Go back to search form for next subject
+          if (i < batch.length - 1) {
+            try {
+              await this.resetSearch();
+            } catch (e) {
+              await this.loadSearchForm();
+              await this.selectTerm(termCode);
+            }
+            await new Promise(r => setTimeout(r, 1500));
+          }
+        } catch (err) {
+          console.error(`  Error scraping ${subject}: ${err.message}`);
+          try {
+            await this.loadSearchForm();
+            await this.selectTerm(termCode);
+          } catch (e) {
+            console.error('  Recovery failed:', e.message);
+          }
         }
       }
     }
@@ -431,9 +463,8 @@ async function scrape(termCode, subjectsToScrape, fetchEnrollment = false) {
 
     console.log(`\nTotal sections found: ${sections.length}`);
 
-    // Store in database
+    // Store in database — INSERT OR REPLACE updates existing, adds new
     await db.initDb();
-    db.clearSections(code);
     for (const section of sections) {
       db.insertSection(code, section);
     }

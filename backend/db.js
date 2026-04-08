@@ -399,6 +399,13 @@ module.exports = {
     save();
   },
 
+  clearSectionsForSubjects(termCode, subjects) {
+    for (const subject of subjects) {
+      db.run('DELETE FROM sections WHERE term_code = ? AND subject = ?', [termCode, subject]);
+    }
+    save();
+  },
+
   recordScrape(termCode, termName) {
     db.run(
       `INSERT OR REPLACE INTO terms (code, name, last_scraped) VALUES (?, ?, datetime('now'))`,

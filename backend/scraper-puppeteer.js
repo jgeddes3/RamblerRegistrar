@@ -376,8 +376,10 @@ class LocusPuppeteerScraper {
   }
 
   // Scrape all subjects for a term — restarts browser every BATCH_SIZE departments
-  // to avoid PeopleSoft stale session issues
-  async scrapeAll(termCode, subjects, fetchEnrollment = false) {
+  // to avoid PeopleSoft stale session issues.
+  // onSubjectComplete(sections) is called after each successful subject scrape,
+  // allowing the caller to persist data incrementally so partial runs aren't lost.
+  async scrapeAll(termCode, subjects, fetchEnrollment = false, onSubjectComplete = null) {
     const BATCH_SIZE = fetchEnrollment ? 5 : 15;
     const allSections = [];
 
@@ -403,6 +405,17 @@ class LocusPuppeteerScraper {
           const sections = await this.scrapeSubject(termCode, subject, fetchEnrollment);
           allSections.push(...sections);
           console.log(`  Found ${sections.length} sections for ${subject}`);
+
+          // Persist this subject's sections immediately so a later crash
+          // doesn't lose them. Caught locally so a transient DB issue doesn't
+          // kill the in-memory accumulation.
+          if (onSubjectComplete && sections.length > 0) {
+            try {
+              onSubjectComplete(sections);
+            } catch (saveErr) {
+              console.error(`  Failed to save sections for ${subject}: ${saveErr.message}`);
+            }
+          }
 
           // Go back to search form for next subject
           if (i < batch.length - 1) {
@@ -455,34 +468,49 @@ async function scrape(termCode, subjectsToScrape, fetchEnrollment = false) {
   console.log(`\nStarting LOCUS Puppeteer scrape for term ${code}${fetchEnrollment ? ' (with enrollment data)' : ''}`);
   console.log(`Scraping ${subjects.length} departments...\n`);
 
+  // Initialize DB upfront so per-subject saves can persist immediately
+  await db.initDb();
+
   const scraper = new LocusPuppeteerScraper();
+  let savedCount = 0;
+  let scrapeError = null;
+  let allSections = [];
 
   try {
     await scraper.init();
-    const sections = await scraper.scrapeAll(code, subjects, fetchEnrollment);
 
-    console.log(`\nTotal sections found: ${sections.length}`);
+    // Per-subject callback inserts each subject's sections immediately,
+    // so partial data is preserved even if a later subject crashes the run.
+    allSections = await scraper.scrapeAll(code, subjects, fetchEnrollment, (newSections) => {
+      for (const section of newSections) {
+        db.insertSection(code, section);
+      }
+      savedCount += newSections.length;
+    });
 
-    // Store in database — INSERT OR REPLACE updates existing, adds new
-    await db.initDb();
-    for (const section of sections) {
-      db.insertSection(code, section);
-    }
-    db.recordScrape(code, `Term ${code}`);
-
-    // Bump catalog version
-    const newVersion = db.bumpVersion();
-    console.log(`Stored ${sections.length} sections. Catalog version: ${newVersion}`);
-
-    // Take enrollment snapshot for trend tracking
-    const snapshotCount = db.snapshotEnrollment(code);
-    console.log(`Enrollment snapshot: ${snapshotCount} sections recorded`);
-
-    db.close();
-    return sections;
+    console.log(`\nTotal sections found: ${allSections.length}`);
+  } catch (err) {
+    scrapeError = err;
+    console.error(`\nScrape interrupted: ${err.message}`);
+    console.log(`Sections saved before interruption: ${savedCount}`);
   } finally {
+    // Finalize whatever we got — even partial data is useful
+    if (savedCount > 0) {
+      db.recordScrape(code, `Term ${code}`);
+      const newVersion = db.bumpVersion();
+      console.log(`Stored ${savedCount} sections. Catalog version: ${newVersion}`);
+
+      const snapshotCount = db.snapshotEnrollment(code);
+      console.log(`Enrollment snapshot: ${snapshotCount} sections recorded`);
+    }
+
     await scraper.close();
+    db.close();
   }
+
+  // Re-throw so the cron's retry logic can react to failures
+  if (scrapeError) throw scrapeError;
+  return allSections;
 }
 
 // Run if called directly

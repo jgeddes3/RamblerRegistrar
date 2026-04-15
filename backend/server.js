@@ -624,14 +624,27 @@ app.post('/api/schedule/analyze', (req, res) => {
 // SCHEDULED SCRAPING
 // =============================================================================
 
-// Scrape every day at 4 AM with enrollment data (when LOCUS is least busy)
-cron.schedule('0 4 * * *', async () => {
-  console.log(`[${new Date().toISOString()}] Running scheduled scrape with enrollment data...`);
-  try {
-    await scrape(null, null, true);
-    console.log('Scheduled scrape complete.');
-  } catch (err) {
-    console.error('Scheduled scrape failed:', err);
+// Scrape every day at 10 AM with enrollment data (LOCUS is down overnight through early morning)
+// Retries up to 3 times with 5-minute delays if LOCUS is unreachable
+cron.schedule('0 10 * * *', async () => {
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY_MS = 5 * 60 * 1000; // 5 minutes
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    console.log(`[${new Date().toISOString()}] Running scheduled scrape (attempt ${attempt}/${MAX_RETRIES})...`);
+    try {
+      await scrape(null, null, true);
+      console.log('Scheduled scrape complete.');
+      return; // Success — exit retry loop
+    } catch (err) {
+      console.error(`Scheduled scrape attempt ${attempt} failed:`, err.message || err);
+      if (attempt < MAX_RETRIES) {
+        console.log(`Retrying in ${RETRY_DELAY_MS / 60000} minutes...`);
+        await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+      } else {
+        console.error('All scrape attempts failed.');
+      }
+    }
   }
 });
 

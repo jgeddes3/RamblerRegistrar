@@ -331,6 +331,13 @@ async function initDb() {
   return db;
 }
 
+// Safely parse a JSON string column; return fallback on null/empty/invalid
+// instead of throwing (a bad row must not break every future read).
+function safeJsonParse(value, fallback) {
+  if (value === null || value === undefined || value === '') return fallback;
+  try { return JSON.parse(value); } catch { return fallback; }
+}
+
 // Save database to disk
 function save() {
   if (!db) return;
@@ -640,7 +647,8 @@ module.exports = {
        VALUES (?, ?, 'completed', ?, ?)`,
       [userId, courseCode, grade || null, semester || null]
     );
-    this.bumpVersion();
+    // User course data is per-user and must NOT bump the shared catalog version
+    // (doing so forces every client to re-download the whole catalog).
     save();
   },
 
@@ -649,7 +657,7 @@ module.exports = {
       'DELETE FROM user_courses WHERE user_id = ? AND course_code = ?',
       [userId, courseCode]
     );
-    this.bumpVersion();
+    // User course data is per-user; do not bump the shared catalog version.
     save();
   },
 
@@ -747,7 +755,7 @@ module.exports = {
     if (rows.length === 0) return null;
     const profile = rows[0];
     // Parse minors JSON
-    profile.selected_minors_parsed = profile.selected_minors ? JSON.parse(profile.selected_minors) : [];
+    profile.selected_minors_parsed = safeJsonParse(profile.selected_minors, []);
     // Fetch full program objects
     if (profile.selected_program_id) {
       profile.program = this.getProgramById(profile.selected_program_id);
@@ -851,7 +859,8 @@ module.exports = {
 
   // Take a snapshot of current enrollment for all sections in a term
   snapshotEnrollment(termCode) {
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = now.toISOString().split('T')[0] + 'T' + String(now.getUTCHours()).padStart(2, '0');
     const sections = this.getAllSections(termCode);
     let count = 0;
     for (const s of sections) {
@@ -920,7 +929,7 @@ module.exports = {
        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
       [
         userId,
-        JSON.stringify(data.scores),
+        JSON.stringify(data.scores || {}),
         data.code,
         data.profileName || '',
         JSON.stringify(data.answers || {}),
@@ -934,9 +943,9 @@ module.exports = {
     const rows = queryAll('SELECT * FROM quiz_results WHERE user_id = ?', [userId]);
     if (rows.length === 0) return null;
     const result = rows[0];
-    result.scores = JSON.parse(result.scores);
-    result.answers = result.answers ? JSON.parse(result.answers) : {};
-    result.scheduling_prefs = result.scheduling_prefs ? JSON.parse(result.scheduling_prefs) : {};
+    result.scores = safeJsonParse(result.scores, {});
+    result.answers = safeJsonParse(result.answers, {});
+    result.scheduling_prefs = safeJsonParse(result.scheduling_prefs, {});
     return result;
   },
 
@@ -1023,6 +1032,27 @@ module.exports = {
     }
     areas.sort((a, b) => b.fitScore - a.fitScore);
     return areas;
+  },
+
+  // Recent enrollment history grouped by class_number, newest-last, capped at
+  // maxPoints per section. Used to build the Firestore `recentHistory` sparkline.
+  getRecentHistoryByClass(termCode, maxPoints = 30) {
+    const rows = queryAll(
+      `SELECT class_number, snapshot_date, enrollment_total, enrollment_cap
+       FROM enrollment_history WHERE term_code = ?
+       ORDER BY class_number, snapshot_date DESC`,
+      [termCode]
+    );
+    const map = {};
+    for (const r of rows) {
+      const key = String(r.class_number);
+      if (!map[key]) map[key] = [];
+      if (map[key].length < maxPoints) {
+        map[key].push({ date: r.snapshot_date, total: r.enrollment_total, cap: r.enrollment_cap });
+      }
+    }
+    for (const k in map) map[k].reverse();
+    return map;
   },
 
   close() {

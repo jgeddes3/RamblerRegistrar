@@ -1,6 +1,8 @@
 // API client for the Rambler Backend server
 // Fetches catalog data, live sections, and enrollment from the backend
 
+import { getIdToken } from './auth';
+
 const API_BASE = __DEV__
   ? 'http://100.65.1.81:3001/api'
   // ? 'http://192.168.1.70:3001/api'   // other network
@@ -16,6 +18,25 @@ const apiFetch = async (endpoint) => {
     return await response.json();
   } catch (error) {
     console.error(`API fetch failed for ${endpoint}:`, error.message);
+    return null;
+  }
+};
+
+// Authenticated GET — attaches the signed-in user's Firebase ID token. Use for
+// endpoints that return the current user's own private data (profile, courses,
+// grades, saved locations, quiz). Returns null if not signed in or on error.
+const apiFetchAuth = async (endpoint) => {
+  try {
+    const token = await getIdToken();
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(`Authed API fetch failed for ${endpoint}:`, error.message);
     return null;
   }
 };
@@ -137,11 +158,11 @@ export const analyzeSchedule = async (sectionIds, termCode) => {
 // =============================================================================
 
 export const fetchUserLocations = async (uid) => {
-  return await apiFetch(`/user/${uid}/locations`) || [];
+  return await apiFetchAuth(`/user/${uid}/locations`) || [];
 };
 
 export const fetchUserPrimaryLocation = async (uid) => {
-  return await apiFetch(`/user/${uid}/location/primary`);
+  return await apiFetchAuth(`/user/${uid}/location/primary`);
 };
 
 export const setUserLocation = async (uid, label, address, latitude, longitude, isPrimary, authToken) => {
@@ -177,7 +198,7 @@ export const setUserDorm = async (uid, dormName, authToken) => {
 };
 
 export const fetchWalkTimeFromHome = async (uid, buildingName) => {
-  return await apiFetch(`/user/${uid}/walktime/${encodeURIComponent(buildingName)}`);
+  return await apiFetchAuth(`/user/${uid}/walktime/${encodeURIComponent(buildingName)}`);
 };
 
 // =============================================================================
@@ -205,7 +226,7 @@ export const fetchEvents = async (days = 7) => {
 // =============================================================================
 
 export const fetchUserProfile = async (uid) => {
-  return await apiFetch(`/user/${uid}/profile`);
+  return await apiFetchAuth(`/user/${uid}/profile`);
 };
 
 export const saveUserProfile = async (uid, profileData, authToken) => {
@@ -233,7 +254,7 @@ export const fetchProgramById = async (id) => {
 // =============================================================================
 
 export const fetchUserCourses = async (uid) => {
-  return await apiFetch(`/user/${uid}/courses`) || [];
+  return await apiFetchAuth(`/user/${uid}/courses`) || [];
 };
 
 export const addUserCourse = async (uid, courseCode, grade, semester, authToken) => {
@@ -265,7 +286,7 @@ export const removeUserCourse = async (uid, courseCode, authToken) => {
 };
 
 export const fetchDegreeProgress = async (uid, programId) => {
-  return await apiFetch(`/user/${uid}/progress/${programId}`);
+  return await apiFetchAuth(`/user/${uid}/progress/${programId}`);
 };
 
 // =============================================================================
@@ -289,7 +310,7 @@ export const saveQuizResults = async (uid, quizData, authToken) => {
 };
 
 export const fetchQuizResults = async (uid) => {
-  return await apiFetch(`/user/${uid}/quiz`);
+  return await apiFetchAuth(`/user/${uid}/quiz`);
 };
 
 export const fetchEnrichedRecommendations = async (code, uid, gradYear) => {
@@ -362,7 +383,7 @@ export const fetchCoreAreas = async (school) => {
 
 export const fetchUserCoreProgress = async (uid, school) => {
   const query = school ? `?school=${encodeURIComponent(school)}` : '';
-  return await apiFetch(`/user/${uid}/core-progress${query}`);
+  return await apiFetchAuth(`/user/${uid}/core-progress${query}`);
 };
 
 // =============================================================================

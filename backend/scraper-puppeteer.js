@@ -502,10 +502,24 @@ async function scrape(termCode, subjectsToScrape, fetchEnrollment = false) {
 
       const snapshotCount = db.snapshotEnrollment(code);
       console.log(`Enrollment snapshot: ${snapshotCount} sections recorded`);
+
+      // Dual-write the finalized term to Firestore. Non-fatal: SQLite stays the
+      // source of truth during the migration, so a Firestore hiccup never fails
+      // the scrape — the next run re-syncs.
+      try {
+        const { syncTermToFirestore } = require('./firestore-sync');
+        const fsResult = await syncTermToFirestore(code);
+        console.log(`Firestore sync: ${fsResult.sections} sections, ${fsResult.instructors} instructors, ${fsResult.pruned} marked removed`);
+      } catch (fsErr) {
+        console.error(`Firestore sync failed (SQLite remains source of truth): ${fsErr.message}`);
+      }
     }
 
     await scraper.close();
-    db.close();
+    // Only close the shared DB handle when run as a standalone script. When the
+    // server imports and runs this in-process (cron or /api/scrape), closing
+    // would free the server's live handle and break subsequent API queries.
+    if (require.main === module) db.close();
   }
 
   // Re-throw so the cron's retry logic can react to failures

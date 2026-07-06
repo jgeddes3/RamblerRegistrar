@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const cron = require('node-cron');
 const admin = require('firebase-admin');
 const path = require('path');
@@ -15,8 +16,46 @@ admin.initializeApp({
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+// Behind a reverse proxy (Cloudflare Tunnel / nginx) in production so
+// express-rate-limit and req.ip see the real client IP. Trust the first hop.
+app.set('trust proxy', 1);
+
+// --- CORS: allow non-browser clients (the mobile app and curl send no Origin)
+// plus any explicitly allowlisted origin. Set ALLOWED_ORIGINS (comma-separated)
+// in production; with none set it stays permissive for local development. ---
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
+  .split(',').map((s) => s.trim()).filter(Boolean);
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || ALLOWED_ORIGINS.length === 0 || ALLOWED_ORIGINS.includes(origin)) {
+      return cb(null, true);
+    }
+    return cb(new Error('Not allowed by CORS'));
+  },
+}));
+
 app.use(express.json());
+
+// --- Rate limiting: generous global cap to catch abuse without hurting normal
+// use, plus a strict cap on the expensive scrape trigger. ---
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_MAX) || 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/', globalLimiter);
+
+const scrapeLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Tracks whether a scrape (manual or scheduled) is running so concurrent
+// triggers can't spawn overlapping heavyweight Puppeteer runs.
+let scrapeInProgress = false;
 
 // Middleware to verify Firebase auth token (for protected routes)
 const requireAuth = async (req, res, next) => {
@@ -33,6 +72,26 @@ const requireAuth = async (req, res, next) => {
   } catch (error) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
+};
+
+// Require the caller to be an admin: a Firebase custom claim `admin:true` or an
+// entry in the ADMIN_UIDS env allowlist. Must run after requireAuth.
+const ADMIN_UIDS = (process.env.ADMIN_UIDS || '')
+  .split(',').map((s) => s.trim()).filter(Boolean);
+const requireAdmin = (req, res, next) => {
+  if (req.user && (req.user.admin === true || ADMIN_UIDS.includes(req.user.uid))) {
+    return next();
+  }
+  return res.status(403).json({ error: 'Admin privileges required' });
+};
+
+// Require the authenticated user to own the :uid in the path. Must run after
+// requireAuth. Blocks reading another student's private data (grades, GPS, etc.).
+const requireOwner = (req, res, next) => {
+  if (!req.user || req.user.uid !== req.params.uid) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  next();
 };
 
 // =============================================================================
@@ -170,22 +229,22 @@ app.get('/api/enrollment/:termCode/:subject/:catalogNumber', (req, res) => {
   res.json(stats);
 });
 
-// Trigger a manual scrape (protected — add auth in production)
-app.post('/api/scrape', requireAuth, async (req, res) => {
+// Trigger a manual scrape (admin only; guarded against overlapping runs)
+app.post('/api/scrape', requireAuth, requireAdmin, scrapeLimiter, (req, res) => {
   const { termCode } = req.body;
   if (!termCode) {
     return res.status(400).json({ error: 'termCode required in request body' });
   }
-
-  try {
-    res.json({ status: 'started', termCode });
-    // Run scrape in background
-    scrape(termCode)
-      .then(() => console.log(`Scrape complete for ${termCode}`))
-      .catch((err) => console.error(`Scrape failed for ${termCode}:`, err));
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  if (scrapeInProgress) {
+    return res.status(409).json({ error: 'A scrape is already in progress' });
   }
+  scrapeInProgress = true;
+  res.json({ status: 'started', termCode });
+  // Run scrape in background; clear the lock when it settles.
+  scrape(termCode)
+    .then(() => console.log(`Scrape complete for ${termCode}`))
+    .catch((err) => console.error(`Scrape failed for ${termCode}:`, err))
+    .finally(() => { scrapeInProgress = false; });
 });
 
 // =============================================================================
@@ -193,7 +252,7 @@ app.post('/api/scrape', requireAuth, async (req, res) => {
 // =============================================================================
 
 // Add a new course
-app.post('/api/admin/add-course', requireAuth, (req, res) => {
+app.post('/api/admin/add-course', requireAuth, requireAdmin, (req, res) => {
   try {
     const course = db.addCourse(req.body);
     res.json({ success: true, course });
@@ -203,7 +262,7 @@ app.post('/api/admin/add-course', requireAuth, (req, res) => {
 });
 
 // Update an existing course
-app.post('/api/admin/update-course', requireAuth, (req, res) => {
+app.post('/api/admin/update-course', requireAuth, requireAdmin, (req, res) => {
   const { code, ...updates } = req.body;
   if (!code) return res.status(400).json({ error: 'code is required' });
   try {
@@ -216,7 +275,7 @@ app.post('/api/admin/update-course', requireAuth, (req, res) => {
 });
 
 // Update a program
-app.post('/api/admin/update-program', requireAuth, (req, res) => {
+app.post('/api/admin/update-program', requireAuth, requireAdmin, (req, res) => {
   const { id, ...updates } = req.body;
   if (!id) return res.status(400).json({ error: 'id is required' });
   try {
@@ -229,7 +288,7 @@ app.post('/api/admin/update-program', requireAuth, (req, res) => {
 });
 
 // Manually bump catalog version
-app.post('/api/admin/bump-version', requireAuth, (req, res) => {
+app.post('/api/admin/bump-version', requireAuth, requireAdmin, (req, res) => {
   try {
     const version = db.bumpVersion();
     res.json({ success: true, version });
@@ -319,7 +378,7 @@ app.get('/api/events', async (req, res) => {
 // =============================================================================
 
 // Get user profile (saved onboarding selections)
-app.get('/api/user/:uid/profile', (req, res) => {
+app.get('/api/user/:uid/profile', requireAuth, requireOwner, (req, res) => {
   const profile = db.getUserProfile(req.params.uid);
   res.json(profile || { error: 'No profile found' });
 });
@@ -338,7 +397,7 @@ app.post('/api/user/:uid/profile', requireAuth, (req, res) => {
 // =============================================================================
 
 // Get courses a user has taken
-app.get('/api/user/:uid/courses', (req, res) => {
+app.get('/api/user/:uid/courses', requireAuth, requireOwner, (req, res) => {
   const courses = db.getUserCourses(req.params.uid);
   res.json(courses);
 });
@@ -363,7 +422,7 @@ app.delete('/api/user/:uid/courses/:code', requireAuth, (req, res) => {
 });
 
 // Get degree progress for a user in a specific program
-app.get('/api/user/:uid/progress/:programId', (req, res) => {
+app.get('/api/user/:uid/progress/:programId', requireAuth, requireOwner, (req, res) => {
   const progress = db.getDegreeProgress(req.params.uid, parseInt(req.params.programId));
   res.json(progress);
 });
@@ -373,13 +432,13 @@ app.get('/api/user/:uid/progress/:programId', (req, res) => {
 // =============================================================================
 
 // Get a user's saved locations
-app.get('/api/user/:uid/locations', (req, res) => {
+app.get('/api/user/:uid/locations', requireAuth, requireOwner, (req, res) => {
   const locations = db.getUserLocations(req.params.uid);
   res.json(locations);
 });
 
 // Get user's primary location (home/dorm)
-app.get('/api/user/:uid/location/primary', (req, res) => {
+app.get('/api/user/:uid/location/primary', requireAuth, requireOwner, (req, res) => {
   const location = db.getUserPrimaryLocation(req.params.uid);
   res.json(location || { error: 'No primary location set' });
 });
@@ -389,9 +448,11 @@ app.post('/api/user/:uid/locations', requireAuth, (req, res) => {
   if (req.user.uid !== req.params.uid) {
     return res.status(403).json({ error: 'Forbidden' });
   }
-  const { label, address, latitude, longitude, isPrimary } = req.body;
-  if (!label || !latitude || !longitude) {
-    return res.status(400).json({ error: 'label, latitude, and longitude required' });
+  const { label, address, isPrimary } = req.body;
+  const latitude = Number(req.body.latitude);
+  const longitude = Number(req.body.longitude);
+  if (!label || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return res.status(400).json({ error: 'label and numeric latitude/longitude required' });
   }
   db.setUserLocation(req.params.uid, label, address, latitude, longitude, isPrimary);
   res.json({ success: true });
@@ -419,7 +480,7 @@ app.delete('/api/user/:uid/locations/:label', requireAuth, (req, res) => {
 });
 
 // Get walk time from user's home to a building
-app.get('/api/user/:uid/walktime/:building', (req, res) => {
+app.get('/api/user/:uid/walktime/:building', requireAuth, requireOwner, (req, res) => {
   const home = db.getUserPrimaryLocation(req.params.uid);
   if (!home) return res.status(404).json({ error: 'No primary location set' });
   const resultsB = db.getBuildingByName(decodeURIComponent(req.params.building));
@@ -448,7 +509,7 @@ app.get('/api/core/areas/:school', (req, res) => {
 });
 
 // Get user's core progress
-app.get('/api/user/:uid/core-progress', (req, res) => {
+app.get('/api/user/:uid/core-progress', requireAuth, requireOwner, (req, res) => {
   const { school } = req.query;
   const progress = db.getUserCoreProgress(req.params.uid, school || null);
   res.json(progress);
@@ -463,12 +524,15 @@ app.post('/api/user/:uid/quiz', requireAuth, (req, res) => {
   if (req.user.uid !== req.params.uid) {
     return res.status(403).json({ error: 'Forbidden' });
   }
+  if (!req.body || typeof req.body.scores !== 'object' || req.body.scores === null) {
+    return res.status(400).json({ error: 'scores object required' });
+  }
   db.saveQuizResults(req.params.uid, req.body);
   res.json({ success: true });
 });
 
 // Get quiz results
-app.get('/api/user/:uid/quiz', (req, res) => {
+app.get('/api/user/:uid/quiz', requireAuth, requireOwner, (req, res) => {
   const results = db.getQuizResults(req.params.uid);
   res.json(results || { error: 'No quiz results found' });
 });
@@ -593,7 +657,7 @@ app.get('/api/enrollment/history/:termCode/:subject/:catalogNumber', (req, res) 
 });
 
 // Take an enrollment snapshot (triggered after scrape or manually)
-app.post('/api/enrollment/snapshot/:termCode', requireAuth, (req, res) => {
+app.post('/api/enrollment/snapshot/:termCode', requireAuth, requireAdmin, (req, res) => {
   const count = db.snapshotEnrollment(req.params.termCode);
   res.json({ success: true, sectionsSnapshotted: count });
 });
@@ -621,30 +685,58 @@ app.post('/api/schedule/analyze', (req, res) => {
 });
 
 // =============================================================================
+// 404 + ERROR HANDLING (must be registered after all routes)
+// =============================================================================
+
+// Unmatched routes
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
+// Terminal error handler — logs internally, returns a generic message so stack
+// traces and internal error text never leak to clients. (4-arg = error handler.)
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error(`[error] ${req.method} ${req.originalUrl}:`, err.message || err);
+  if (res.headersSent) return next(err);
+  res.status(err.status || 500).json({ error: 'Internal server error' });
+});
+
+// =============================================================================
 // SCHEDULED SCRAPING
 // =============================================================================
 
-// Scrape every day at 10 AM with enrollment data (LOCUS is down overnight through early morning)
+// Scrape once daily at 10 AM with enrollment data
 // Retries up to 3 times with 5-minute delays if LOCUS is unreachable
 cron.schedule('0 10 * * *', async () => {
+  if (scrapeInProgress) {
+    console.log('Scheduled scrape skipped — a scrape is already running.');
+    return;
+  }
+  scrapeInProgress = true;
+
   const MAX_RETRIES = 3;
   const RETRY_DELAY_MS = 5 * 60 * 1000; // 5 minutes
 
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    console.log(`[${new Date().toISOString()}] Running scheduled scrape (attempt ${attempt}/${MAX_RETRIES})...`);
-    try {
-      await scrape(null, null, true);
-      console.log('Scheduled scrape complete.');
-      return; // Success — exit retry loop
-    } catch (err) {
-      console.error(`Scheduled scrape attempt ${attempt} failed:`, err.message || err);
-      if (attempt < MAX_RETRIES) {
-        console.log(`Retrying in ${RETRY_DELAY_MS / 60000} minutes...`);
-        await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
-      } else {
-        console.error('All scrape attempts failed.');
+  try {
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      console.log(`[${new Date().toISOString()}] Running scheduled scrape (attempt ${attempt}/${MAX_RETRIES})...`);
+      try {
+        await scrape(null, null, true);
+        console.log('Scheduled scrape complete.');
+        return; // Success — exit retry loop (finally still clears the lock)
+      } catch (err) {
+        console.error(`Scheduled scrape attempt ${attempt} failed:`, err.message || err);
+        if (attempt < MAX_RETRIES) {
+          console.log(`Retrying in ${RETRY_DELAY_MS / 60000} minutes...`);
+          await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+        } else {
+          console.error('All scrape attempts failed.');
+        }
       }
     }
+  } finally {
+    scrapeInProgress = false;
   }
 });
 

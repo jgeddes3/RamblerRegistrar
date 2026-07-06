@@ -1,0 +1,172 @@
+rules_version = '2';
+
+// =============================================================================
+// RamblerRegistrar — Firestore Security Rules (Phase 0.5)
+// =============================================================================
+// Assumed data model:
+//   CATALOG (read: any authenticated user incl. anonymous; write: Admin SDK only,
+//   which bypasses these rules — so client writes are denied):
+//     courses/{courseCode}                      programs/{id}(+requiredCourses)
+//     terms/{term}/sections/{classNumber}       terms/{term}/analytics/{doc}
+//     instructors/{id}                          buildings/{name}
+//     coreAreas/{id}/**                         coreSchoolOverrides/{id}
+//     riasecRecommendations/{code}              focusAreas/{id}/**
+//
+//   USER DATA (read+write: document owner only):
+//     users/{uid}  { selectedProgramId?, selectedProgram2Id?, selectedMinors[],
+//                    graduationYear?, classYear?, expoPushToken?, createdAt?, updatedAt? }
+//       courses/{courseCode}  { status?, grade?, semester?, courseCode? }
+//       locations/{label}     { label?, address?, latitude, longitude, isPrimary? }
+//       private/{doc}         { scores, code?, profileName?, answers?, schedulingPrefs?, createdAt? }
+//       watches/{classNumber} { termCode?, classNumber, createdAt? }
+//       schedules/{id}        { name?, termCode?, sectionIds[], createdAt?, updatedAt? }
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------- Helpers ----------------------------
+    function isAuthed() { return request.auth != null; }
+    function isOwner(uid) { return isAuthed() && request.auth.uid == uid; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // Optional string field: absent, or a string within a max length.
+    function optStr(d, field, maxLen) {
+      return !(field in d) || (d[field] is string && d[field].size() <= maxLen);
+    }
+    // Program/course id reference: string (<=64) or integer.
+    function idRefOk(v) {
+      return v == null || (v is string && v.size() <= 64) || v is int;
+    }
+    // createdAt must be unchanged on update (immutable) if it exists.
+    function createdAtImmutable() {
+      return !('createdAt' in existing()) ||
+             (('createdAt' in incoming()) && incoming().createdAt == existing().createdAt);
+    }
+
+    // ---------------------------- Validators ----------------------------
+    function validProfile(d) {
+      return d.keys().hasOnly(['selectedProgramId','selectedProgram2Id','selectedMinors',
+                               'graduationYear','classYear','expoPushToken',
+                               'createdAt','updatedAt'])
+        && (!('selectedProgramId'  in d) || idRefOk(d.selectedProgramId))
+        && (!('selectedProgram2Id' in d) || idRefOk(d.selectedProgram2Id))
+        && (!('selectedMinors' in d) || (d.selectedMinors is list && d.selectedMinors.size() <= 20))
+        && optStr(d, 'graduationYear', 10)
+        && optStr(d, 'classYear', 12)
+        && optStr(d, 'expoPushToken', 300)
+        && (!('createdAt' in d) || d.createdAt is timestamp)
+        && (!('updatedAt' in d) || d.updatedAt is timestamp);
+    }
+
+    function validCourse(d) {
+      return d.keys().hasOnly(['status','grade','semester','courseCode'])
+        && optStr(d, 'status', 20)
+        && optStr(d, 'grade', 8)
+        && optStr(d, 'semester', 24)
+        && optStr(d, 'courseCode', 20);
+    }
+
+    function validLocation(d) {
+      return d.keys().hasOnly(['label','address','latitude','longitude','isPrimary'])
+        && optStr(d, 'label', 60)
+        && optStr(d, 'address', 300)
+        && d.latitude is number && d.latitude >= -90 && d.latitude <= 90
+        && d.longitude is number && d.longitude >= -180 && d.longitude <= 180
+        && (!('isPrimary' in d) || d.isPrimary is bool);
+    }
+
+    function validQuiz(d) {
+      return d.keys().hasOnly(['scores','code','profileName','answers','schedulingPrefs','createdAt'])
+        && d.scores is map
+        && optStr(d, 'code', 12)
+        && optStr(d, 'profileName', 60)
+        && (!('answers' in d) || d.answers is map)
+        && (!('schedulingPrefs' in d) || d.schedulingPrefs is map)
+        && (!('createdAt' in d) || d.createdAt is timestamp);
+    }
+
+    function validWatch(d) {
+      return d.keys().hasOnly(['termCode','classNumber','createdAt'])
+        && optStr(d, 'termCode', 12)
+        && ('classNumber' in d) &&
+           ((d.classNumber is string && d.classNumber.size() <= 12) || d.classNumber is int)
+        && (!('createdAt' in d) || d.createdAt is timestamp);
+    }
+
+    function validSchedule(d) {
+      return d.keys().hasOnly(['name','termCode','sectionIds','createdAt','updatedAt'])
+        && optStr(d, 'name', 80)
+        && optStr(d, 'termCode', 12)
+        && d.sectionIds is list && d.sectionIds.size() <= 40
+        && (!('createdAt' in d) || d.createdAt is timestamp)
+        && (!('updatedAt' in d) || d.updatedAt is timestamp);
+    }
+
+    // ============================ CATALOG ============================
+    // Authenticated read (anonymous counts). All writes go through the Admin
+    // SDK (scraper + migration), which bypasses rules — so deny client writes.
+    match /courses/{code}               { allow read: if isAuthed(); allow write: if false; }
+    match /programs/{id} {
+      allow read: if isAuthed(); allow write: if false;
+      match /requiredCourses/{c}        { allow read: if isAuthed(); allow write: if false; }
+    }
+    match /terms/{term} {
+      allow read: if isAuthed(); allow write: if false;
+      match /sections/{classNumber}     { allow read: if isAuthed(); allow write: if false; }
+      match /analytics/{doc}            { allow read: if isAuthed(); allow write: if false; }
+    }
+    match /instructors/{id}             { allow read: if isAuthed(); allow write: if false; }
+    match /buildings/{name}             { allow read: if isAuthed(); allow write: if false; }
+    match /coreAreas/{id} {
+      allow read: if isAuthed(); allow write: if false;
+      match /{sub=**}                   { allow read: if isAuthed(); allow write: if false; }
+    }
+    match /coreSchoolOverrides/{id}     { allow read: if isAuthed(); allow write: if false; }
+    match /riasecRecommendations/{code} { allow read: if isAuthed(); allow write: if false; }
+    match /focusAreas/{id} {
+      allow read: if isAuthed(); allow write: if false;
+      match /{sub=**}                   { allow read: if isAuthed(); allow write: if false; }
+    }
+
+    // ============================ USER DATA ============================
+    // Owner-only. Ownership is the document path (uid), so a user can never read
+    // or write another user's grades, GPS, quiz, watchlist, or schedules.
+    match /users/{uid} {
+      allow read:   if isOwner(uid);
+      allow create: if isOwner(uid) && validProfile(incoming());
+      allow update: if isOwner(uid) && validProfile(incoming()) && createdAtImmutable();
+      allow delete: if isOwner(uid);
+
+      match /courses/{code} {
+        allow read:          if isOwner(uid);
+        allow create, update:if isOwner(uid) && validCourse(incoming());
+        allow delete:        if isOwner(uid);
+      }
+      match /locations/{label} {
+        allow read:          if isOwner(uid);
+        allow create, update:if isOwner(uid) && validLocation(incoming());
+        allow delete:        if isOwner(uid);
+      }
+      match /private/{doc} {
+        allow read:          if isOwner(uid);
+        allow create, update:if isOwner(uid) && validQuiz(incoming());
+        allow delete:        if isOwner(uid);
+      }
+      match /watches/{classNumber} {
+        allow read:          if isOwner(uid);
+        allow create, update:if isOwner(uid) && validWatch(incoming());
+        allow delete:        if isOwner(uid);
+      }
+      match /schedules/{id} {
+        allow read:          if isOwner(uid);
+        allow create, update:if isOwner(uid) && validSchedule(incoming());
+        allow delete:        if isOwner(uid);
+      }
+    }
+
+    // Default deny for anything not matched above.
+    match /{document=**} { allow read, write: if false; }
+  }
+}

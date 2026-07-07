@@ -77,16 +77,21 @@ export function parseLibraryHoursWeekly(data) {
  * { id, title, description, location, address, url, start, end, allDay, image, tags, filters }
  */
 export function parseEvents(data) {
-  return ((data && data.events) || []).map((wrapper) => {
+  return ((data && data.events) || []).map((wrapper, i) => {
     const e = (wrapper && wrapper.event) || {};
+    const start = e.event_instances?.[0]?.event_instance?.start || null;
     return {
       id: e.id,
+      // Localist returns one entry PER INSTANCE: a recurring event repeats
+      // with the same event id but a different start. React list keys need
+      // the instance identity, not the event identity.
+      instanceKey: `${e.id ?? `idx${i}`}|${start ?? ''}`,
       title: e.title,
       description: e.description_text ? e.description_text.substring(0, 300) : null,
       location: e.location_name || e.location || null,
       address: e.address || null,
       url: e.localist_url || e.url || null,
-      start: e.event_instances?.[0]?.event_instance?.start || null,
+      start,
       end: e.event_instances?.[0]?.event_instance?.end || null,
       allDay: e.event_instances?.[0]?.event_instance?.all_day || false,
       image: e.photo_url || null,

@@ -137,7 +137,7 @@ const EventsScreen = () => {
     <FlatList
       style={s.container}
       data={sorted}
-      keyExtractor={(item, index) => String(item.id ?? index)}
+      keyExtractor={(item, index) => item.instanceKey ?? String(item.id ?? index)}
       renderItem={({ item }) => <EventCard event={item} onPress={() => openEvent(item)} />}
       contentContainerStyle={sorted.length === 0 ? s.emptyContainer : s.content}
       refreshControl={

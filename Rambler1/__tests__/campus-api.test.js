@@ -285,6 +285,7 @@ describe('parseEvents', () => {
     expect(events).toHaveLength(2);
     expect(events[0]).toEqual({
       id: 52930267255917,
+      instanceKey: '52930267255917|2026-07-06T00:00:00-05:00',
       title: 'Transfer Orientation Session',
       description:
         'The entire Loyola community is excited to welcome you to campus for Loyola University Chicago Orientation!',
@@ -318,6 +319,7 @@ describe('parseEvents', () => {
     });
     expect(events[0]).toEqual({
       id: 1,
+      instanceKey: '1|',
       title: 'Bare Event',
       description: null,
       location: null,
@@ -337,5 +339,25 @@ describe('parseEvents', () => {
     expect(parseEvents(null)).toEqual([]);
     expect(parseEvents({ events: [] })).toEqual([]);
     expect(parseEvents({ events: [{}] })[0].id).toBeUndefined();
+  });
+
+  test('recurring event instances (same id, different starts) get unique instanceKeys', () => {
+    // Localist returns one entry per INSTANCE of a recurring event — the raw
+    // event id repeats, which used to collide as a React list key.
+    const mk = (start) => ({
+      event: {
+        id: 52189971734638,
+        title: 'Weekly Club Meeting',
+        event_instances: [{ event_instance: { start } }],
+      },
+    });
+    const events = parseEvents({ events: [mk('2026-07-07T17:00:00-05:00'), mk('2026-07-14T17:00:00-05:00')] });
+    expect(events).toHaveLength(2);
+    expect(events[0].instanceKey).toBe('52189971734638|2026-07-07T17:00:00-05:00');
+    expect(events[1].instanceKey).toBe('52189971734638|2026-07-14T17:00:00-05:00');
+    expect(events[0].instanceKey).not.toBe(events[1].instanceKey);
+    // Two entries with NO id and NO start still get distinct keys (index fallback).
+    const bare = parseEvents({ events: [{}, {}] });
+    expect(bare[0].instanceKey).not.toBe(bare[1].instanceKey);
   });
 });

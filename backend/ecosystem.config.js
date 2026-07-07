@@ -13,10 +13,11 @@ module.exports = {
       cwd: __dirname,
       env: {
         NODE_ENV: 'production',
-        // Optional hardening knobs (safe defaults if unset):
-        //   ADMIN_UIDS     - comma-separated Firebase UIDs allowed to hit /api/admin/* and /api/scrape
-        //   ALLOWED_ORIGINS- comma-separated browser origins for CORS (mobile app needs none)
-        //   RATE_LIMIT_MAX - per-15-min global request cap (default 1000)
+        // Optional knobs (safe defaults if unset):
+        //   ALLOWED_ORIGINS - comma-separated browser origins for CORS (mobile app needs none)
+        //   RATE_LIMIT_MAX  - per-15-min global request cap (default 1000)
+        // (ADMIN_UIDS removed with the /api/admin/* + /api/scrape endpoints in
+        //  the Phase 1 cleanup — manual scrapes run via CLI: node scraper-puppeteer.js)
       },
       autorestart: true,
       max_memory_restart: '600M',

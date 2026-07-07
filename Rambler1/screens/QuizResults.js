@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAppContext } from '../AppContext';
-import { fetchQuizRecommendations, fetchQuizFocusAreas } from '../api';
+import { fetchQuizRecommendations, fetchQuizFocusAreas } from '../firestore-data';
 import BackgroundImage from '../styleComponents/BackgroundImage';
 
 // =============================================================================

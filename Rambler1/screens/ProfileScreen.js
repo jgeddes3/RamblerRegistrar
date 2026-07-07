@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, ActivityIndicator, StyleSheet, Platform, StatusBar } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, ActivityIndicator, StyleSheet, Platform, StatusBar, Switch } from 'react-native';
 import { useAppContext } from '../AppContext';
-import { signOut, getIdToken } from '../auth';
-import { fetchPrograms, fetchCourses, addUserCourse, saveUserProfile, fetchEnrichedRecommendations, fetchQuizFocusAreas } from '../api';
+import { signOut } from '../auth';
+import { fetchPrograms, fetchCourses, addUserCourse, removeUserCourse, saveUserProfile, fetchEnrichedRecommendations, fetchQuizFocusAreas } from '../firestore-data';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
@@ -11,6 +11,7 @@ const ProfileScreen = ({ visible, onClose }) => {
     user, selectedProgram, setSelectedProgram, selectedProgram2, setSelectedProgram2,
     selectedMinors, setSelectedMinors, selectedCourses, setSelectedCourses, graduationYear,
     classYear, quizResults, selectedFocus, setSelectedFocus,
+    isHonors, setIsHonors, isAthlete, setIsAthlete,
   } = useAppContext();
 
   const isUndecided = !selectedProgram || selectedProgram.id === 'undecided';
@@ -84,16 +85,16 @@ const ProfileScreen = ({ visible, onClose }) => {
   const handleSelectProgram = async (program) => {
     setSelectedProgram(program);
     setMode('profile');
-    // Save to backend
+    // Save to Firestore
     try {
-      const token = await getIdToken();
-      if (token && user) {
+      if (user) {
         await saveUserProfile(user.uid, {
           selectedProgramId: program.id,
           selectedProgram2Id: selectedProgram2?.id || null,
           selectedMinors: (selectedMinors || []).map(m => m.id),
           graduationYear: graduationYear || '',
-        }, token);
+          classYear: classYear || '',
+        });
       }
     } catch (e) {}
   };
@@ -109,32 +110,61 @@ const ProfileScreen = ({ visible, onClose }) => {
       updated = [...current, minor];
     }
     setSelectedMinors(updated);
-    // Save to backend
+    // Save to Firestore
     try {
-      const token = await getIdToken();
-      if (token && user) {
+      if (user) {
         await saveUserProfile(user.uid, {
           selectedProgramId: selectedProgram?.id || null,
           selectedProgram2Id: selectedProgram2?.id || null,
           selectedMinors: updated.map(m => m.id),
           graduationYear: graduationYear || '',
-        }, token);
+          classYear: classYear || '',
+        });
+      }
+    } catch (e) {}
+  };
+
+  const handleTogglePriority = async (flag, value) => {
+    // Update context immediately so the Switch reflects the new state.
+    if (flag === 'isHonors') setIsHonors(value);
+    else setIsAthlete(value);
+    // Persist to Firestore. Both flags are always sent as real booleans —
+    // saveUserProfile only includes typeof === 'boolean' values, and `false`
+    // must be written explicitly to toggle a flag OFF.
+    try {
+      if (user) {
+        await saveUserProfile(user.uid, {
+          selectedProgramId: selectedProgram?.id || null,
+          selectedProgram2Id: selectedProgram2?.id || null,
+          selectedMinors: (selectedMinors || []).map(m => m.id),
+          graduationYear: graduationYear || '',
+          classYear: classYear || '',
+          isHonors: flag === 'isHonors' ? value === true : isHonors === true,
+          isAthlete: flag === 'isAthlete' ? value === true : isAthlete === true,
+        });
       }
     } catch (e) {}
   };
 
   const handleToggleCourse = async (course) => {
-    const isSelected = (selectedCourses || []).some(c => c.id === course.id);
+    // Compare by code, not id: sqlite-cached courses carry synthetic integer ids
+    // while Firestore-sourced courses use the code string — code is stable in both.
+    const isSelected = (selectedCourses || []).some(c => c.code === course.code);
     let updated;
     if (isSelected) {
-      updated = selectedCourses.filter(c => c.id !== course.id);
+      updated = selectedCourses.filter(c => c.code !== course.code);
+      // Also remove from Firestore
+      try {
+        if (user) {
+          await removeUserCourse(user.uid, course.code);
+        }
+      } catch (e) {}
     } else {
       updated = [...(selectedCourses || []), course];
-      // Also save to backend
+      // Also save to Firestore
       try {
-        const token = await getIdToken();
-        if (token && user) {
-          await addUserCourse(user.uid, course.code, null, null, token);
+        if (user) {
+          await addUserCourse(user.uid, course.code, null, null);
         }
       } catch (e) {}
     }
@@ -301,7 +331,7 @@ const ProfileScreen = ({ visible, onClose }) => {
 
   // ==================== SELECT COURSES MODE ====================
   if (mode === 'selectCourses') {
-    const selectedIds = new Set((selectedCourses || []).map(c => c.id));
+    const selectedIds = new Set((selectedCourses || []).map(c => c.code));
     return (
       <Modal visible={visible} animationType="slide" transparent>
         <View style={s.overlay}>
@@ -324,7 +354,7 @@ const ProfileScreen = ({ visible, onClose }) => {
             ) : (
               <ScrollView contentContainerStyle={s.listContent}>
                 {filteredCourses.map(course => {
-                  const isSelected = selectedIds.has(course.id);
+                  const isSelected = selectedIds.has(course.code);
                   return (
                     <TouchableOpacity
                       key={course.id}
@@ -429,6 +459,37 @@ const ProfileScreen = ({ visible, onClose }) => {
                 <Text style={s.value}>{classYear}</Text>
               </View>
             ) : null}
+
+            {/* Registration Priority */}
+            <View style={s.infoBlock}>
+              <Text style={s.prioritySectionTitle}>Registration Priority</Text>
+              <View style={s.priorityRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.priorityRowLabel}>Honors student</Text>
+                  <Text style={s.priorityRowHint}>Front of the line on your class-year registration day</Text>
+                </View>
+                <Switch
+                  accessibilityLabel="Honors student"
+                  value={isHonors === true}
+                  onValueChange={(v) => handleTogglePriority('isHonors', v)}
+                  trackColor={{ false: '#D8D8D8', true: '#A30046' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+              <View style={s.priorityRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.priorityRowLabel}>Student-athlete</Text>
+                  <Text style={s.priorityRowHint}>Registration opens the Friday before registration week</Text>
+                </View>
+                <Switch
+                  accessibilityLabel="Student-athlete"
+                  value={isAthlete === true}
+                  onValueChange={(v) => handleTogglePriority('isAthlete', v)}
+                  trackColor={{ false: '#D8D8D8', true: '#A30046' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+            </View>
 
             {/* Courses completed */}
             <TouchableOpacity style={s.infoBlock} onPress={() => setMode('selectCourses')}>
@@ -811,6 +872,30 @@ const s = StyleSheet.create({
     color: '#333',
     width: 24,
     textAlign: 'right',
+  },
+  prioritySectionTitle: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 20,
+    color: '#A30046',
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  priorityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  priorityRowLabel: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 18,
+    color: '#333',
+  },
+  priorityRowHint: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 12,
+    color: '#888',
+    marginTop: 2,
+    paddingRight: 8,
   },
   schedPref: {
     fontFamily: 'CormorantGaramond-Regular',

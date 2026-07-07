@@ -14,8 +14,13 @@ archive/
 
 # Database files
 backend/locus.db
+backend/locus.db.tmp
 backend/*.db-journal
 backend/*.db-wal
+
+# Firestore delta-sync shadow manifest (machine-local state)
+backend/firestore-sync-state.json
+backend/firestore-sync-state.json.tmp
 
 # Node modules (covered by sub .gitignores but belt-and-suspenders)
 node_modules/

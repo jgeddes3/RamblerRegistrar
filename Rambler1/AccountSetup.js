@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, Image, KeyboardAvoidingView, ScrollView, Platform, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Image, KeyboardAvoidingView, ScrollView, Platform, TouchableOpacity, StyleSheet, Switch } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
 import { useAppContext } from './AppContext';
-import { signUp, getIdToken } from './auth';
-import { saveUserProfile, addUserCourse, saveQuizResults } from './api';
+import { upgradeAnonymousAccount } from './auth';
+import { saveUserProfile, addUserCourse, saveQuizResults } from './firestore-data';
 import SearchBar from './styleComponents/SearchBar';
 import BackgroundImage from './styleComponents/BackgroundImage';
 
@@ -15,9 +15,11 @@ const AccountSetup =() => {
   const [classYearLocal, setClassYearLocal] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isHonors, setIsHonorsLocal] = useState(false);
+  const [isAthlete, setIsAthleteLocal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const { selectedProgram, selectedProgram2, selectedMinors, selectedCourses, setGraduationYear, setClassYear, quizResults } = useAppContext();
+  const { selectedProgram, selectedProgram2, selectedMinors, selectedCourses, setGraduationYear, setClassYear, setIsHonors, setIsAthlete, quizResults, setUser, setIsLoggedIn } = useAppContext();
 
   const navigation = useNavigation();
   const currentYear = new Date().getFullYear();
@@ -34,52 +36,61 @@ const AccountSetup =() => {
     setErrorMessage('');
     setLoading(true);
     try {
-      const firebaseUser = await signUp(email, password);
+      const firebaseUser = await upgradeAnonymousAccount(email, password);
       setGraduationYear(String(year));
       setClassYear(classYearLocal);
+      setIsHonors(isHonors);
+      setIsAthlete(isAthlete);
 
-      // Save onboarding selections to backend
-      // Use the token directly from the new user (getIdToken might not work yet)
+      // Save onboarding selections to Firestore
       try {
-        const token = await firebaseUser.getIdToken();
-        if (token) {
-          await saveUserProfile(firebaseUser.uid, {
-            selectedProgramId: selectedProgram?.id || null,
-            selectedProgram2Id: selectedProgram2?.id || null,
-            selectedMinors: (selectedMinors || []).map(m => m.id),
-            graduationYear: String(year),
-            classYear: classYearLocal,
-          }, token);
+        await saveUserProfile(firebaseUser.uid, {
+          selectedProgramId: selectedProgram?.id || null,
+          selectedProgram2Id: selectedProgram2?.id || null,
+          selectedMinors: (selectedMinors || []).map(m => m.id),
+          graduationYear: String(year),
+          classYear: classYearLocal,
+          isHonors: isHonors,
+          isAthlete: isAthlete,
+        });
 
-          // Save quiz results to backend
-          if (quizResults) {
+        // Save quiz results to Firestore
+        if (quizResults) {
+          try {
+            await saveQuizResults(firebaseUser.uid, {
+              scores: quizResults.scores,
+              code: quizResults.code,
+              profileName: quizResults.profileName,
+              answers: quizResults.answers,
+              schedulingPrefs: quizResults.schedulingPrefs || {},
+            });
+          } catch (e) {}
+        }
+
+        // Also sync selected courses to Firestore
+        if (selectedCourses && selectedCourses.length > 0) {
+          for (const course of selectedCourses) {
             try {
-              await saveQuizResults(firebaseUser.uid, {
-                scores: quizResults.scores,
-                code: quizResults.code,
-                profileName: quizResults.profileName,
-                answers: quizResults.answers,
-                schedulingPrefs: quizResults.schedulingPrefs || {},
-              }, token);
+              await addUserCourse(firebaseUser.uid, course.code, null, null);
             } catch (e) {}
-          }
-
-          // Also sync selected courses to backend
-          if (selectedCourses && selectedCourses.length > 0) {
-            for (const course of selectedCourses) {
-              try {
-                await addUserCourse(firebaseUser.uid, course.code, null, null, token);
-              } catch (e) {}
-            }
           }
         }
       } catch (e) {
         // Non-critical — profile can be saved later
       }
-      // Firebase auth state change auto-switches to MainTabs
+      // linkWithCredential preserves the uid, so onAuthStateChanged does NOT
+      // fire after upgrading an anonymous account — update context explicitly
+      // so App.js switches from AuthStack to MainTabs.
+      setUser({
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        displayName: firebaseUser.displayName,
+        isAnonymous: false,
+      });
+      setIsLoggedIn(true);
     } catch (error) {
       const code = error.code;
-      if (code === 'auth/email-already-in-use') {
+      if (code === 'auth/email-already-in-use' || code === 'auth/credential-already-in-use') {
         setErrorMessage('An account with this email already exists');
       } else if (code === 'auth/invalid-email') {
         setErrorMessage('Invalid email address');
@@ -136,6 +147,29 @@ const AccountSetup =() => {
                 <Picker.Item key={cy} label={cy} value={cy} />
               ))}
             </Picker>
+          </View>
+          <View style={s.toggleCard}>
+            <View style={s.toggleRow}>
+              <Text style={s.toggleLabel}>Honors student?</Text>
+              <Switch
+                accessibilityLabel="Honors student"
+                value={isHonors}
+                onValueChange={setIsHonorsLocal}
+                trackColor={{ false: '#B0B0B0', true: '#A30046' }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+            <View style={s.toggleRow}>
+              <Text style={s.toggleLabel}>Student-athlete?</Text>
+              <Switch
+                accessibilityLabel="Student-athlete"
+                value={isAthlete}
+                onValueChange={setIsAthleteLocal}
+                trackColor={{ false: '#B0B0B0', true: '#A30046' }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+            <Text style={s.toggleHint}>Honors and athletes get registration priority — this tunes course warnings</Text>
           </View>
           <View style={s.labelBadge}>
             <Text style={s.label}>Pick an email and password</Text>
@@ -231,6 +265,31 @@ const s = StyleSheet.create({
     borderRadius: 12,
     width: 275,
     marginBottom: 50,
+  },
+  toggleCard: {
+    backgroundColor: '#D9D9D9',
+    borderRadius: 12,
+    width: 275,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 50,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  toggleLabel: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 20,
+    color: 'black',
+  },
+  toggleHint: {
+    fontSize: 12,
+    color: '#666666',
+    textAlign: 'center',
+    marginTop: 2,
   },
   picker: {
     width: '100%',

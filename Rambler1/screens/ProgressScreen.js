@@ -1,9 +1,22 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Modal, StyleSheet } from 'react-native';
 import { useAppContext } from '../AppContext';
-import { fetchDegreeProgress, fetchPrerequisites, addUserCourse, fetchUserCourses, fetchUserCoreProgress } from '../api';
+import { fetchDegreeProgress, fetchPrerequisites, addUserCourse, fetchUserCourses, fetchUserCoreProgress } from '../firestore-data';
+import { computeGraduationOutlook, OUTLOOK_DISCLAIMER } from '../graduation-outlook';
 import { getIdToken } from '../auth';
 import CourseDetailModal from '../CourseDetailModal';
+
+// Graduation Outlook banner design tokens (status -> colors)
+const OUTLOOK_COLORS = {
+  'on-track': { bg: '#d1fae5', fg: '#065f46' },
+  'at-risk': { bg: '#fef3c7', fg: '#92400e' },
+  'off-track': { bg: '#fee2e2', fg: '#b91c1c' },
+};
+const OUTLOOK_LABELS = {
+  'on-track': 'On Track',
+  'at-risk': 'At Risk',
+  'off-track': 'Off Track',
+};
 
 // Loyola term codes: 1 + 2-digit-year + semester (6=Fall, 2=Spring, 1=J-term, 4=Summer)
 // E.g., Fall 2026 = 1266, Spring 2027 = 1272
@@ -69,10 +82,11 @@ const CourseRow = ({ icon, iconColor, code, name, detail, indent, onPress }) => 
 // Main Progress Screen
 // ============================================================
 const ProgressScreen = () => {
-  const { selectedProgram, selectedProgram2, selectedMinors, selectedCourses, user, quizResults } = useAppContext();
+  const { selectedProgram, selectedProgram2, selectedMinors, selectedCourses, user, quizResults, graduationYear } = useAppContext();
 
   const [view, setView] = useState('all'); // 'all', 'major', 'core', or a program id
   const [progress, setProgress] = useState(null);
+  const [otherProgress, setOtherProgress] = useState([]); // degree progress for 2nd major + minors (outlook only)
   const [upNext, setUpNext] = useState([]);
   const [needsPrereqs, setNeedsPrereqs] = useState([]);
   const [coreProgress, setCoreProgress] = useState(null);
@@ -200,19 +214,40 @@ const ProgressScreen = () => {
   useEffect(() => {
     if (!synced) return;
     setLoading(true);
+    // 2nd major + minors: lightweight degree-progress fetch (no prereq walk) so the
+    // graduation outlook counts their remaining requirements too.
+    const otherPrograms = [];
+    if (selectedProgram2) otherPrograms.push(selectedProgram2);
+    for (const m of (selectedMinors || [])) otherPrograms.push(m);
     Promise.all([
       selectedProgram ? loadMajorProgress(selectedProgram.id) : null,
       loadCoreProgress(),
-    ]).then(([majorData, coreData]) => {
+      Promise.all(otherPrograms.map((p) =>
+        user && p?.id != null ? fetchDegreeProgress(user.uid, p.id) : null
+      )),
+    ]).then(([majorData, coreData, otherData]) => {
       if (majorData) {
         setProgress(majorData.progress);
         setUpNext(majorData.upNext);
         setNeedsPrereqs(majorData.needsPrereqs);
       }
       if (coreData) setCoreProgress(coreData);
+      setOtherProgress((otherData || []).filter((p) => p && !p.error));
       setLoading(false);
     });
-  }, [synced, selectedProgram, loadMajorProgress, loadCoreProgress]);
+  }, [synced, user, selectedProgram, selectedProgram2, selectedMinors, loadMajorProgress, loadCoreProgress]);
+
+  // Graduation outlook heuristic — recomputed whenever the underlying progress data
+  // changes. Includes 2nd major + minors so the 'All' banner covers every program.
+  const outlook = useMemo(
+    () => computeGraduationOutlook({
+      degreeProgress: progress,
+      additionalDegreeProgress: otherProgress,
+      coreProgress,
+      graduationYear,
+    }),
+    [progress, otherProgress, coreProgress, graduationYear]
+  );
 
   if (loading) {
     return (
@@ -242,10 +277,28 @@ const ProgressScreen = () => {
     : majorCreditsCompleted + coreCreditsCompleted + Math.min(electiveCreditsCompleted, electiveCreditsNeeded);
   const actualTotalNeeded = overflows ? accountedFor : totalCreditsNeeded;
 
+  // ==================== GRADUATION OUTLOOK BANNER ====================
+  const renderOutlookBanner = () => {
+    if (!outlook || outlook.status === 'unknown') return null;
+    const colors = OUTLOOK_COLORS[outlook.status];
+    if (!colors) return null;
+    return (
+      <View style={[s.outlookBanner, { backgroundColor: colors.bg }]}>
+        <Text style={[s.outlookStatus, { color: colors.fg }]}>
+          Graduation Outlook: {OUTLOOK_LABELS[outlook.status]}
+        </Text>
+        <Text style={[s.outlookMessage, { color: colors.fg }]}>{outlook.message}</Text>
+        <Text style={s.outlookDisclaimer}>{OUTLOOK_DISCLAIMER}</Text>
+      </View>
+    );
+  };
+
   // ==================== ALL VIEW ====================
   const renderAllView = () => (
     <ScrollView contentContainerStyle={s.scrollContent}>
       <Text style={s.heading}>Degree Overview</Text>
+
+      {renderOutlookBanner()}
 
       {/* Overall credit bar */}
       <ProgressBar
@@ -783,6 +836,32 @@ const s = StyleSheet.create({
   },
 
   scrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
+
+  // Graduation Outlook banner
+  outlookBanner: {
+    borderRadius: 10,
+    padding: 14,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  outlookStatus: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  outlookMessage: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 15,
+    lineHeight: 21,
+    marginBottom: 6,
+  },
+  outlookDisclaimer: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 11,
+    color: '#666',
+    lineHeight: 15,
+  },
 
   heading: {
     fontFamily: 'CormorantGaramond-Regular',

@@ -1,7 +1,17 @@
 import * as SQLite from 'expo-sqlite';
-import * as api from './api';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { auth, db as firestore } from './firebaseConfig';
 
 let db = null;
+
+// SQL ids were integers; Firestore doc ids are strings. Numeric-looking ids
+// are stored as integers (sqlite INTEGER affinity), others as-is, so program
+// ids stay identical to the Firestore doc ids screens later save/fetch with.
+const normalizeId = (v) => {
+  if (v === null || v === undefined) return v;
+  const s = String(v);
+  return /^-?\d+$/.test(s) ? parseInt(s, 10) : s;
+};
 
 // =============================================================================
 // DATABASE INITIALIZATION — Cache-only (source of truth is the backend)
@@ -75,84 +85,182 @@ export const initDatabase = async () => {
     );
   `);
 
-  // Try to sync from backend on startup
+  // Try to sync from Firestore on startup
   await syncFromServer();
 
   return db;
 };
 
 // =============================================================================
-// SYNC FROM BACKEND
+// SYNC FROM FIRESTORE
 // =============================================================================
+// Reads the catalog straight from Firestore (courses, programs + their
+// requiredCourses subcollections; prerequisites come from the course docs)
+// and repopulates the SAME sqlite tables/columns as before, so
+// ProgramSelect / CourseSelect / instant search keep working unchanged.
 
 export const syncFromServer = async () => {
   try {
-    // Check if we need to sync
-    const serverVersion = await api.checkCatalogVersion();
-    if (!serverVersion) return; // Backend unreachable — use cache
+    // Catalog reads require auth (anonymous counts). If auth isn't ready yet
+    // (e.g. offline first launch), keep whatever is in the cache.
+    if (!auth.currentUser) {
+      console.log('Catalog sync skipped (not signed in yet)');
+      return;
+    }
+
+    // Version gate: meta/catalog may not exist yet — in that case only run
+    // the (expensive, ~3.6k reads) full sync when the local cache is empty.
+    // Prefer catalogDataVersion — a fingerprint of the data this sync actually
+    // caches, which only changes on a real catalog change. The legacy `version`
+    // field is a scrape timestamp that bumps DAILY and used to force a full
+    // re-download on every device every day (Phase 3.5 quota fix).
+    let serverVersion = null;
+    try {
+      const metaSnap = await getDoc(doc(firestore, 'meta', 'catalog'));
+      if (metaSnap.exists()) {
+        const md = metaSnap.data();
+        const v = md.catalogDataVersion != null ? md.catalogDataVersion : md.version;
+        if (v != null) serverVersion = String(v);
+      }
+    } catch (e) {
+      // Treat a failed version read like a missing version doc
+    }
 
     const localVersion = await getLocalCatalogVersion();
-    if (localVersion === serverVersion) return; // Already up to date
+    if (serverVersion && localVersion === serverVersion) return; // Up to date
+    if (!serverVersion) {
+      const row = await db.getFirstAsync('SELECT COUNT(*) AS n FROM courses');
+      if (row && row.n > 0) return; // No version doc — sync only when cache empty
+    }
 
-    // Full sync needed
-    const catalog = await api.syncCatalog();
-    if (!catalog) return; // Failed to fetch
+    // ---- Bulk read from Firestore ----
+    const [courseSnap, programSnap] = await Promise.all([
+      getDocs(collection(firestore, 'courses')),
+      getDocs(collection(firestore, 'programs')),
+    ]);
+    if (courseSnap.empty && programSnap.empty) return; // Nothing to cache
 
-    // Clear and repopulate cache
-    await db.execAsync('DELETE FROM program_courses');
-    await db.execAsync('DELETE FROM prerequisites');
-    await db.execAsync('DELETE FROM courses');
-    await db.execAsync('DELETE FROM programs');
+    // Sequential integer ids for courses: courses.id is INTEGER PRIMARY KEY
+    // (a rowid alias — non-integer values are rejected by sqlite), so map
+    // course codes to synthetic integers for the id column and the
+    // program_courses join.
+    const courseIdByCode = new Map();
+    courseSnap.docs.forEach((c, i) => {
+      const code = c.data().code || c.id;
+      courseIdByCode.set(code, i + 1);
+    });
 
-    // Insert programs
-    if (catalog.programs) {
-      for (const p of catalog.programs) {
+    // requiredCourses subcollections (no collection-group rule exists, so read
+    // per program)
+    const programCourses = [];
+    await Promise.all(
+      programSnap.docs.map(async (p) => {
+        const programId = normalizeId(p.id);
+        if (typeof programId !== 'number') return; // programs.id is also INTEGER PK
+        const rcSnap = await getDocs(collection(firestore, 'programs', p.id, 'requiredCourses'));
+        for (const rc of rcSnap.docs) {
+          const d = rc.data();
+          const courseId = courseIdByCode.get(d.courseCode || rc.id);
+          if (courseId === undefined) continue; // required course missing from catalog
+          programCourses.push({
+            program_id: programId,
+            course_id: courseId,
+            requirement_type: d.requirementType || 'required',
+          });
+        }
+      })
+    );
+
+    // ---- Clear and repopulate cache (single transaction for speed) ----
+    await db.execAsync('BEGIN');
+    try {
+      await db.execAsync('DELETE FROM program_courses');
+      await db.execAsync('DELETE FROM prerequisites');
+      await db.execAsync('DELETE FROM courses');
+      await db.execAsync('DELETE FROM programs');
+
+      // Programs — id preserved from the Firestore doc id (numeric doc ids
+      // only: programs.id is INTEGER PRIMARY KEY, and the id must round-trip
+      // to programs/{id} in Firestore when the profile is saved later)
+      for (const p of programSnap.docs) {
+        const programId = normalizeId(p.id);
+        if (typeof programId !== 'number') {
+          console.log(`Catalog sync: skipping program with non-numeric id "${p.id}"`);
+          continue;
+        }
+        const d = p.data();
         await db.runAsync(
           `INSERT OR REPLACE INTO programs (id, name, type, degree, school, min_credits, description)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [p.id, p.name, p.type, p.degree, p.school, p.min_credits, p.description]
+          [
+            programId,
+            d.name ?? '',
+            d.type ?? '',
+            d.degree ?? null,
+            d.school ?? null,
+            d.minCredits ?? null,
+            d.description ?? null,
+          ]
         );
       }
-    }
 
-    // Insert courses
-    if (catalog.courses) {
-      for (const c of catalog.courses) {
+      // Courses — synthetic sequential integer id (courses.id is INTEGER PK).
+      // Selection identity is only ever compared within one data source, so
+      // this does not clash with the adapter's code-string ids.
+      // Prerequisites come from each course doc's `prerequisites` array.
+      for (const c of courseSnap.docs) {
+        const d = c.data();
+        const code = d.code || c.id;
         await db.runAsync(
           `INSERT OR REPLACE INTO courses (id, code, name, credits, department, subject_area, learning_style, work_style, teaching_style, assessment_type, description, semester)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [c.id, c.code, c.name, c.credits, c.department, c.subject_area, c.learning_style, c.work_style, c.teaching_style, c.assessment_type, c.description, c.semester]
+          [
+            courseIdByCode.get(code),
+            code,
+            d.name ?? '',
+            d.credits ?? 3,
+            d.department ?? '',
+            d.subjectArea ?? '',
+            d.learningStyle ?? '',
+            d.workStyle ?? '',
+            d.teachingStyle ?? '',
+            d.assessmentType ?? '',
+            d.description ?? null,
+            d.semester ?? null,
+          ]
         );
+        if (Array.isArray(d.prerequisites)) {
+          for (const prereq of d.prerequisites) {
+            await db.runAsync(
+              'INSERT OR REPLACE INTO prerequisites (course_code, prerequisite_code) VALUES (?, ?)',
+              [code, prereq]
+            );
+          }
+        }
       }
-    }
 
-    // Insert program_courses
-    if (catalog.programCourses) {
-      for (const pc of catalog.programCourses) {
+      // Program courses
+      for (const pc of programCourses) {
         await db.runAsync(
           'INSERT OR REPLACE INTO program_courses (program_id, course_id, requirement_type) VALUES (?, ?, ?)',
           [pc.program_id, pc.course_id, pc.requirement_type]
         );
       }
+
+      // Update local version (synthesize one when meta/catalog is missing so
+      // the empty-cache check keeps future launches cheap)
+      const versionToStore = serverVersion || `firestore-${new Date().toISOString()}`;
+      await db.runAsync(
+        `INSERT OR REPLACE INTO cache_metadata (key, value) VALUES ('catalog_version', ?)`,
+        [versionToStore]
+      );
+
+      await db.execAsync('COMMIT');
+      console.log(`Catalog synced from Firestore (version: ${versionToStore})`);
+    } catch (error) {
+      await db.execAsync('ROLLBACK').catch(() => {});
+      throw error;
     }
-
-    // Insert prerequisites
-    if (catalog.prerequisites) {
-      for (const pr of catalog.prerequisites) {
-        await db.runAsync(
-          'INSERT OR REPLACE INTO prerequisites (course_code, prerequisite_code) VALUES (?, ?)',
-          [pr.course_code, pr.prerequisite_code]
-        );
-      }
-    }
-
-    // Update local version
-    await db.runAsync(
-      `INSERT OR REPLACE INTO cache_metadata (key, value) VALUES ('catalog_version', ?)`,
-      [serverVersion]
-    );
-
-    console.log(`Catalog synced from server (version: ${serverVersion})`);
   } catch (error) {
     console.log('Catalog sync skipped (offline or error):', error.message);
     // App will use whatever is in the local cache

@@ -214,8 +214,11 @@ async function main() {
   }
 
   if (doUsers) {
+    // Legacy user tables were dropped from db.js in the Phase 1 cleanup; a fresh
+    // locus.db won't have them (and has nothing to migrate). Tolerate absence.
+    const qSafe = (sql) => { try { return q(sql); } catch { return []; } };
     // --- user profiles ---
-    for (const p of q('SELECT * FROM user_profiles')) {
+    for (const p of qSafe('SELECT * FROM user_profiles')) {
       await b.set(fdb.collection('users').doc(String(p.user_id)), clean({
         selectedProgramId: p.selected_program_id != null ? String(p.selected_program_id) : null,
         selectedProgram2Id: p.selected_program2_id != null ? String(p.selected_program2_id) : null,
@@ -226,7 +229,7 @@ async function main() {
       bump('users');
     }
     // --- user courses (grades) ---
-    for (const c of q('SELECT * FROM user_courses')) {
+    for (const c of qSafe('SELECT * FROM user_courses')) {
       await b.set(
         fdb.collection('users').doc(String(c.user_id)).collection('courses').doc(sanitizeId(c.course_code)),
         clean({ courseCode: c.course_code, status: c.status, grade: c.grade, semester: c.semester })
@@ -234,7 +237,7 @@ async function main() {
       bump('userCourses');
     }
     // --- user locations (home GPS) ---
-    for (const l of q('SELECT * FROM user_locations')) {
+    for (const l of qSafe('SELECT * FROM user_locations')) {
       await b.set(
         fdb.collection('users').doc(String(l.user_id)).collection('locations').doc(sanitizeId(l.label)),
         clean({ label: l.label, address: l.address, latitude: l.latitude, longitude: l.longitude, isPrimary: !!l.is_primary })
@@ -242,7 +245,7 @@ async function main() {
       bump('userLocations');
     }
     // --- quiz results (users/{uid}/private/quiz) ---
-    for (const qr of q('SELECT * FROM quiz_results')) {
+    for (const qr of qSafe('SELECT * FROM quiz_results')) {
       await b.set(
         fdb.collection('users').doc(String(qr.user_id)).collection('private').doc('quiz'),
         clean({

@@ -137,60 +137,14 @@ async function initDb() {
     )
   `);
 
-  // ---- User courses table ----
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS user_courses (
-      user_id TEXT NOT NULL,
-      course_code TEXT NOT NULL,
-      status TEXT DEFAULT 'completed',
-      grade TEXT,
-      semester TEXT,
-      PRIMARY KEY (user_id, course_code)
-    )
-  `);
-
-  // ---- User locations table (home, dorm, custom) ----
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS user_locations (
-      user_id TEXT NOT NULL,
-      label TEXT NOT NULL,
-      address TEXT,
-      latitude REAL NOT NULL,
-      longitude REAL NOT NULL,
-      is_primary INTEGER DEFAULT 0,
-      PRIMARY KEY (user_id, label)
-    )
-  `);
-
-  // ---- User profiles table (onboarding selections) ----
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS user_profiles (
-      user_id TEXT PRIMARY KEY,
-      selected_program_id INTEGER,
-      selected_program2_id INTEGER,
-      selected_minors TEXT,
-      graduation_year TEXT,
-      class_year TEXT,
-      updated_at TEXT
-    )
-  `);
+  // ---- User tables: REMOVED (Phase 1 cleanup) ----
+  // Per-user data (courses/grades, locations, profiles, quiz results) lives in
+  // Firestore under users/{uid}/** with owner-only rules. Existing locus.db
+  // files may still carry the old (empty) tables — harmless leftovers.
 
   // ---- RIASEC Quiz tables ----
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS quiz_results (
-      user_id TEXT PRIMARY KEY,
-      scores TEXT NOT NULL,
-      code TEXT NOT NULL,
-      profile_name TEXT,
-      answers TEXT,
-      scheduling_prefs TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
-    )
-  `);
+  // (quiz_results table removed with the other user tables — quiz data lives in
+  //  Firestore at users/{uid}/private/quiz)
 
   db.run(`
     CREATE TABLE IF NOT EXISTS riasec_recommendations (
@@ -283,10 +237,9 @@ async function initDb() {
     )
   `);
 
-  // Indexes
+  // Indexes (user-table indexes removed with the tables — an index CREATE on a
+  // missing table throws even with IF NOT EXISTS, breaking fresh databases)
   db.run('CREATE INDEX IF NOT EXISTS idx_buildings_name ON buildings(name)');
-  db.run('CREATE INDEX IF NOT EXISTS idx_user_courses_user ON user_courses(user_id)');
-  db.run('CREATE INDEX IF NOT EXISTS idx_user_locations_user ON user_locations(user_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_enrollment_history_course ON enrollment_history(subject, catalog_number)');
 
   // ---- Seed buildings data ----
@@ -338,12 +291,15 @@ function safeJsonParse(value, fallback) {
   try { return JSON.parse(value); } catch { return fallback; }
 }
 
-// Save database to disk
+// Save database to disk. Atomic: write to a temp file then rename over the
+// live DB, so a crash mid-write can never leave locus.db half-written. (B5)
 function save() {
   if (!db) return;
   const data = db.export();
   const buffer = Buffer.from(data);
-  fs.writeFileSync(DB_PATH, buffer);
+  const tmp = DB_PATH + '.tmp';
+  fs.writeFileSync(tmp, buffer);
+  fs.renameSync(tmp, DB_PATH); // MOVEFILE_REPLACE_EXISTING on Windows — atomic swap
 }
 
 // Helper: run a SELECT and return array of objects
@@ -398,12 +354,49 @@ module.exports = {
       section.end_date || '',
       JSON.stringify(section.raw_data || section),
     ]);
-    save();
+    // No save() here (B5): a full scrape inserts ~2,500 sections and a full-DB
+    // serialize per insert stalls the event loop for the whole run. Callers
+    // batch: the scraper calls db.save() once per subject instead.
   },
 
   clearSections(termCode) {
     db.run('DELETE FROM sections WHERE term_code = ?', [termCode]);
     save();
+  },
+
+  // Delete rows for a subject that were NOT in its latest successful scrape.
+  // A section absent from a fresh LOCUS result set was cancelled or renumbered;
+  // INSERT OR REPLACE alone never removes it, so the ghost row would otherwise
+  // be re-synced to Firestore as live every day (B3 root cause). Enrollment
+  // history rows are deliberately kept — the time series stays valuable.
+  // Returns the number of rows deleted; caller batches save().
+  deleteStaleSections(termCode, subject, liveClassNumbers) {
+    const live = new Set((liveClassNumbers || []).map(String));
+    if (live.size === 0) return 0; // never wipe a subject on an empty result set
+    const rows = queryAll(
+      'SELECT class_number FROM sections WHERE term_code = ? AND subject = ?',
+      [termCode, subject]
+    );
+    const stale = rows.filter((r) => !live.has(String(r.class_number)));
+    // Plausibility guard: LOCUS sometimes renders a subject's results page
+    // partially and the scrape comes back with a handful of sections (observed
+    // 2026-07-06: CHEM returned 1 of ~156). A result set that would delete
+    // more rows than it keeps is a partial-scrape artifact, not a mass
+    // cancellation — keep everything and let a healthy later run prune.
+    if (stale.length > live.size) {
+      console.warn(
+        `  [db] ${subject} ${termCode}: fresh scrape has ${live.size} section(s) but DB has ` +
+        `${rows.length} — looks like a partial scrape, skipping stale prune.`
+      );
+      return 0;
+    }
+    for (const r of stale) {
+      db.run(
+        'DELETE FROM sections WHERE term_code = ? AND subject = ? AND class_number = ?',
+        [termCode, subject, r.class_number]
+      );
+    }
+    return stale.length;
   },
 
   clearSectionsForSubjects(termCode, subjects) {
@@ -618,6 +611,31 @@ module.exports = {
     return version;
   },
 
+  // Stable hash over exactly the tables the mobile client caches (courses,
+  // programs, program_courses, prerequisites). Unlike bumpVersion() — a
+  // timestamp that changes every scrape — this only changes when the catalog
+  // DATA changes (i.e. an ETL / requirements edit), so firestore-sync can use
+  // it as the client's re-download gate. Sections/enrollment are deliberately
+  // excluded: the client fetches those live, not from its bulk cache.
+  getCatalogDataFingerprint() {
+    const crypto = require('crypto');
+    const payload = JSON.stringify({
+      courses: queryAll(
+        'SELECT code, name, credits, department, subject_area, learning_style, work_style, teaching_style, assessment_type, description, semester FROM courses ORDER BY code'
+      ),
+      programs: queryAll(
+        'SELECT id, name, type, degree, school, min_credits, description FROM programs ORDER BY id'
+      ),
+      programCourses: queryAll(
+        'SELECT program_id, course_id, requirement_type FROM program_courses ORDER BY program_id, course_id, requirement_type'
+      ),
+      prerequisites: queryAll(
+        'SELECT course_code, prerequisite_code FROM prerequisites ORDER BY course_code, prerequisite_code'
+      ),
+    });
+    return crypto.createHash('sha1').update(payload).digest('hex').slice(0, 16);
+  },
+
   // ===========================================================================
   // BUILDINGS QUERY FUNCTIONS
   // ===========================================================================
@@ -631,152 +649,12 @@ module.exports = {
   },
 
   // ===========================================================================
-  // USER COURSES QUERY FUNCTIONS
+  // USER DATA — REMOVED (Phase 1 cleanup, 2026-07-05)
+  // All per-user data (profiles, courses/grades, locations, quiz) lives in
+  // Firestore under users/{uid}/** with owner-only security rules. The mobile
+  // app reads/writes it via Rambler1/firestore-data.js. The SQLite copies and
+  // their endpoints were dead code after the client cutover.
   // ===========================================================================
-
-  getUserCourses(userId) {
-    return queryAll(
-      'SELECT * FROM user_courses WHERE user_id = ? ORDER BY semester, course_code',
-      [userId]
-    );
-  },
-
-  addUserCourse(userId, courseCode, grade, semester) {
-    db.run(
-      `INSERT OR REPLACE INTO user_courses (user_id, course_code, status, grade, semester)
-       VALUES (?, ?, 'completed', ?, ?)`,
-      [userId, courseCode, grade || null, semester || null]
-    );
-    // User course data is per-user and must NOT bump the shared catalog version
-    // (doing so forces every client to re-download the whole catalog).
-    save();
-  },
-
-  removeUserCourse(userId, courseCode) {
-    db.run(
-      'DELETE FROM user_courses WHERE user_id = ? AND course_code = ?',
-      [userId, courseCode]
-    );
-    // User course data is per-user; do not bump the shared catalog version.
-    save();
-  },
-
-  getDegreeProgress(userId, programId) {
-    // 1. Get program info
-    const program = this.getProgramById(programId);
-    if (!program) return null;
-
-    // 2. Get program's required courses
-    const requiredCourses = this.getProgramCourses(programId);
-
-    // 3. Get user's completed courses
-    const userCourses = this.getUserCourses(userId);
-    const completedCodes = new Set(userCourses.map(uc => uc.course_code));
-
-    // 4. Compare: which required courses are completed vs remaining
-    const completed = [];
-    const remaining = [];
-    for (const course of requiredCourses) {
-      if (completedCodes.has(course.code)) {
-        completed.push(course);
-      } else {
-        remaining.push(course);
-      }
-    }
-
-    // 5. Calculate credits completed vs remaining
-    const creditsCompleted = completed.reduce((sum, c) => sum + (c.credits || 3), 0);
-    const creditsRemaining = remaining.reduce((sum, c) => sum + (c.credits || 3), 0);
-    const totalCreditsRequired = program.min_credits || (creditsCompleted + creditsRemaining);
-
-    // 6. Return structured progress object
-    return {
-      program,
-      totalRequired: requiredCourses.length,
-      completedCount: completed.length,
-      remainingCount: remaining.length,
-      creditsCompleted,
-      creditsRemaining,
-      totalCreditsRequired,
-      percentComplete: requiredCourses.length > 0
-        ? Math.round((completed.length / requiredCourses.length) * 100)
-        : 0,
-      completed,
-      remaining,
-    };
-  },
-
-  // ===========================================================================
-  // USER LOCATIONS (home, dorm, custom places)
-  // ===========================================================================
-
-  getUserLocations(userId) {
-    return queryAll('SELECT * FROM user_locations WHERE user_id = ? ORDER BY is_primary DESC, label', [userId]);
-  },
-
-  getUserPrimaryLocation(userId) {
-    const rows = queryAll('SELECT * FROM user_locations WHERE user_id = ? AND is_primary = 1', [userId]);
-    return rows[0] || null;
-  },
-
-  setUserLocation(userId, label, address, latitude, longitude, isPrimary) {
-    // If setting as primary, unset any existing primary first
-    if (isPrimary) {
-      db.run('UPDATE user_locations SET is_primary = 0 WHERE user_id = ?', [userId]);
-    }
-    db.run(
-      `INSERT OR REPLACE INTO user_locations (user_id, label, address, latitude, longitude, is_primary)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [userId, label, address || '', latitude, longitude, isPrimary ? 1 : 0]
-    );
-    save();
-  },
-
-  removeUserLocation(userId, label) {
-    db.run('DELETE FROM user_locations WHERE user_id = ? AND label = ?', [userId, label]);
-    save();
-  },
-
-  // Set a dorm as the user's home — copies building coords into user_locations
-  setUserDorm(userId, dormName) {
-    const dorms = queryAll('SELECT * FROM buildings WHERE name LIKE ?', [`%${dormName}%`]);
-    if (dorms.length === 0) return null;
-    const dorm = dorms[0];
-    this.setUserLocation(userId, 'My Dorm', dorm.address, dorm.latitude, dorm.longitude, true);
-    return dorm;
-  },
-
-  // ===========================================================================
-  // USER PROFILE (onboarding selections persistence)
-  // ===========================================================================
-
-  getUserProfile(userId) {
-    const rows = queryAll('SELECT * FROM user_profiles WHERE user_id = ?', [userId]);
-    if (rows.length === 0) return null;
-    const profile = rows[0];
-    // Parse minors JSON
-    profile.selected_minors_parsed = safeJsonParse(profile.selected_minors, []);
-    // Fetch full program objects
-    if (profile.selected_program_id) {
-      profile.program = this.getProgramById(profile.selected_program_id);
-    }
-    if (profile.selected_program2_id) {
-      profile.program2 = this.getProgramById(profile.selected_program2_id);
-    }
-    // Fetch minor program objects
-    profile.minors = profile.selected_minors_parsed.map(id => this.getProgramById(id)).filter(Boolean);
-    return profile;
-  },
-
-  saveUserProfile(userId, data) {
-    const minorsJson = data.selectedMinors ? JSON.stringify(data.selectedMinors) : '[]';
-    db.run(
-      `INSERT OR REPLACE INTO user_profiles (user_id, selected_program_id, selected_program2_id, selected_minors, graduation_year, class_year, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
-      [userId, data.selectedProgramId || null, data.selectedProgram2Id || null, minorsJson, data.graduationYear || '', data.classYear || '']
-    );
-    save();
-  },
 
   // ===========================================================================
   // CORE CURRICULUM QUERY FUNCTIONS
@@ -803,55 +681,7 @@ module.exports = {
     }));
   },
 
-  getUserCoreProgress(userId, school) {
-    const areas = school ? this.getCoreAreasForSchool(school) : this.getCoreAreas();
-    const userCourses = this.getUserCourses(userId);
-    const completedCodes = new Set(userCourses.map(uc => uc.course_code));
-
-    let completedAreas = 0;
-    let totalAreas = 0;
-    let completedCredits = 0;
-    let totalCredits = 0;
-
-    const areaProgress = areas.map(area => {
-      // Check if waived
-      if (area.override && area.override.override_type === 'waived') {
-        return { ...area, status: 'waived', satisfiedBy: area.override.notes };
-      }
-
-      totalAreas++;
-      totalCredits += area.credits;
-
-      // Check if any of the area's course options are in user's completed courses
-      const completedOption = area.courseOptions.find(opt => completedCodes.has(opt.course_code));
-
-      // Check double-count
-      if (area.override && area.override.override_type === 'double-count' && area.override.substitute_course) {
-        if (completedCodes.has(area.override.substitute_course)) {
-          completedAreas++;
-          completedCredits += area.credits;
-          return { ...area, status: 'satisfied', satisfiedBy: area.override.substitute_course };
-        }
-      }
-
-      if (completedOption) {
-        completedAreas++;
-        completedCredits += area.credits;
-        return { ...area, status: 'completed', satisfiedBy: completedOption.course_code };
-      }
-
-      return { ...area, status: 'incomplete' };
-    });
-
-    return {
-      totalAreas,
-      completedAreas,
-      totalCredits,
-      completedCredits,
-      percentComplete: totalAreas > 0 ? Math.round((completedAreas / totalAreas) * 100) : 0,
-      areas: areaProgress,
-    };
-  },
+  // getUserCoreProgress — removed; ported to Rambler1/progress.js over Firestore data.
 
   // ===========================================================================
   // ENROLLMENT HISTORY (tracking which courses fill up fast)
@@ -923,31 +753,8 @@ module.exports = {
   // RIASEC QUIZ
   // ===========================================================================
 
-  saveQuizResults(userId, data) {
-    db.run(
-      `INSERT OR REPLACE INTO quiz_results (user_id, scores, code, profile_name, answers, scheduling_prefs, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
-      [
-        userId,
-        JSON.stringify(data.scores || {}),
-        data.code,
-        data.profileName || '',
-        JSON.stringify(data.answers || {}),
-        JSON.stringify(data.schedulingPrefs || {}),
-      ]
-    );
-    save();
-  },
-
-  getQuizResults(userId) {
-    const rows = queryAll('SELECT * FROM quiz_results WHERE user_id = ?', [userId]);
-    if (rows.length === 0) return null;
-    const result = rows[0];
-    result.scores = safeJsonParse(result.scores, {});
-    result.answers = safeJsonParse(result.answers, {});
-    result.scheduling_prefs = safeJsonParse(result.scheduling_prefs, {});
-    return result;
-  },
+  // saveQuizResults / getQuizResults — removed; quiz data lives in Firestore
+  // (users/{uid}/private/quiz), written by the app via firestore-data.js.
 
   getRecommendationsForCode(code) {
     // Try exact match first, then 2-letter prefix
@@ -990,36 +797,7 @@ module.exports = {
     return areas;
   },
 
-  getEnrichedRecommendations(code, userId, gradYear) {
-    const recs = this.getRecommendationsForCode(code);
-    const currentYear = new Date().getFullYear();
-    const gradYearNum = parseInt(gradYear) || (currentYear + 4);
-    const semestersLeft = Math.max((gradYearNum - currentYear) * 2, 1);
-    const coursesPerSemester = 5;
-
-    return recs.map(rec => {
-      const progress = this.getDegreeProgress(userId, rec.program_id);
-      if (!progress) {
-        return { ...rec, remainingCourses: null, feasible: null };
-      }
-
-      const remaining = progress.remainingCount;
-      const estimatedSemesters = Math.ceil(remaining / coursesPerSemester);
-      const feasible = remaining <= semestersLeft * coursesPerSemester;
-
-      return {
-        ...rec,
-        remainingCourses: remaining,
-        remainingCredits: progress.creditsRemaining,
-        totalRequired: progress.totalRequired,
-        completedCount: progress.completedCount,
-        percentComplete: progress.percentComplete,
-        estimatedSemesters,
-        feasible,
-        semestersLeft,
-      };
-    });
-  },
+  // getEnrichedRecommendations — removed; ported to Rambler1/progress.js.
 
   getRankedFocusAreas(programId, userScores) {
     const areas = this.getFocusAreasForProgram(programId);

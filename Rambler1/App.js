@@ -1,13 +1,16 @@
 // App.js
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 
 import { initDatabase } from './Database';
+import { ensureAnonymousSignIn } from './auth';
+import { setupNotificationHandler, registerAndSaveToken } from './push';
 import { AppProvider, useAppContext } from './AppContext';
 import TopBar from './components/TopBar';
 import MenuOverlay from './components/MenuOverlay';
@@ -28,8 +31,15 @@ import ScheduleScreen from './screens/ScheduleScreen';
 import SearchScreen from './screens/SearchScreen';
 import ProgressScreen from './screens/ProgressScreen';
 import MoreScreen from './screens/MoreScreen';
+import MapScreen from './screens/MapScreen';
+import LibraryScreen from './screens/LibraryScreen';
+import EventsScreen from './screens/EventsScreen';
 
 SplashScreen.preventAutoHideAsync();
+
+// Foreground notification display — once, at module init (no-op on web,
+// never throws; see push.js).
+setupNotificationHandler();
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -57,25 +67,51 @@ const AuthStack = () => (
 );
 
 // =============================================================================
-// TAB ICON — Simple text-based icons (replace with proper icons later)
+// TAB ICON — Ionicons, focused/unfocused variants
 // =============================================================================
+const TAB_ICONS = {
+  Home: { focused: 'home', unfocused: 'home-outline' },
+  Schedule: { focused: 'calendar', unfocused: 'calendar-outline' },
+  Search: { focused: 'search', unfocused: 'search-outline' },
+  Progress: { focused: 'stats-chart', unfocused: 'stats-chart-outline' },
+  More: { focused: 'ellipsis-horizontal', unfocused: 'ellipsis-horizontal-outline' },
+};
+
 const TabIcon = ({ label, focused }) => {
-  const icons = {
-    Home: '  ',
-    Schedule: '  ',
-    Search: '  ',
-    Progress: '  ',
-    More: '  ',
-  };
+  const icons = TAB_ICONS[label] || { focused: 'apps', unfocused: 'apps-outline' };
   return (
-    <Text style={{
-      fontSize: focused ? 22 : 20,
-      opacity: focused ? 1 : 0.5,
-    }}>
-      {icons[label] || '  '}
-    </Text>
+    <Ionicons
+      name={focused ? icons.focused : icons.unfocused}
+      size={22}
+      color={focused ? '#A30046' : '#8e8e93'}
+    />
   );
 };
+
+// =============================================================================
+// MORE STACK — Hub screen + campus sub-screens (Map / Library / Events)
+// =============================================================================
+const MoreStack = () => (
+  <Stack.Navigator
+    screenOptions={{
+      headerTintColor: '#A30046',
+      headerTitleStyle: {
+        fontFamily: 'CormorantGaramond-Regular',
+        fontSize: 22,
+        color: '#A30046',
+      },
+      headerShadowVisible: false,
+      headerStyle: { backgroundColor: '#FFFFFF' },
+      headerBackTitleVisible: false,
+      cardStyle: { backgroundColor: '#FFFFFF' },
+    }}
+  >
+    <Stack.Screen name="MoreHome" component={MoreScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="Map" component={MapScreen} options={{ title: 'Campus Map' }} />
+    <Stack.Screen name="Library" component={LibraryScreen} options={{ title: 'Library Hours' }} />
+    <Stack.Screen name="Events" component={EventsScreen} options={{ title: 'Campus Events' }} />
+  </Stack.Navigator>
+);
 
 // =============================================================================
 // MAIN TABS — Top bar + bottom tab navigation (post-login)
@@ -83,12 +119,12 @@ const TabIcon = ({ label, focused }) => {
 const MainTabs = () => {
   const [menuVisible, setMenuVisible] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
-  const navigationRef = React.useRef(null);
+  // Root navigation object (falls back to the container ref since MainTabs
+  // is rendered inside NavigationContainer but outside any screen).
+  const navigation = useNavigation();
 
-  const handleMenuNavigate = (tabName) => {
-    if (navigationRef.current) {
-      navigationRef.current.navigate(tabName);
-    }
+  const handleMenuNavigate = (tabName, params) => {
+    navigation.navigate(tabName, params);
   };
 
   return (
@@ -98,7 +134,6 @@ const MainTabs = () => {
         onProfilePress={() => setProfileVisible(true)}
       />
       <Tab.Navigator
-        ref={navigationRef}
         screenOptions={({ route }) => ({
           headerShown: false,
           tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
@@ -125,7 +160,7 @@ const MainTabs = () => {
         <Tab.Screen name="Schedule" component={ScheduleScreen} />
         <Tab.Screen name="Search" component={SearchScreen} />
         <Tab.Screen name="Progress" component={ProgressScreen} />
-        <Tab.Screen name="More" component={MoreScreen} />
+        <Tab.Screen name="More" component={MoreStack} />
       </Tab.Navigator>
 
       <MenuOverlay
@@ -139,6 +174,26 @@ const MainTabs = () => {
       />
     </View>
   );
+};
+
+// =============================================================================
+// PUSH TOKEN GATE — Renders nothing; watches auth via AppContext and, once a
+// signed-in NON-anonymous user appears, fire-and-forgets push registration
+// (which saves users/{uid}.expoPushToken). registerAndSaveToken never throws
+// and resolves null on web/simulator/denied-permission/no-EAS-projectId, so
+// this is safe in every environment including Expo Go.
+// =============================================================================
+const PushTokenGate = () => {
+  const { user } = useAppContext();
+  const uid = user && !user.isAnonymous ? user.uid : null;
+
+  useEffect(() => {
+    if (uid) {
+      registerAndSaveToken(uid);
+    }
+  }, [uid]);
+
+  return null;
 };
 
 // =============================================================================
@@ -162,9 +217,21 @@ const App = () => {
   const [dbReady, setDbReady] = useState(false);
 
   useEffect(() => {
-    initDatabase()
-      .then(() => setDbReady(true))
-      .catch((error) => console.error('Database initialization failed:', error));
+    // Anonymous sign-in first (Firestore catalog reads require auth — anonymous
+    // counts), then init/sync the local sqlite cache. ensureAnonymousSignIn
+    // never throws, so an offline launch still boots from the cached catalog.
+    ensureAnonymousSignIn()
+      .catch(() => {})
+      .finally(() => {
+        initDatabase()
+          .then(() => setDbReady(true))
+          .catch((error) => {
+            // The sqlite cache is an optimization — Firestore is the source of
+            // truth. Never brick the app over it (it also doesn't exist on web).
+            console.error('Database init failed (continuing without local cache):', error);
+            setDbReady(true);
+          });
+      });
   }, []);
 
   const onLayoutRootView = useCallback(async () => {
@@ -179,6 +246,7 @@ const App = () => {
 
   return (
     <AppProvider>
+      <PushTokenGate />
       <View style={{ flex: 1, backgroundColor: '#A30046' }} onLayout={onLayoutRootView}>
         <NavigationContainer
           theme={{

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { onAuthChange } from './auth';
-import { fetchUserProfile, fetchProgramById, fetchQuizResults, fetchUserCourses, fetchCourseDetail, fetchUserLocations } from './api';
+import { onAuthChange, ensureAnonymousSignIn } from './auth';
+import { fetchUserProfile, fetchProgramById, fetchQuizResults, fetchUserCourses, fetchCourseDetail, fetchUserLocations } from './firestore-data';
 
 const AppContext = createContext();
 
@@ -16,6 +16,8 @@ export const AppProvider = ({ children }) => {
   const [authLoading, setAuthLoading] = useState(true);
   const [graduationYear, setGraduationYear] = useState('');
   const [classYear, setClassYear] = useState('');
+  const [isHonors, setIsHonors] = useState(false);
+  const [isAthlete, setIsAthlete] = useState(false);
   const [userLocations, setUserLocations] = useState([]);
   const [selectedFocus, setSelectedFocus] = useState(null);
 
@@ -27,8 +29,11 @@ export const AppProvider = ({ children }) => {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           displayName: firebaseUser.displayName,
+          isAnonymous: firebaseUser.isAnonymous,
         });
-        setIsLoggedIn(true);
+        // Anonymous sessions (catalog-read auth) do NOT count as logged in —
+        // they must still go through onboarding.
+        setIsLoggedIn(!firebaseUser.isAnonymous);
 
         // Restore saved profile from backend
         try {
@@ -61,6 +66,9 @@ export const AppProvider = ({ children }) => {
             if (profile.class_year) {
               setClassYear(profile.class_year);
             }
+            // Priority flags — booleans, default false when absent
+            setIsHonors(profile.is_honors === true);
+            setIsAthlete(profile.is_athlete === true);
           }
         } catch (e) {
           // Profile restore failed — not critical, user can re-select
@@ -117,8 +125,17 @@ export const AppProvider = ({ children }) => {
         setQuizResults(null);
         setGraduationYear('');
         setClassYear('');
+        setIsHonors(false);
+        setIsAthlete(false);
         setUserLocations([]);
         setSelectedFocus(null);
+        // Session ended (sign-out, token revocation, account deletion) — re-establish
+        // anonymous auth so Firestore catalog reads (rules require ANY auth) keep
+        // working during re-onboarding. isLoggedIn already treats anonymous users as
+        // logged out, so this cannot skip onboarding. Fire-and-forget: it never throws,
+        // and success re-fires onAuthChange with the anonymous user (no loop — a failed
+        // attempt produces no auth event).
+        ensureAnonymousSignIn().catch(() => {});
       }
       setAuthLoading(false);
     });
@@ -148,6 +165,10 @@ export const AppProvider = ({ children }) => {
         setGraduationYear,
         classYear,
         setClassYear,
+        isHonors,
+        setIsHonors,
+        isAthlete,
+        setIsAthlete,
         quizResults,
         setQuizResults,
         userLocations,

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Modal, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, StyleSheet } from 'react-native';
-import { getCourseSections } from './api';
+import { View, Text, Modal, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, StyleSheet, Alert } from 'react-native';
+import { getCourseSections, fetchCourseDetail, fetchWatches, addWatch, removeWatch } from './firestore-data';
 import { searchProfessors } from './rmp';
 import { useAppContext } from './AppContext';
+import { fillWarning } from './planning-insights';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -22,14 +23,26 @@ const TERM = getRegistrationTerm();
 // - course: { code, name, credits, description }
 // - section: single section object (shows just this one section)
 // - sections: array of sections (shows all — used when no single section passed)
-const CourseDetailModal = ({ visible, course, section: singleSection, sections: preSections, onClose }) => {
-  const { quizResults } = useAppContext();
+// - watchState: optional { watchedSet, toggleWatch } — when provided (nested
+//   single-section instance), the outermost modal owns the seat-watch state so
+//   bell toggles stay in sync between the sections list and the detail view.
+const CourseDetailModal = ({ visible, course, section: singleSection, sections: preSections, onClose, watchState }) => {
+  const { user, quizResults, classYear, isHonors, isAthlete } = useAppContext();
   const prefs = quizResults?.schedulingPrefs || {};
+  const signedIn = !!user && !user.isAnonymous; // anonymous users can't own watches
 
   const [sections, setSections] = useState([]);
   const [sectionsLoading, setSectionsLoading] = useState(false);
   const [profRatings, setProfRatings] = useState({});
   const [selectedSection, setSelectedSection] = useState(null);
+  // Seat watches for this term: Set of watched class_number strings. Only the
+  // outermost instance owns this; nested instances use watchState from props.
+  const [ownWatchedSet, setOwnWatchedSet] = useState(() => new Set());
+  const isControlled = !!watchState;
+  const watchedSet = isControlled ? watchState.watchedSet : ownWatchedSet;
+  // fill_stats (legacy snake_case row from firestore-data). undefined = not yet
+  // known, null = known absent, object = present.
+  const [fillStats, setFillStats] = useState(undefined);
 
   // Score a section based on user's scheduling preferences (higher = better match)
   const scoreSection = (sec) => {
@@ -94,6 +107,72 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
     }
   }, [visible, course, singleSection]);
 
+  // Seat watches: load the user's watches for this term each time the modal
+  // opens. fetchWatches returns [] on failure, so this never throws.
+  // Skipped when controlled — the parent instance already owns the state.
+  useEffect(() => {
+    if (isControlled || !visible) return;
+    if (!signedIn) { setOwnWatchedSet(new Set()); return; }
+    let cancelled = false;
+    fetchWatches(user.uid, TERM.code).then((watches) => {
+      if (!cancelled) {
+        setOwnWatchedSet(new Set((watches || []).map((w) => String(w.class_number))));
+      }
+    });
+    return () => { cancelled = true; };
+  }, [isControlled, visible, signedIn, user]);
+
+  // Optimistic bell flip, reverted with an alert if the write fails.
+  const ownToggleWatch = async (sec) => {
+    if (!signedIn) return; // bell is rendered disabled for anonymous users
+    const classNum = String(sec.class_number);
+    const wasWatching = ownWatchedSet.has(classNum);
+    const applyWatching = (nowWatching) => {
+      setOwnWatchedSet((prev) => {
+        const next = new Set(prev);
+        if (nowWatching) next.add(classNum); else next.delete(classNum);
+        return next;
+      });
+    };
+    applyWatching(!wasWatching);
+    const res = wasWatching
+      ? await removeWatch(user.uid, classNum)
+      : await addWatch(user.uid, TERM.code, classNum);
+    if (!res) {
+      applyWatching(wasWatching); // revert
+      Alert.alert('Watch update failed', 'Could not update your seat watch. Please try again.');
+    }
+  };
+  const toggleWatch = isControlled ? watchState.toggleWatch : ownToggleWatch;
+
+  // Fill-speed stats: the course prop may come from the local sqlite cache
+  // WITHOUT fill_stats. Fetch the Firestore-mapped course once per open to get
+  // it. Fire-and-forget — the modal never blocks on this; no stats, no banner.
+  useEffect(() => {
+    if (!visible || !course) return;
+    if (course.fill_stats !== undefined) {
+      setFillStats(course.fill_stats);
+      return;
+    }
+    setFillStats(undefined);
+    let cancelled = false;
+    fetchCourseDetail(course.code)
+      .then((detail) => {
+        if (!cancelled) setFillStats((detail && detail.fill_stats) || null);
+      })
+      .catch(() => {
+        if (!cancelled) setFillStats(null);
+      });
+    return () => { cancelled = true; };
+  }, [visible, course]);
+
+  // Adapt the legacy snake_case row to fillWarning's field names.
+  const fillNotice = fillWarning(
+    fillStats ? { class: fillStats.class, capChanged: fillStats.cap_changed === true } : null,
+    classYear,
+    { isHonors, isAthlete }
+  );
+
   const loadSections = async () => {
     setSectionsLoading(true);
     try {
@@ -141,6 +220,24 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
             </TouchableOpacity>
           </View>
 
+          {/* Fill-speed warning (empirical, last registration term) */}
+          {fillNotice ? (
+            fillNotice.level === 'info' ? (
+              <Text style={s.fillInfoLine}>⚡ {fillNotice.text}</Text>
+            ) : (
+              <View style={[s.fillBanner, fillNotice.level === 'high' ? s.fillBannerHigh : s.fillBannerWarn]}>
+                <Text
+                  style={[
+                    s.fillBannerText,
+                    fillNotice.level === 'high' ? s.fillBannerTextHigh : s.fillBannerTextWarn,
+                  ]}
+                >
+                  ⚡ {fillNotice.text}
+                </Text>
+              </View>
+            )
+          ) : null}
+
           {course.description ? (
             <Text style={s.description}>{course.description}</Text>
           ) : null}
@@ -177,6 +274,9 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
 
                 const prof = sec.instructor ? profRatings[sec.instructor] : null;
                 const isRecommended = !singleSection && sec._prefScore > 0 && sec._prefScore >= topScore && topScore > 0;
+                // Bell only for sections explicitly not open (Closed / Wait List).
+                const canBellWatch = isClosed || isWaitList;
+                const isWatched = watchedSet.has(String(sec.class_number));
 
                 return (
                   <TouchableOpacity
@@ -226,6 +326,20 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                       </Text>
                     </View>
 
+                    {/* Seat watch bell (Closed / Wait List sections only) */}
+                    {canBellWatch ? (
+                      <TouchableOpacity
+                        style={[s.watchBtn, isWatched && s.watchBtnActive, !signedIn && s.watchBtnDisabled]}
+                        onPress={() => toggleWatch(sec)}
+                        disabled={!signedIn}
+                        accessibilityLabel={isWatched ? 'Stop watching for open seats' : 'Watch for open seats'}
+                      >
+                        <Text style={[s.watchBtnText, isWatched && s.watchBtnTextActive]}>
+                          {isWatched ? '🔔 Watching' : '🔕 Watch'}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : null}
+
                     {/* Professor + RMP Rating */}
                     {sec.instructor ? (
                       <View style={s.profSection}>
@@ -270,8 +384,9 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
       {selectedSection && (
         <CourseDetailModal
           visible={!!selectedSection}
-          course={course}
+          course={fillStats !== undefined ? { ...course, fill_stats: fillStats } : course}
           section={selectedSection}
+          watchState={{ watchedSet, toggleWatch }}
           onClose={() => setSelectedSection(null)}
         />
       )}
@@ -331,6 +446,30 @@ const s = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
+    marginTop: 8,
+  },
+
+  // Fill-speed warning banner
+  fillBanner: {
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 10,
+  },
+  fillBannerHigh: { backgroundColor: '#fee2e2' },
+  fillBannerWarn: { backgroundColor: '#fef3c7' },
+  fillBannerText: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 15,
+    fontWeight: 'bold',
+    lineHeight: 20,
+  },
+  fillBannerTextHigh: { color: '#b91c1c' },
+  fillBannerTextWarn: { color: '#92400e' },
+  fillInfoLine: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 14,
+    color: '#888',
     marginTop: 8,
   },
   divider: {
@@ -400,6 +539,23 @@ const s = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
+
+  // Seat watch bell
+  watchBtn: {
+    alignSelf: 'flex-start',
+    marginTop: 2,
+    marginBottom: 4,
+    borderRadius: 14,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#A30046',
+    backgroundColor: '#FFFFFF',
+  },
+  watchBtnActive: { backgroundColor: '#A30046' },
+  watchBtnDisabled: { opacity: 0.4 },
+  watchBtnText: { fontSize: 12, fontWeight: '600', color: '#A30046' },
+  watchBtnTextActive: { color: '#FFFFFF' },
 
   // Info rows
   infoRow: {

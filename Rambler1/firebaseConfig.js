@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
+import { initializeFirestore, getFirestore } from 'firebase/firestore';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
@@ -24,4 +25,17 @@ try {
   auth = getAuth(app);
 }
 
-export { auth };
+// Firestore — RN needs long-polling auto-detect (WebChannel streaming is
+// unreliable on React Native). Web-SDK persistent cache is unavailable in RN;
+// the expo-sqlite catalog cache in Database.js is the offline layer.
+let db;
+try {
+  db = initializeFirestore(app, {
+    experimentalAutoDetectLongPolling: true,
+  });
+} catch (e) {
+  // Already initialized (hot reload) — get existing instance
+  db = getFirestore(app);
+}
+
+export { auth, db };

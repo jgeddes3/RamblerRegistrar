@@ -485,6 +485,14 @@ async function scrape(termCode, subjectsToScrape, fetchEnrollment = false) {
       for (const section of newSections) {
         db.insertSection(code, section);
       }
+      // A successful subject scrape is authoritative for that subject: rows
+      // absent from it were cancelled/renumbered in LOCUS. Without this, ghost
+      // rows linger in SQLite forever and firestore-sync re-uploads them as
+      // live daily (B3). Only fires on non-empty results — see scrapeAll.
+      const subj = newSections[0].subject;
+      const stale = db.deleteStaleSections(code, subj, newSections.map((s) => s.class_number));
+      if (stale > 0) console.log(`  Pruned ${stale} stale ${subj} section(s) no longer in LOCUS`);
+      db.save(); // one batched disk write per subject (B5) — not per section
       savedCount += newSections.length;
     });
 
@@ -494,14 +502,22 @@ async function scrape(termCode, subjectsToScrape, fetchEnrollment = false) {
     console.error(`\nScrape interrupted: ${err.message}`);
     console.log(`Sections saved before interruption: ${savedCount}`);
   } finally {
-    // Finalize whatever we got — even partial data is useful
+    // Finalize whatever we got — even partial data is useful.
+    // Wrapped so a transient save() failure (e.g. EPERM if the 4 PM backup has
+    // locus.db open during the atomic rename) can't skip scraper.close() below
+    // or mask the original scrapeError. Data stays in memory; a later save
+    // (or the next run) re-persists the full DB image.
     if (savedCount > 0) {
-      db.recordScrape(code, `Term ${code}`);
-      const newVersion = db.bumpVersion();
-      console.log(`Stored ${savedCount} sections. Catalog version: ${newVersion}`);
+      try {
+        db.recordScrape(code, `Term ${code}`);
+        const newVersion = db.bumpVersion();
+        console.log(`Stored ${savedCount} sections. Catalog version: ${newVersion}`);
 
-      const snapshotCount = db.snapshotEnrollment(code);
-      console.log(`Enrollment snapshot: ${snapshotCount} sections recorded`);
+        const snapshotCount = db.snapshotEnrollment(code);
+        console.log(`Enrollment snapshot: ${snapshotCount} sections recorded`);
+      } catch (finalizeErr) {
+        console.error(`Finalize failed (data retained in memory): ${finalizeErr.message}`);
+      }
 
       // Dual-write the finalized term to Firestore. Non-fatal: SQLite stays the
       // source of truth during the migration, so a Firestore hiccup never fails
@@ -509,7 +525,7 @@ async function scrape(termCode, subjectsToScrape, fetchEnrollment = false) {
       try {
         const { syncTermToFirestore } = require('./firestore-sync');
         const fsResult = await syncTermToFirestore(code);
-        console.log(`Firestore sync: ${fsResult.sections} sections, ${fsResult.instructors} instructors, ${fsResult.pruned} marked removed`);
+        console.log(`Firestore sync: ${fsResult.written} written / ${fsResult.skipped} unchanged of ${fsResult.sections} sections, ${fsResult.instructors} instructor(s) updated, ${fsResult.pruned} marked removed`);
       } catch (fsErr) {
         console.error(`Firestore sync failed (SQLite remains source of truth): ${fsErr.message}`);
       }

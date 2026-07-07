@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppContext } from '../AppContext';
-import { searchCourses as apiSearchCourses, getCourseSections, searchByInstructor } from '../api';
+import { searchCourses as apiSearchCourses, getCourseSections, searchByInstructor } from '../firestore-data';
 import { fetchCourses as fetchLocalCourses } from '../Database';
 import CourseDetailModal from '../CourseDetailModal';
 
@@ -152,6 +152,19 @@ const SectionRow = ({ section, onPress }) => {
 // COURSE CARD
 // =============================================================================
 
+// Compact fast-fill flag for result rows (class-based, not personalized —
+// personalized copy lives in CourseDetailModal). Rows without fill_stats
+// (e.g. local sqlite instant-search rows) simply show no flag.
+function getFillFlag(fillStats) {
+  const cls = fillStats && typeof fillStats === 'object' ? fillStats.class : null;
+  // cap_changed = seat counts moved >20% last term; mark the chip as an
+  // estimate so the compact form stays honest (full nuance is in the modal).
+  const est = fillStats && fillStats.cap_changed === true ? ' (est.)' : '';
+  if (cls === 'day1-2') return { label: `Fills day 1${est}`, tone: 'danger' };
+  if (cls === 'first-week') return { label: `Fills week 1${est}`, tone: 'warn' };
+  return null;
+}
+
 const CourseCard = ({ course, sections, sectionsLoading, filters, onCoursePress, onSectionPress }) => {
   // Filter sections by active filters
   const filteredSections = (sections || []).filter(sec => {
@@ -177,6 +190,7 @@ const CourseCard = ({ course, sections, sectionsLoading, filters, onCoursePress,
   });
 
   const sectionCount = sections ? filteredSections.length : null;
+  const fillFlag = getFillFlag(course.fill_stats);
 
   return (
     <View style={s.card}>
@@ -184,7 +198,19 @@ const CourseCard = ({ course, sections, sectionsLoading, filters, onCoursePress,
         <View style={s.cardDot} />
         <View style={s.cardInfo}>
           <View style={s.cardTitleRow}>
-            <Text style={s.cardCode}>{course.code}</Text>
+            <View style={s.cardCodeRow}>
+              <Text style={s.cardCode}>{course.code}</Text>
+              {fillFlag ? (
+                <View style={[s.fillFlag, fillFlag.tone === 'danger' ? s.fillFlagDanger : s.fillFlagWarn]}>
+                  <Text
+                    numberOfLines={1}
+                    style={[s.fillFlagText, fillFlag.tone === 'danger' ? s.fillFlagTextDanger : s.fillFlagTextWarn]}
+                  >
+                    ⚡ {fillFlag.label}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
             <Text style={s.cardCredits}>{course.credits || 3} cr</Text>
           </View>
           <Text style={s.cardName} numberOfLines={1}>{course.name}</Text>
@@ -273,6 +299,9 @@ const SearchScreen = () => {
   const debounceRef = useRef(null);
   const allCoursesRef = useRef([]);
   const inputRef = useRef(null);
+  // Monotonic token: a slower API response for an OLD query must not
+  // overwrite the results of a newer one.
+  const searchGenRef = useRef(0);
 
   // Load local courses + recent searches on mount
   useEffect(() => {
@@ -317,6 +346,7 @@ const SearchScreen = () => {
   }, []);
 
   const performSearch = useCallback(async (q) => {
+    const gen = ++searchGenRef.current;
     // Phase 1: instant local search
     const qLower = q.toLowerCase();
     const localMatches = allCoursesRef.current.filter(c =>
@@ -330,8 +360,17 @@ const SearchScreen = () => {
     try {
       const apiResults = await apiSearchCourses(q) || [];
       // Merge: API results may have data local doesn't
+      const apiByCode = new Map(apiResults.map(r => [r.code, r]));
+      // Local sqlite rows have no fill_stats — copy it from the matching API
+      // row so fast-fill flags still show when a local row shadows the result.
+      const merged = localMatches.map(c => {
+        if (c.fill_stats === undefined) {
+          const api = apiByCode.get(c.code);
+          if (api && api.fill_stats !== undefined) return { ...c, fill_stats: api.fill_stats };
+        }
+        return c;
+      });
       const codeSet = new Set(localMatches.map(c => c.code));
-      const merged = [...localMatches];
       for (const r of apiResults) {
         if (!codeSet.has(r.code)) {
           merged.push(r);
@@ -363,13 +402,16 @@ const SearchScreen = () => {
         } catch (e) {}
       }
 
+      // Stale guard: a newer query started while this one was in flight.
+      if (gen !== searchGenRef.current) return;
+
       const finalResults = sortResults(merged, q);
       setResults(finalResults);
 
       // Pre-load sections for all results in background
       loadSectionsForCourses(finalResults);
     } catch (e) {}
-    setLoading(false);
+    if (gen === searchGenRef.current) setLoading(false);
     saveRecent(q);
   }, [sortResults, saveRecent]);
 
@@ -423,6 +465,7 @@ const SearchScreen = () => {
         name: course.name,
         credits: course.credits,
         description: course.description,
+        fill_stats: course.fill_stats, // undefined -> modal fetches it itself
       },
       section: null,
       sections: sections[course.code] || null,
@@ -437,6 +480,7 @@ const SearchScreen = () => {
         name: course.name || section.title,
         credits: course.credits,
         description: course.description,
+        fill_stats: course.fill_stats, // undefined -> modal fetches it itself
       },
       section: section,
       sections: null,
@@ -614,6 +658,29 @@ const s = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
+  cardCodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+    marginRight: 8,
+  },
+  fillFlag: {
+    borderRadius: 8,
+    paddingVertical: 1,
+    paddingHorizontal: 6,
+    marginLeft: 8,
+    flexShrink: 1,
+  },
+  fillFlagDanger: { backgroundColor: '#fee2e2' },
+  fillFlagWarn: { backgroundColor: '#fef3c7' },
+  fillFlagText: {
+    // System font, not Cormorant: an 11px serif chip is illegible and the
+    // design rule reserves Cormorant for headings.
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  fillFlagTextDanger: { color: '#b91c1c' },
+  fillFlagTextWarn: { color: '#92400e' },
   cardCredits: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 14,

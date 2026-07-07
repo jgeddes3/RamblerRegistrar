@@ -12,14 +12,14 @@ const MENU_ITEMS = [
 ];
 
 const EXTRA_ITEMS = [
-  { label: 'Library Hours', screen: 'More' },
-  { label: 'Campus Events', screen: 'More' },
-  { label: 'Campus Map', screen: 'More' },
+  { label: 'Library Hours', tab: 'More', params: { screen: 'Library' } },
+  { label: 'Campus Events', tab: 'More', params: { screen: 'Events' } },
+  { label: 'Campus Map', tab: 'More', params: { screen: 'Map' } },
 ];
 
 const MenuOverlay = ({ visible, onClose, onNavigate }) => {
-  const handleItemPress = (tab) => {
-    onNavigate(tab);
+  const handleItemPress = (tab, params) => {
+    onNavigate(tab, params);
     onClose();
   };
 
@@ -59,7 +59,7 @@ const MenuOverlay = ({ visible, onClose, onNavigate }) => {
             <TouchableOpacity
               key={item.label}
               style={s.menuItem}
-              onPress={() => handleItemPress(item.screen)}
+              onPress={() => handleItemPress(item.tab, item.params)}
             >
               <Text style={s.menuItemTextSecondary}>{item.label}</Text>
             </TouchableOpacity>

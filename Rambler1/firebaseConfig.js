@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
 import { initializeFirestore, getFirestore } from 'firebase/firestore';
@@ -16,10 +17,25 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 let auth;
+// getReactNativePersistence only exists in @firebase/auth's react-native build
+// (Metro resolves it via the "react-native" exports condition), so:
+//   - NATIVE: it's a function -> initializeAuth with AsyncStorage persistence.
+//   - WEB:    it's undefined (browser build) -> getAuth, whose DEFAULT is
+//     browser local persistence. NEVER call initializeAuth with an undefined
+//     persistence — that silently selects MEMORY persistence and signs users
+//     out on every restart (B11 regression caught 2026-07-07).
+// If it's ever undefined on native, warn loudly: that means Metro stopped
+// resolving the react-native build and sessions won't survive restarts.
+if (typeof getReactNativePersistence !== 'function' && Platform.OS !== 'web') {
+  console.warn(
+    '[firebaseConfig] getReactNativePersistence is unavailable on native — auth ' +
+    'sessions will NOT survive app restarts. Check Metro package-exports resolution.'
+  );
+}
 try {
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(ReactNativeAsyncStorage),
-  });
+  auth = typeof getReactNativePersistence === 'function'
+    ? initializeAuth(app, { persistence: getReactNativePersistence(ReactNativeAsyncStorage) })
+    : getAuth(app);
 } catch (e) {
   // Already initialized (hot reload) — get existing instance
   auth = getAuth(app);

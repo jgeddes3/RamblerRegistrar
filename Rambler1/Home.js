@@ -419,26 +419,26 @@ const s = StyleSheet.create({
   },
   welcome: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 22,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 22,
     color: '#333',
     marginBottom: 12,
   },
   sectionHeader: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 24,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 24,
     color: '#A30046',
     marginTop: 16,
     marginBottom: 8,
   },
   infoText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 18,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 18,
     marginBottom: 4,
     color: '#333',
   },
   classItem: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 16,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
     marginLeft: 8,
     marginBottom: 2,
     color: '#555',
@@ -458,7 +458,7 @@ const s = StyleSheet.create({
   },
   tagText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 14,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
     color: '#555',
   },
 
@@ -478,13 +478,13 @@ const s = StyleSheet.create({
   },
   cardEmptyText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 18,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 18,
     color: '#999',
     textAlign: 'center',
   },
   cardHintText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 14,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
     color: '#CCC',
     marginTop: 4,
     textAlign: 'center',
@@ -502,7 +502,7 @@ const s = StyleSheet.create({
   },
   classTime: {
     width: 128,
-    fontSize: 13,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
     color: '#555',
     marginTop: 2,
   },
@@ -520,17 +520,17 @@ const s = StyleSheet.create({
     marginRight: 6,
   },
   classCode: {
-    fontSize: 14,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
     fontWeight: 'bold',
     color: '#333',
   },
   classTitle: {
-    fontSize: 13,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
     color: '#555',
     marginTop: 1,
   },
   classBuilding: {
-    fontSize: 12,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 12,
     color: '#888',
     marginTop: 1,
   },
@@ -552,17 +552,17 @@ const s = StyleSheet.create({
   },
   outlookStatus: {
     flex: 1,
-    fontSize: 14,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
     fontWeight: 'bold',
   },
   outlookDetail: {
-    fontSize: 13,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
     color: '#555',
     marginTop: 4,
     marginLeft: 18,
   },
   outlookDisclaimer: {
-    fontSize: 11,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 11,
     color: '#999',
     fontStyle: 'italic',
     marginTop: 6,
@@ -578,13 +578,13 @@ const s = StyleSheet.create({
   },
   libName: {
     flex: 1,
-    fontSize: 13,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
     fontWeight: '600',
     color: '#333',
     marginRight: 10,
   },
   libHours: {
-    fontSize: 13,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
     color: '#555',
     flexShrink: 0,
     maxWidth: '55%',
@@ -593,7 +593,7 @@ const s = StyleSheet.create({
 
   emptyText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 16,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
     color: '#999',
     textAlign: 'center',
     marginTop: 40,

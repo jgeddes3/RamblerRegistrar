@@ -205,10 +205,10 @@ const s = StyleSheet.create({
   statusOpen: { backgroundColor: '#d1fae5' },
   statusClosed: { backgroundColor: '#F3F4F6' },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontSize: 11, fontWeight: 'bold' },
+  statusText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 11, fontWeight: 'bold' },
   hoursRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 6 },
-  hoursText: { flex: 1, fontSize: 13, color: '#555' },
-  noteText: { fontSize: 12, color: '#999', marginTop: 4, fontStyle: 'italic' },
+  hoursText: { flex: 1, fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#555' },
+  noteText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: '#999', marginTop: 4, fontStyle: 'italic' },
 
   // Weekly grid
   weekCard: {
@@ -221,8 +221,8 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 3, borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
   },
-  weekDay: { width: 44, fontSize: 12, fontWeight: '600', color: MAROON },
-  weekHours: { flex: 1, fontSize: 12, color: '#555', textAlign: 'right' },
+  weekDay: { width: 44, fontFamily: 'CormorantGaramond-Regular', fontSize: 12, fontWeight: '600', color: MAROON },
+  weekHours: { flex: 1, fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: '#555', textAlign: 'right' },
 });
 
 export default LibraryScreen;

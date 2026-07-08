@@ -13,6 +13,7 @@
 
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { db } from './firebaseConfig';
+import { computeRequirementProgress } from './requirement-progress';
 
 // =============================================================================
 // SHARED HELPERS
@@ -93,10 +94,27 @@ export async function getProgramCourses(programId) {
   const rows = await Promise.all(
     snap.docs.map(async (d) => {
       const data = d.data();
+      // Subject electives (B12 phase 2) are prose requirements ("any two
+      // 300-level PHIL courses") — no course doc to join; pass through as-is.
+      if (data.requirementType === 'subject_elective') {
+        return {
+          requirement_type: 'subject_elective',
+          subject: data.subject || '',
+          min_level: data.minLevel ?? null,
+          count: data.count ?? 1,
+          code: `${data.subject || ''} elective`,
+        };
+      }
       const code = data.courseCode || d.id;
       const course = await getCourseRow(code);
       if (!course) return null;
-      return { ...course, requirement_type: data.requirementType || 'required' };
+      return {
+        ...course,
+        requirement_type: data.requirementType || 'required',
+        // Choice groups (B12): "pick chooseCount of the group's options".
+        choice_group: data.choiceGroup ?? null,
+        choose_count: data.chooseCount ?? null,
+      };
     })
   );
   return rows
@@ -142,34 +160,30 @@ export async function getDegreeProgress(userId, programId) {
   ]);
   const completedCodes = new Set(userCourses.map((uc) => uc.course_code));
 
-  // 4. Compare: which required courses are completed vs remaining
-  const completed = [];
-  const remaining = [];
-  for (const course of requiredCourses) {
-    if (completedCodes.has(course.code)) {
-      completed.push(course);
-    } else {
-      remaining.push(course);
-    }
-  }
+  // 4. Compare required vs completed — choice-group aware (B12): a "pick N"
+  // group counts as N units, not one unit per option. Pure math lives in
+  // requirement-progress.js (unit-tested).
+  const req = computeRequirementProgress(requiredCourses, completedCodes);
+  const { completed, remaining } = req;
 
-  // 5. Calculate credits completed vs remaining
-  const creditsCompleted = completed.reduce((sum, c) => sum + (c.credits || 3), 0);
-  const creditsRemaining = remaining.reduce((sum, c) => sum + (c.credits || 3), 0);
-  const totalCreditsRequired = program.min_credits || (creditsCompleted + creditsRemaining);
+  // 5. Credits and unit counts come from the choice-aware math: an unmet
+  // "pick 1 of 8" group is ONE remaining unit (~3 credits), not eight.
+  const totalCreditsRequired = program.min_credits || (req.creditsCompleted + req.creditsRemaining);
 
   // 6. Return structured progress object
   return {
     program,
-    totalRequired: requiredCourses.length,
-    completedCount: completed.length,
-    remainingCount: remaining.length,
-    creditsCompleted,
-    creditsRemaining,
+    // B12 honesty flag: many programs (all minors as of 2026-07) have no
+    // requirement rows loaded yet. Zero requirements means "we don't know",
+    // NOT "nothing left" — consumers must not read the zeros as progress.
+    requirementsUnknown: requiredCourses.length === 0,
+    totalRequired: req.totalRequired,
+    completedCount: req.completedCount,
+    remainingCount: req.remainingCount,
+    creditsCompleted: req.creditsCompleted,
+    creditsRemaining: req.creditsRemaining,
     totalCreditsRequired,
-    percentComplete: requiredCourses.length > 0
-      ? Math.round((completed.length / requiredCourses.length) * 100)
-      : 0,
+    percentComplete: req.percentComplete,
     completed,
     remaining,
   };

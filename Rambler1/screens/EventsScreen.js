@@ -187,12 +187,12 @@ const s = StyleSheet.create({
     width: 48, height: 52, borderRadius: 10, backgroundColor: MAROON,
     alignItems: 'center', justifyContent: 'center',
   },
-  badgeMonth: { color: '#FFFFFF', fontSize: 10, fontWeight: 'bold', letterSpacing: 1 },
-  badgeDay: { color: '#FFFFFF', fontSize: 20, fontWeight: 'bold', marginTop: -1 },
+  badgeMonth: { color: '#FFFFFF', fontFamily: 'CormorantGaramond-Regular', fontSize: 10, fontWeight: 'bold', letterSpacing: 1 },
+  badgeDay: { color: '#FFFFFF', fontFamily: 'CormorantGaramond-Regular', fontSize: 20, fontWeight: 'bold', marginTop: -1 },
   cardBody: { flex: 1 },
   cardTitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 18, color: '#333' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
-  metaText: { flex: 1, fontSize: 12, color: '#777' },
+  metaText: { flex: 1, fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: '#777' },
 });
 
 export default EventsScreen;

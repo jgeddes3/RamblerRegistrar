@@ -402,6 +402,14 @@ const ProgressScreen = () => {
         <Text style={s.heading}>{selectedProgram.name} ({selectedProgram.degree})</Text>
         {selectedProgram.school && <Text style={s.subheading}>{selectedProgram.school}</Text>}
 
+        {progress.requirementsUnknown ? (
+          <Text style={[s.electiveHint, { marginTop: 16 }]}>
+            The required-course list for this major isn't loaded into
+            RamblerRegistrar yet, so progress can't be tracked here. The
+            official requirements are in the LUC academic catalog
+            (catalog.luc.edu) — we're working on adding them.
+          </Text>
+        ) : (
         <ProgressBar
           label="Major Progress"
           percent={progress.percentComplete}
@@ -410,6 +418,7 @@ const ProgressScreen = () => {
           unit="courses"
           color="#A30046"
         />
+        )}
 
         {progress.completed && progress.completed.length > 0 && (
           <View style={s.section}>
@@ -708,6 +717,76 @@ const ProgressScreen = () => {
         );
       })()}
 
+      {/* 2nd major / minor detail view — view holds the program id. This view
+          was MISSING entirely (tapping a minor tab rendered nothing, qualm #4);
+          data-wise most of these programs also have no requirements loaded yet
+          (B12), which gets an honest message instead of an empty list. */}
+      {!['all', 'major', 'core', 'electives'].includes(view) && (() => {
+        const prog = otherProgress.find((p) => String(p?.program?.id) === String(view));
+        const meta = allPrograms.find((p) => String(p?.id) === String(view));
+        const title = prog?.program?.name || meta?.name || 'Program';
+        const isMinor = (prog?.program?.type || meta?.type) === 'minor';
+        return (
+          <ScrollView contentContainerStyle={s.scrollContent}>
+            <Text style={s.heading}>{title}{isMinor ? ' (Minor)' : ''}</Text>
+            {!prog ? (
+              <Text style={s.emptyText}>Progress unavailable for this program.</Text>
+            ) : prog.requirementsUnknown ? (
+              <Text style={[s.electiveHint, { marginTop: 16 }]}>
+                The required-course list for this program isn't loaded into
+                RamblerRegistrar yet, so progress can't be tracked here. The
+                official requirements are in the LUC academic catalog
+                (catalog.luc.edu) — we're working on adding them.
+              </Text>
+            ) : (
+              <>
+                <ProgressBar
+                  label={isMinor ? 'Minor Progress' : 'Program Progress'}
+                  percent={prog.percentComplete}
+                  completed={prog.completedCount}
+                  total={prog.totalRequired}
+                  unit="courses"
+                  color="#A30046"
+                />
+                <Text style={s.sectionSub}>
+                  Covers the specifically-listed requirements. Open electives in the
+                  catalog (e.g. "any two 300-level courses") may add more — confirm
+                  with the official catalog.
+                </Text>
+                {prog.completed && prog.completed.length > 0 && (
+                  <View style={s.section}>
+                    <Text style={s.sectionHeader}>Completed</Text>
+                    {prog.completed.map((c) => (
+                      <CourseRow key={c.code || c.id} icon="✓" iconColor="#2d6a4f" code={c.code} name={c.name} onPress={() => openCourseModal(c)} />
+                    ))}
+                  </View>
+                )}
+                {prog.remaining && prog.remaining.length > 0 && (
+                  <View style={s.section}>
+                    <Text style={s.sectionHeader}>Remaining</Text>
+                    {prog.remaining.map((c, i) => (
+                      <React.Fragment key={`${c.choice_group ?? 'req'}-${c.code || c.id}-${i}`}>
+                        {c.choice_note && c.choice_group !== prog.remaining[i - 1]?.choice_group && (
+                          <Text style={s.sectionSub}>{c.choice_note}</Text>
+                        )}
+                        <CourseRow
+                          icon="○"
+                          iconColor="#A30046"
+                          code={c.code}
+                          name={c.name}
+                          onPress={c.is_placeholder ? undefined : () => openCourseModal(c)}
+                        />
+                      </React.Fragment>
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
+            <View style={{ height: 30 }} />
+          </ScrollView>
+        );
+      })()}
+
       {/* Core Area Options Modal */}
       <Modal visible={!!coreAreaModal} animationType="slide" transparent>
         <View style={s.modalOverlay}>
@@ -788,7 +867,7 @@ const s = StyleSheet.create({
   tabButtonActive: { backgroundColor: '#A30046' },
   tabText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 14,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
     color: '#666',
     fontWeight: 'bold',
   },
@@ -816,20 +895,20 @@ const s = StyleSheet.create({
   },
   addedClassesTitle: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 18,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 18,
     color: '#d97706',
     fontWeight: 'bold',
     marginBottom: 4,
   },
   addedClassesDetail: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 14,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
     color: '#666',
     lineHeight: 20,
   },
   electiveHint: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 16,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
     color: '#666',
     lineHeight: 24,
     marginTop: 16,
@@ -846,33 +925,33 @@ const s = StyleSheet.create({
   },
   outlookStatus: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 18,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   outlookMessage: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 15,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
     lineHeight: 21,
     marginBottom: 6,
   },
   outlookDisclaimer: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 11,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 11,
     color: '#666',
     lineHeight: 15,
   },
 
   heading: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 26,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 26,
     color: '#A30046',
     fontWeight: 'bold',
     marginBottom: 2,
   },
   subheading: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 15,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
     color: '#888',
     marginBottom: 12,
   },
@@ -891,14 +970,14 @@ const s = StyleSheet.create({
   },
   progressCardLabel: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 16,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
     color: '#333',
     fontWeight: 'bold',
     flex: 1,
   },
   progressCardPercent: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 16,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
     color: '#A30046',
     fontWeight: 'bold',
   },
@@ -915,7 +994,7 @@ const s = StyleSheet.create({
   },
   progressCardDetail: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 13,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
     color: '#999',
   },
 
@@ -923,14 +1002,14 @@ const s = StyleSheet.create({
   section: { marginTop: 16 },
   sectionHeader: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 20,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 20,
     color: '#A30046',
     fontWeight: 'bold',
     marginBottom: 4,
   },
   sectionSub: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 13,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
     color: '#999',
     marginBottom: 8,
   },
@@ -946,7 +1025,7 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   rowIcon: {
-    fontSize: 16,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
     fontWeight: 'bold',
     width: 24,
     textAlign: 'center',
@@ -955,18 +1034,18 @@ const s = StyleSheet.create({
   courseInfo: { flex: 1, marginLeft: 4 },
   courseCode: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 15,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
     color: '#333',
     fontWeight: 'bold',
   },
   courseName: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 13,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
     color: '#666',
   },
   courseDetail: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 12,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 12,
     color: '#e76f51',
     marginTop: 1,
   },
@@ -991,13 +1070,13 @@ const s = StyleSheet.create({
   },
   coreOptionCode: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 16,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
   },
   coreOptionName: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 14,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
     color: '#666',
   },
   overlapBadge: {
@@ -1008,7 +1087,7 @@ const s = StyleSheet.create({
   },
   overlapBadgeText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 10,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 10,
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
@@ -1020,7 +1099,7 @@ const s = StyleSheet.create({
   },
   requiredBadgeText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 10,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 10,
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
@@ -1029,20 +1108,20 @@ const s = StyleSheet.create({
   },
   prereqFulfilled: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 13,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
     color: '#2d6a4f',
     fontWeight: 'bold',
     marginBottom: 1,
   },
   prereqMissing: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 13,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
     color: '#e76f51',
     marginBottom: 1,
   },
   rowChevron: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 24,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 24,
     color: '#CCC',
     marginLeft: 8,
   },
@@ -1069,13 +1148,13 @@ const s = StyleSheet.create({
   },
   modalTitle: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 22,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 22,
     color: '#A30046',
     fontWeight: 'bold',
   },
   modalSubtitle: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 14,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
     color: '#888',
   },
   modalClose: {
@@ -1086,17 +1165,17 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalCloseText: { fontSize: 14, fontWeight: 'bold', color: '#555' },
+  modalCloseText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 14, fontWeight: 'bold', color: '#555' },
   modalContent: { padding: 16 },
   modalEmpty: { alignItems: 'center', paddingTop: 40, paddingBottom: 40 },
   modalEmptyText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 18,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 18,
     color: '#999',
   },
   modalEmptyHint: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 14,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
     color: '#CCC',
     marginTop: 6,
   },
@@ -1119,7 +1198,7 @@ const s = StyleSheet.create({
   },
   sectionNumber: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 16,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
   },
@@ -1133,13 +1212,13 @@ const s = StyleSheet.create({
   spotsBadgeFull: { backgroundColor: '#fee2e2' },
   spotsBadgeText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 12,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 12,
     fontWeight: 'bold',
     color: '#333',
   },
   sectionTitle: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 15,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
     color: '#333',
     marginBottom: 6,
   },
@@ -1148,7 +1227,7 @@ const s = StyleSheet.create({
   },
   sectionInfoText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 14,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
     color: '#555',
     lineHeight: 20,
   },
@@ -1160,7 +1239,7 @@ const s = StyleSheet.create({
   },
   sectionInstructor: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 15,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
     color: '#A30046',
     fontWeight: 'bold',
   },
@@ -1171,23 +1250,23 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   profStar: {
-    fontSize: 14,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
     color: '#d97706',
   },
   profRating: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 15,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
     color: '#333',
     fontWeight: 'bold',
   },
   profAgain: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 13,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
     color: '#2E7D32',
   },
   profDiff: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 13,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
     color: '#888',
   },
 
@@ -1195,7 +1274,7 @@ const s = StyleSheet.create({
   tieredGroup: { marginBottom: 8 },
   tieredGroupName: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 16,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
     color: '#333',
     fontWeight: 'bold',
     marginBottom: 4,
@@ -1204,7 +1283,7 @@ const s = StyleSheet.create({
 
   emptyText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 16,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
     color: '#999',
     textAlign: 'center',
     marginTop: 40,

@@ -376,7 +376,7 @@ describe('coverageSummaryLine', () => {
     expect(
       coverageSummaryLine({ coveredCount: 2, plannedCount: 4, neededPerSemester: 5 })
     ).toBe(
-      'Covers 2 of your remaining requirements — you need ~5/semester to stay on pace.'
+      'Covers 2 of your remaining requirements — you need about 5/semester to stay on pace.'
     );
   });
 
@@ -390,7 +390,7 @@ describe('coverageSummaryLine', () => {
     expect(
       coverageSummaryLine({ coveredCount: 0, plannedCount: 3, neededPerSemester: 5 })
     ).toBe(
-      'None of your 3 planned courses cover a remaining requirement — you need ~5/semester to stay on pace.'
+      'None of your 3 planned courses cover a remaining requirement — you need about 5/semester to stay on pace.'
     );
   });
 

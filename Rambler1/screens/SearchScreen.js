@@ -585,7 +585,7 @@ const s = StyleSheet.create({
   },
   searchInput: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 17,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 17,
     color: '#333',
     backgroundColor: '#F5F5F5',
     borderRadius: 10,
@@ -604,7 +604,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  clearBtnText: { fontSize: 12, fontWeight: 'bold', color: '#666' },
+  clearBtnText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, fontWeight: 'bold', color: '#666' },
 
   // Filter chips
   chipRow: { flexGrow: 0, marginBottom: 6 },
@@ -618,7 +618,7 @@ const s = StyleSheet.create({
   chipActive: { backgroundColor: '#A30046' },
   chipText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 14,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
     color: '#555',
     fontWeight: 'bold',
   },
@@ -654,7 +654,7 @@ const s = StyleSheet.create({
   },
   cardCode: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 17,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 17,
     fontWeight: 'bold',
     color: '#333',
   },
@@ -676,31 +676,31 @@ const s = StyleSheet.create({
   fillFlagText: {
     // System font, not Cormorant: an 11px serif chip is illegible and the
     // design rule reserves Cormorant for headings.
-    fontSize: 11,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 11,
     fontWeight: 'bold',
   },
   fillFlagTextDanger: { color: '#b91c1c' },
   fillFlagTextWarn: { color: '#92400e' },
   cardCredits: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 14,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
     color: '#999',
   },
   cardName: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 15,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
     color: '#555',
     marginTop: 2,
   },
   cardSub: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 13,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
     color: '#999',
     marginTop: 2,
   },
   cardChevron: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 20,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 20,
     color: '#CCC',
     marginLeft: 8,
   },
@@ -710,7 +710,7 @@ const s = StyleSheet.create({
   },
   noMatchText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 14,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
     color: '#999',
     textAlign: 'center',
     padding: 16,
@@ -731,7 +731,7 @@ const s = StyleSheet.create({
   },
   sectionNum: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 14,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
     fontWeight: 'bold',
     color: '#333',
   },
@@ -741,13 +741,13 @@ const s = StyleSheet.create({
   badgeFull: { backgroundColor: '#fee2e2' },
   badgeText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 11,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 11,
     fontWeight: 'bold',
     color: '#333',
   },
   sectionInfo: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 14,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
     color: '#555',
     marginBottom: 2,
   },
@@ -757,12 +757,12 @@ const s = StyleSheet.create({
   },
   sectionInstructor: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 13,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
     color: '#A30046',
   },
   sectionRoom: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 13,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
     color: '#888',
   },
 
@@ -770,7 +770,7 @@ const s = StyleSheet.create({
   deptSection: { paddingHorizontal: 16, marginTop: 16 },
   deptTitle: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 20,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 20,
     color: '#333',
     fontWeight: 'bold',
     marginBottom: 12,
@@ -791,13 +791,13 @@ const s = StyleSheet.create({
   },
   deptCode: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 18,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 18,
     color: '#A30046',
     fontWeight: 'bold',
   },
   deptName: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 11,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 11,
     color: '#888',
     textAlign: 'center',
     marginTop: 2,
@@ -807,7 +807,7 @@ const s = StyleSheet.create({
   recentSection: { paddingHorizontal: 16, marginTop: 8 },
   recentTitle: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 16,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
     color: '#999',
     fontWeight: 'bold',
     marginBottom: 8,
@@ -822,13 +822,13 @@ const s = StyleSheet.create({
   recentTerm: { flex: 1 },
   recentText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 16,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
     color: '#333',
   },
   recentX: { padding: 4 },
   recentXText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 14,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
     color: '#CCC',
     fontWeight: 'bold',
   },
@@ -837,7 +837,7 @@ const s = StyleSheet.create({
   emptyContent: { paddingBottom: 40 },
   hintText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 15,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
     color: '#CCC',
     textAlign: 'center',
     marginTop: 30,
@@ -845,19 +845,19 @@ const s = StyleSheet.create({
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 16,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
     color: '#999',
     marginTop: 12,
   },
   emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyTitle: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 22,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 22,
     color: '#999',
   },
   emptyHint: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 15,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
     color: '#CCC',
     marginTop: 6,
   },

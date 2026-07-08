@@ -14,7 +14,8 @@ rules_version = '2';
 //
 //   USER DATA (read+write: document owner only):
 //     users/{uid}  { selectedProgramId?, selectedProgram2Id?, selectedMinors[],
-//                    graduationYear?, classYear?, expoPushToken?, createdAt?, updatedAt? }
+//                    graduationYear?, classYear?, expoPushToken?, isHonors?,
+//                    isAthlete?, selectedFocusId?, createdAt?, updatedAt? }
 //       courses/{courseCode}  { status?, grade?, semester?, courseCode? }
 //       locations/{label}     { label?, address?, latitude, longitude, isPrimary? }
 //       private/{doc}         { scores, code?, profileName?, answers?, schedulingPrefs?, createdAt? }
@@ -49,7 +50,7 @@ service cloud.firestore {
     function validProfile(d) {
       return d.keys().hasOnly(['selectedProgramId','selectedProgram2Id','selectedMinors',
                                'graduationYear','classYear','expoPushToken',
-                               'isHonors','isAthlete',
+                               'isHonors','isAthlete','selectedFocusId',
                                'createdAt','updatedAt'])
         && (!('isHonors' in d) || d.isHonors is bool)
         && (!('isAthlete' in d) || d.isAthlete is bool)
@@ -59,6 +60,7 @@ service cloud.firestore {
         && optStr(d, 'graduationYear', 10)
         && optStr(d, 'classYear', 12)
         && optStr(d, 'expoPushToken', 300)
+        && optStr(d, 'selectedFocusId', 120)
         && (!('createdAt' in d) || d.createdAt is timestamp)
         && (!('updatedAt' in d) || d.updatedAt is timestamp);
     }

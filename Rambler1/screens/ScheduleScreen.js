@@ -951,15 +951,15 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#A30046', backgroundColor: '#FFFFFF',
   },
   headerBtnPrimary: { backgroundColor: '#A30046' },
-  headerBtnText: { fontSize: 18, color: '#A30046', marginTop: -2 },
-  headerBtnTextPrimary: { color: '#FFFFFF', fontSize: 22 },
+  headerBtnText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 18, color: '#A30046', marginTop: -2 },
+  headerBtnTextPrimary: { color: '#FFFFFF', fontFamily: 'CormorantGaramond-Regular', fontSize: 22 },
 
   // Warnings banner
   warnBanner: {
     backgroundColor: '#FFF8E6', borderBottomWidth: 1, borderBottomColor: '#F3E3B8',
     paddingHorizontal: 14, paddingVertical: 8, gap: 3,
   },
-  warnText: { fontSize: 12, color: '#8a6d1d' },
+  warnText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#8a6d1d' },
   warnTextConflict: { color: '#b00020', fontWeight: '600' },
 
   // Pacing strip (requirement coverage + graduation pace)
@@ -971,7 +971,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#F0E6EB',
   },
   pacingDot: { width: 8, height: 8, borderRadius: 4 },
-  pacingText: { flex: 1, fontSize: 12, color: '#555' },
+  pacingText: { flex: 1, fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#555' },
 
   // Unscheduled
   unschedWrap: {
@@ -983,8 +983,8 @@ const s = StyleSheet.create({
     color: '#A30046', fontWeight: 'bold', marginBottom: 4,
   },
   unschedRow: { paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-  unschedCode: { fontSize: 13, fontWeight: 'bold', color: '#333' },
-  unschedDetail: { fontSize: 12, color: '#888', marginTop: 1 },
+  unschedCode: { fontFamily: 'CormorantGaramond-Regular', fontSize: 13, fontWeight: 'bold', color: '#333' },
+  unschedDetail: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: '#888', marginTop: 1 },
 
   // Watching (seat watches)
   watchWrap: {
@@ -995,12 +995,12 @@ const s = StyleSheet.create({
     fontFamily: 'CormorantGaramond-Regular', fontSize: 17,
     color: '#A30046', fontWeight: 'bold', marginBottom: 4,
   },
-  watchHintText: { fontSize: 11, color: '#999', marginBottom: 4 },
+  watchHintText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 11, color: '#999', marginBottom: 4 },
   watchRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F5F5F5', gap: 8,
   },
-  watchRowCode: { flex: 1, fontSize: 13, fontWeight: 'bold', color: '#333' },
+  watchRowCode: { flex: 1, fontFamily: 'CormorantGaramond-Regular', fontSize: 13, fontWeight: 'bold', color: '#333' },
 
   // Bell toggle (section rows)
   watchBtn: {
@@ -1010,7 +1010,7 @@ const s = StyleSheet.create({
   },
   watchBtnActive: { backgroundColor: '#A30046' },
   watchBtnDisabled: { opacity: 0.4 },
-  watchBtnText: { fontSize: 12, fontWeight: '600', color: '#A30046' },
+  watchBtnText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, fontWeight: '600', color: '#A30046' },
   watchBtnTextActive: { color: '#FFFFFF' },
 
   // Loading / empty
@@ -1021,7 +1021,7 @@ const s = StyleSheet.create({
     marginTop: 16, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 28,
     backgroundColor: '#A30046',
   },
-  retryBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
+  retryBtnText: { color: '#FFFFFF', fontFamily: 'CormorantGaramond-Regular', fontSize: 15, fontWeight: '600' },
 
   savingOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -1036,13 +1036,13 @@ const s = StyleSheet.create({
   },
   modalTitle: { flex: 1, fontFamily: 'CormorantGaramond-Regular', fontSize: 26, color: '#A30046' },
   modalClose: { padding: 6 },
-  modalCloseText: { fontSize: 16, color: '#A30046', fontWeight: '600' },
+  modalCloseText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 16, color: '#A30046', fontWeight: '600' },
   searchInput: {
     fontFamily: 'CormorantGaramond-Regular', fontSize: 17, color: '#333',
     backgroundColor: '#F5F5F5', borderRadius: 10, paddingHorizontal: 16,
     height: 44, marginHorizontal: 16, marginBottom: 8,
   },
-  backLink: { fontSize: 14, color: '#A30046', paddingHorizontal: 16, paddingVertical: 6 },
+  backLink: { fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#A30046', paddingHorizontal: 16, paddingVertical: 6 },
   pickedCode: {
     fontFamily: 'CormorantGaramond-Regular', fontSize: 22, fontWeight: 'bold',
     color: '#333', paddingHorizontal: 16,
@@ -1064,16 +1064,16 @@ const s = StyleSheet.create({
   },
   courseRowCode: { fontFamily: 'CormorantGaramond-Regular', fontSize: 17, fontWeight: 'bold', color: '#333' },
   courseRowName: { fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#777', marginTop: 1 },
-  courseRowChevron: { fontSize: 20, color: '#CCC', marginLeft: 8 },
-  countsMarker: { fontSize: 11, color: '#065f46', marginTop: 2 },
+  courseRowChevron: { fontFamily: 'CormorantGaramond-Regular', fontSize: 20, color: '#CCC', marginLeft: 8 },
+  countsMarker: { fontFamily: 'CormorantGaramond-Regular', fontSize: 11, color: '#065f46', marginTop: 2 },
   fillBadge: { borderRadius: 8, paddingVertical: 2, paddingHorizontal: 8, marginLeft: 8 },
   fillBadgeHigh: { backgroundColor: '#fee2e2' },
   fillBadgeAmber: { backgroundColor: '#fef3c7' },
-  fillBadgeText: { fontSize: 11, fontWeight: 'bold' },
+  fillBadgeText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 11, fontWeight: 'bold' },
   fillBadgeTextHigh: { color: '#b91c1c' },
   fillBadgeTextAmber: { color: '#92400e' },
-  fillInfoGlyph: { fontSize: 13, color: '#999', marginLeft: 8 },
-  pickedFillWarn: { fontSize: 12, paddingHorizontal: 16, marginBottom: 6, fontWeight: '600' },
+  fillInfoGlyph: { fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#999', marginLeft: 8 },
+  pickedFillWarn: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, paddingHorizontal: 16, marginBottom: 6, fontWeight: '600' },
   pickedFillWarnHigh: { color: '#b91c1c' },
   pickedFillWarnAmber: { color: '#92400e' },
 
@@ -1086,17 +1086,17 @@ const s = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginBottom: 3,
   },
-  sectionNum: { fontSize: 14, fontWeight: 'bold', color: '#333' },
+  sectionNum: { fontFamily: 'CormorantGaramond-Regular', fontSize: 14, fontWeight: 'bold', color: '#333' },
   badge: { borderRadius: 8, paddingVertical: 1, paddingHorizontal: 8 },
   badgeOpen: { backgroundColor: '#d1fae5' },
   badgeLow: { backgroundColor: '#fef3c7' },
   badgeFull: { backgroundColor: '#fee2e2' },
-  badgeText: { fontSize: 11, fontWeight: 'bold', color: '#333' },
-  sectionInfo: { fontSize: 14, color: '#555', marginBottom: 2 },
+  badgeText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 11, fontWeight: 'bold', color: '#333' },
+  sectionInfo: { fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#555', marginBottom: 2 },
   sectionMeta: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
-  sectionInstructor: { fontSize: 13, color: '#A30046' },
-  sectionSeats: { fontSize: 13, color: '#555' },
-  sectionRoom: { fontSize: 13, color: '#888', flexShrink: 1 },
+  sectionInstructor: { fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#A30046' },
+  sectionSeats: { fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#555' },
+  sectionRoom: { fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#888', flexShrink: 1 },
 });
 
 export default ScheduleScreen;

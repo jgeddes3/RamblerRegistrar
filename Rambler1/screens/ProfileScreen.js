@@ -146,6 +146,21 @@ const ProfileScreen = ({ visible, onClose }) => {
     } catch (e) {}
   };
 
+  const handleSelectFocus = async (areaOrNull) => {
+    // Context immediately (UI), then persist ONLY the focus id (B10) —
+    // saveUserProfile is include-when-provided, so this minimal payload can't
+    // disturb programs/minors/flags under merge:true. null explicitly clears
+    // the stored selection ("Change").
+    setSelectedFocus(areaOrNull);
+    try {
+      if (user) {
+        await saveUserProfile(user.uid, {
+          selectedFocusId: areaOrNull ? String(areaOrNull.id) : null,
+        });
+      }
+    } catch (e) {}
+  };
+
   const handleToggleCourse = async (course) => {
     // Compare by code, not id: sqlite-cached courses carry synthetic integer ids
     // while Firestore-sourced courses use the code string — code is stable in both.
@@ -517,7 +532,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                             <Text style={s.focusSelectedCourses}>Key courses: {selectedFocus.courses.join(', ')}</Text>
                           )}
                         </View>
-                        <TouchableOpacity onPress={() => setSelectedFocus(null)} style={s.changeButton}>
+                        <TouchableOpacity onPress={() => handleSelectFocus(null)} style={s.changeButton}>
                           <Text style={s.changeButtonText}>Change</Text>
                         </TouchableOpacity>
                       </View>
@@ -528,7 +543,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                           <TouchableOpacity
                             key={area.id || i}
                             style={s.focusOption}
-                            onPress={() => setSelectedFocus(area)}
+                            onPress={() => handleSelectFocus(area)}
                           >
                             <View style={s.focusOptionLeft}>
                               {i === 0 && area.fitScore ? (

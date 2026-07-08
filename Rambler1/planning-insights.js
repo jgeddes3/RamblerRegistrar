@@ -264,7 +264,9 @@ export function coverageSummaryLine({ coveredCount, plannedCount, neededPerSemes
     : `Covers ${coveredN} of your remaining requirements`;
 
   if (Number.isFinite(neededPerSemester)) {
-    return `${base} — you need ~${neededPerSemester}/semester to stay on pace.`;
+    // "about", not "~": the tilde renders like a minus sign in the brand serif
+    // font ("~13/semester" read as "-13/semester" — caught in a visual check).
+    return `${base} — you need about ${neededPerSemester}/semester to stay on pace.`;
   }
   return `${base}.`;
 }

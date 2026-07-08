@@ -12,6 +12,7 @@ import {
   ActivityIndicator, Modal, Alert, Switch, StyleSheet, Platform, StatusBar,
 } from 'react-native';
 import { searchCourses, getCourseSections } from '../firestore-data';
+import { FONT } from '../theme';
 import { generateSchedules, formatMinutes } from '../schedule-generator';
 import { sectionsToBlocks, gridBounds, findConflicts } from '../schedule-utils';
 import ScheduleGrid from './ScheduleGrid';
@@ -389,13 +390,13 @@ const st = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingBottom: 4,
   },
-  title: { fontSize: 20, fontWeight: '700', color: '#1a1a1a' },
+  title: { fontFamily: FONT, fontSize: 24, fontWeight: '700', color: '#1a1a1a' },
   closeBtn: { padding: 8 },
-  closeText: { color: '#A30046', fontSize: 16, fontWeight: '600' },
-  termLabel: { paddingHorizontal: 16, color: '#666', marginBottom: 8 },
+  closeText: { fontFamily: FONT, color: '#A30046', fontSize: 18, fontWeight: '600' },
+  termLabel: { fontFamily: FONT, paddingHorizontal: 16, color: '#666', fontSize: 16, marginBottom: 8 },
 
   sectionLabel: {
-    fontSize: 13, fontWeight: '700', color: '#666', textTransform: 'uppercase',
+    fontFamily: FONT, fontSize: 15, fontWeight: '700', color: '#666', textTransform: 'uppercase',
     marginTop: 16, marginBottom: 8, paddingHorizontal: 16,
   },
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8 },
@@ -403,30 +404,30 @@ const st = StyleSheet.create({
     backgroundColor: '#A30046', borderRadius: 16, paddingVertical: 6, paddingHorizontal: 12,
     marginRight: 8, marginBottom: 8,
   },
-  chipText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  chipText: { fontFamily: FONT, color: '#fff', fontWeight: '600', fontSize: 15 },
   searchInput: {
     borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 12,
-    marginHorizontal: 16, marginTop: 4, fontSize: 15, color: '#1a1a1a',
+    marginHorizontal: 16, marginTop: 4, fontFamily: FONT, fontSize: 17, color: '#1a1a1a',
   },
   resultRow: {
     flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
     paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
   },
-  resultCode: { fontWeight: '700', color: '#A30046', width: 100 },
-  resultName: { flex: 1, color: '#444' },
+  resultCode: { fontFamily: FONT, fontSize: 16, fontWeight: '700', color: '#A30046', width: 100 },
+  resultName: { fontFamily: FONT, fontSize: 16, flex: 1, color: '#444' },
 
   prefRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 8,
   },
-  prefText: { fontSize: 15, color: '#1a1a1a', flex: 1, paddingRight: 8 },
-  prefSubLabel: { fontSize: 13, color: '#666', paddingHorizontal: 16, marginTop: 8, marginBottom: 6 },
+  prefText: { fontFamily: FONT, fontSize: 17, color: '#1a1a1a', flex: 1, paddingRight: 8 },
+  prefSubLabel: { fontFamily: FONT, fontSize: 15, color: '#666', paddingHorizontal: 16, marginTop: 8, marginBottom: 6 },
   optChip: {
     borderWidth: 1, borderColor: '#ccc', borderRadius: 16,
     paddingVertical: 6, paddingHorizontal: 14, marginRight: 8, marginBottom: 8,
   },
   optChipOn: { backgroundColor: '#A30046', borderColor: '#A30046' },
-  optChipText: { color: '#444', fontSize: 13, fontWeight: '600' },
+  optChipText: { fontFamily: FONT, color: '#444', fontSize: 15, fontWeight: '600' },
   optChipTextOn: { color: '#fff' },
 
   generateBtn: {
@@ -434,13 +435,13 @@ const st = StyleSheet.create({
     alignItems: 'center',
   },
   generateBtnDisabled: { opacity: 0.4 },
-  generateBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  generateBtnText: { fontFamily: FONT, color: '#fff', fontSize: 18, fontWeight: '700' },
 
   notesWrap: { backgroundColor: '#FEF3C7', padding: 12, marginHorizontal: 16, borderRadius: 10, marginBottom: 8 },
-  noteText: { color: '#92400E', fontSize: 13, marginBottom: 2 },
+  noteText: { fontFamily: FONT, color: '#92400E', fontSize: 15, marginBottom: 2 },
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  emptyText: { fontSize: 17, fontWeight: '600', color: '#444' },
-  emptyHint: { color: '#888', marginTop: 6 },
+  emptyText: { fontFamily: FONT, fontSize: 19, fontWeight: '600', color: '#444' },
+  emptyHint: { fontFamily: FONT, fontSize: 15, color: '#888', marginTop: 6 },
 
   candRow: {
     flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16,
@@ -450,27 +451,27 @@ const st = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22, backgroundColor: '#A30046',
     alignItems: 'center', justifyContent: 'center', marginRight: 12,
   },
-  candScoreText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  candTitle: { fontWeight: '700', color: '#1a1a1a', fontSize: 15 },
-  candStats: { color: '#666', fontSize: 13, marginTop: 2 },
-  candCourses: { color: '#888', fontSize: 12, marginTop: 3 },
+  candScoreText: { fontFamily: FONT, color: '#fff', fontWeight: '700', fontSize: 16 },
+  candTitle: { fontFamily: FONT, fontWeight: '700', color: '#1a1a1a', fontSize: 17 },
+  candStats: { fontFamily: FONT, color: '#666', fontSize: 15, marginTop: 2 },
+  candCourses: { fontFamily: FONT, color: '#888', fontSize: 14, marginTop: 3 },
   candChevron: { color: '#bbb', fontSize: 24, paddingLeft: 8 },
 
   adjustBtn: { padding: 14, alignItems: 'center' },
-  adjustBtnText: { color: '#A30046', fontWeight: '600' },
+  adjustBtnText: { fontFamily: FONT, fontSize: 16, color: '#A30046', fontWeight: '600' },
 
-  previewStats: { paddingHorizontal: 16, paddingBottom: 8, color: '#666', fontSize: 13 },
+  previewStats: { fontFamily: FONT, paddingHorizontal: 16, paddingBottom: 8, color: '#666', fontSize: 15 },
   previewBtnRow: { flexDirection: 'row', padding: 12, gap: 10 },
   backBtn: {
     flex: 1, borderWidth: 1, borderColor: '#A30046', borderRadius: 12,
     paddingVertical: 13, alignItems: 'center', marginRight: 10,
   },
-  backBtnText: { color: '#A30046', fontWeight: '700', fontSize: 15 },
+  backBtnText: { fontFamily: FONT, color: '#A30046', fontWeight: '700', fontSize: 17 },
   useBtn: {
     flex: 2, backgroundColor: '#A30046', borderRadius: 12, paddingVertical: 13,
     alignItems: 'center',
   },
-  useBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  useBtnText: { fontFamily: FONT, color: '#fff', fontWeight: '700', fontSize: 17 },
 });
 
 export default GenerateScheduleModal;

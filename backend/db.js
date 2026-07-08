@@ -100,7 +100,26 @@ async function initDb() {
       program_id INTEGER,
       course_id INTEGER,
       requirement_type TEXT DEFAULT 'required',
+      choice_group INTEGER,
+      choose_count INTEGER,
       PRIMARY KEY (program_id, course_id)
+    )
+  `);
+  // Self-heal older DBs that predate the choice-group columns (B12).
+  // "duplicate column name" on re-run is expected and harmless.
+  for (const col of ['choice_group INTEGER', 'choose_count INTEGER']) {
+    try { db.run(`ALTER TABLE program_courses ADD COLUMN ${col}`); } catch (e) { /* exists */ }
+  }
+
+  // Prose requirements like "Two PHIL 300-level Elective Courses" — no course
+  // list exists, ANY course matching subject/level counts (B12 phase 2).
+  db.run(`
+    CREATE TABLE IF NOT EXISTS program_subject_electives (
+      program_id INTEGER,
+      subject TEXT NOT NULL,
+      min_level INTEGER,
+      count INTEGER DEFAULT 1,
+      PRIMARY KEY (program_id, subject, min_level)
     )
   `);
 
@@ -627,7 +646,10 @@ module.exports = {
         'SELECT id, name, type, degree, school, min_credits, description FROM programs ORDER BY id'
       ),
       programCourses: queryAll(
-        'SELECT program_id, course_id, requirement_type FROM program_courses ORDER BY program_id, course_id, requirement_type'
+        'SELECT program_id, course_id, requirement_type, choice_group, choose_count FROM program_courses ORDER BY program_id, course_id, requirement_type'
+      ),
+      subjectElectives: queryAll(
+        'SELECT program_id, subject, min_level, count FROM program_subject_electives ORDER BY program_id, subject, min_level'
       ),
       prerequisites: queryAll(
         'SELECT course_code, prerequisite_code FROM prerequisites ORDER BY course_code, prerequisite_code'

@@ -297,4 +297,31 @@ describe('message fixes', () => {
     expect(out.message).toContain('complete');
     expect(out.message).not.toContain('On pace');
   });
+
+  test('programs with unloaded requirements are named, not silently counted as 0 (B12)', () => {
+    const out = go.computeGraduationOutlook({
+      degreeProgress: { remainingCount: 6, program: { name: 'Computer Science' } },
+      additionalDegreeProgress: [
+        { remainingCount: 0, requirementsUnknown: true, program: { name: 'Philosophy' } },
+      ],
+      coreProgress: null,
+      graduationYear: 2028,
+      now: new Date(2026, 6, 7),
+    });
+    expect(out.unknownPrograms).toEqual(['Philosophy']);
+    expect(out.message).toContain("Requirements for Philosophy aren't loaded yet");
+    // remainingUnits still only counts what we know about.
+    expect(out.remainingUnits).toBe(6);
+  });
+
+  test('no unknown programs -> unchanged message and empty unknownPrograms', () => {
+    const out = go.computeGraduationOutlook({
+      degreeProgress: { remainingCount: 4 },
+      coreProgress: null,
+      graduationYear: 2028,
+      now: new Date(2026, 6, 7),
+    });
+    expect(out.unknownPrograms).toEqual([]);
+    expect(out.message).not.toContain("aren't loaded");
+  });
 });

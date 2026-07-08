@@ -137,6 +137,13 @@ export function computeGraduationOutlook({ degreeProgress, additionalDegreeProgr
     status = 'on-track';
   }
 
+  // B12 honesty: programs whose requirements aren't loaded contribute 0 to
+  // remainingUnits, silently flattering the outlook. Name them so the UI can
+  // say so instead of overpromising.
+  const unknownPrograms = [degreeProgress, ...(Array.isArray(additionalDegreeProgress) ? additionalDegreeProgress : [])]
+    .filter((p) => p && p.requirementsUnknown === true)
+    .map((p) => (p.program && p.program.name) || 'a selected program');
+
   let message;
   if (status === 'off-track') {
     if (semestersLeft === 0) {
@@ -164,5 +171,9 @@ export function computeGraduationOutlook({ degreeProgress, additionalDegreeProgr
       : `On pace to graduate ${gradLabel}.`;
   }
 
-  return { status, semestersLeft, remainingUnits, pace, message, gradLabel };
+  if (unknownPrograms.length > 0) {
+    message += ` Requirements for ${unknownPrograms.join(', ')} aren't loaded yet and aren't counted.`;
+  }
+
+  return { status, semestersLeft, remainingUnits, pace, message, gradLabel, unknownPrograms };
 }

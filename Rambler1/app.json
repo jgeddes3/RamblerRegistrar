@@ -34,6 +34,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "2ef85b6d-c279-47a2-9c37-fa257fd925d7"
+      }
+    },
+    "owner": "johngeddes"
   }
 }

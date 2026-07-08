@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { onAuthChange, ensureAnonymousSignIn } from './auth';
-import { fetchUserProfile, fetchProgramById, fetchQuizResults, fetchUserCourses, fetchCourseDetail, fetchUserLocations } from './firestore-data';
+import { fetchUserProfile, fetchProgramById, fetchQuizResults, fetchUserCourses, fetchCourseDetail, fetchUserLocations, fetchFocusAreaById } from './firestore-data';
 
 const AppContext = createContext();
 
@@ -25,6 +25,18 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     const unsubscribe = onAuthChange(async (firebaseUser) => {
       if (firebaseUser) {
+        // A restored session that LOOKS anonymous may be a stale snapshot from
+        // before a linkWithCredential upgrade (B11: "signed up but it didn't
+        // keep me signed in"). Reload once to get authoritative flags from the
+        // server — reload() also re-persists the corrected user, so this
+        // self-heals the stored session. Offline: keep the cached flags.
+        if (firebaseUser.isAnonymous) {
+          try {
+            await firebaseUser.reload();
+          } catch (e) {
+            // Offline or transient — proceed with the cached session.
+          }
+        }
         setUser({
           uid: firebaseUser.uid,
           email: firebaseUser.email,
@@ -69,6 +81,13 @@ export const AppProvider = ({ children }) => {
             // Priority flags — booleans, default false when absent
             setIsHonors(profile.is_honors === true);
             setIsAthlete(profile.is_athlete === true);
+
+            // Focus area (B10): stored as an id; hydrate the full object so
+            // ProfileScreen can show name/description without re-selection.
+            if (profile.selected_focus_id) {
+              const focus = await fetchFocusAreaById(profile.selected_focus_id);
+              if (focus) setSelectedFocus(focus);
+            }
           }
         } catch (e) {
           // Profile restore failed — not critical, user can re-select

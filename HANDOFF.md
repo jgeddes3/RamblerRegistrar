@@ -20,13 +20,23 @@ Last updated: 2026-07-06 (evening)
    Closed/Wait-List sections** (browser-verified; push itself needs the dev build),
    **✨ schedule generator on the Schedule tab** (pick courses + prefs → ranked
    options → preview → apply; try "keep my current classes" both ways).
+   **NEW from the qualm-bug pass:** (a) pick a Focus in Profile → force-quit →
+   reopen → still selected; (b) **sign up fresh → kill the app → reopen → should
+   stay signed in (B11 verify)**; (c) add a Philosophy (or any) minor in Profile →
+   Progress tab → tap the minor → course list with "Choose N of the following:"
+   groups renders.
 3. **Phase 3 push setup:** run `npx eas init` in Rambler1 (Expo account login)
    to mint the EAS projectId push notifications need, then an Expo **dev build** —
    remote push does NOT work in Expo Go. Grab the Google Maps Android key in the same
    sitting (needed for the dev build's map). Until then the poller runs fine but
    users have no tokens, so pushes are skipped (logged, not lost — retry semantics).
    The graduation-outlook push nudge is queued behind this.
-4. **Each term:** after a registration cycle is captured, re-run
+4. **While testing: comb the app and note your qualms** — each one becomes a backlog
+   item (task #18). Phase 5 (launch) is now written into PROJECT_PLAN: store submission
+   and outreach are ON HOLD by your call (org accounts exist for both stores); the open
+   Phase 5 items are the legal review (privacy policy + RMP terms) and an in-app
+   feedback loop (tasks #16/#17).
+5. **Each term:** after a registration cycle is captured, re-run
    `node backend/fill-stats.js <termCode> --upload` to refresh fill warnings.
 
 This file is the running handoff between Claude Code sessions. Read it before
@@ -155,6 +165,59 @@ cd backend; node firestore-sync.js 1266 --reconcile
    (moot in steady state now, but it's what burned the quota).
 
 ## Recent work history (newest first)
+
+- **2026-07-08 — B12 PHASE 2 + P1 TYPOGRAPHY SHIPPED (pause checkpoint before Phase 4.5).**
+  **Subject electives:** prose requirements ("Two PHIL 300-level Elective Courses") now
+  modeled — new `program_subject_electives` table + requiredCourses docs
+  (requirementType 'subject_elective'); requirement-progress satisfies them with any
+  unconsumed completed course matching subject/level (13 unit tests). The Philosophy
+  minor now shows its true 6 units. Level parser handles "(100-, 200-, or 300-level)"
+  enumerations. All minors re-applied (104 written) + **23/39 empty majors backfilled**
+  (812 rows, 70 groups; degree disambiguation; never touches populated majors).
+  16 ambiguous majors left for a manual pass.
+  **P1 typography:** theme.js + brand font across GenerateScheduleModal (hand-restyled)
+  and 143 style entries in Schedule/Progress/Library/Events/More/Home/Search;
+  browser-verified. ScheduleGrid block labels stay system font on purpose.
+  **Two regressions caught by the visual check:** (1) my earlier persistence guard
+  broke WEB session persistence (initializeAuth with undefined persistence = MEMORY;
+  web now uses getAuth's browser-local default — fixed + re-verified live);
+  (2) "~13/semester" reads as "-13/semester" in the serif font → now "about 13/semester".
+  **175 tests green (10 suites).**
+
+- **2026-07-07 (later) — QUALM BUG PASS SHIPPED: B10 + B11 + B12 (paused after, per user).**
+  **B10 focus save:** `selectedFocusId` added to rules (deployed) + saveUserProfile
+  (clear via deleteField — optStr rejects null) + fetchFocusAreaById + AppContext boot
+  hydration + ProfileScreen persists on select/clear. Live-verified through deployed
+  rules as the test user (save/clear/negative all correct).
+  **B11 stay-signed-in:** root cause = link-from-anonymous can leave a stale
+  isAnonymous:true snapshot in persisted storage → boot treats the user as logged out.
+  upgradeAnonymousAccount now reload()s after linking; AppContext self-heals
+  anonymous-looking restored sessions with one reload(); firebaseConfig fails loud if RN
+  persistence ever resolves undefined. **Device verify: sign up → kill → reopen.**
+  **B12 requirements backfill:** choice-group data model (program_courses +
+  requiredCourses docs + pure `requirement-progress.js`, 8 tests) +
+  `backend/scrape-requirements.js` (CourseLeaf parser, skips sample-track tables) →
+  **103/109 minors: 2,688 rows, 167 choice groups, 681 new courses** in SQLite +
+  Firestore; fingerprint bumped (clients re-sync once); Philosophy minor verified
+  end-to-end. Honesty layer: requirementsUnknown flag → ProgressScreen notice + outlook
+  names unloaded programs; NEW minor/2nd-major detail view (was MISSING entirely —
+  tapping a minor tab rendered nothing). Remaining in plan: 39 empty majors, structure
+  refinements, prose-only electives. **170 tests green (10 suites); PM2 restarted.**
+  Side note: today's daily scrape auto-pruned 8 more ghost sections (B3 fix working in
+  production; term now 2,451 live sections).
+
+- **2026-07-07 — QUALM SWEEP TRIAGED (planning only, per user).** User combed the app and
+  delivered 12 items; all triaged into PROJECT_PLAN (see its "Qualm-sweep index"). Notable
+  verified findings while grounding the plan: **B12** — ALL 109 minors and 39/121 majors
+  have ZERO rows in program_courses (user saw it as "my Philosophy minor has no classes";
+  it's a systemic ETL gap, and selected minors currently add 0 remaining units to the
+  graduation outlook); **B10** — the users/{uid} rules validator has no focus field, so
+  focus selections could never persist; **B11** — auth persistence IS configured correctly
+  (initializeAuth + AsyncStorage), so the stay-signed-in bug lives in the AppContext boot
+  flow, not config. New: Phase 4.5 (planner cluster F-P1..F-P4), Phase 4 gains F-Q7 map
+  day view / F-Q8 study-room booking / P1 typography sweep, Phase 5 gains F-A3 SSO
+  (sequenced after B11). Also same day: Localist duplicate-key fix in EventsScreen
+  (recurring events share an event id; keys now per-instance — 160 tests green).
 
 - **2026-07-06 (last) — PHASE 4 STARTED: F-HI2 schedule generator SHIPPED + all pending
   verifications closed.** Blaze upgraded by the user → reads live again → verified:

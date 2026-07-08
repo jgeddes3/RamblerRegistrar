@@ -75,12 +75,12 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 32,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 32,
     color: MAROON,
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
     color: '#888',
     marginBottom: 20,
   },
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 20,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 20,
     color: '#333',
     fontWeight: 'bold',
   },
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     color: '#999',
   },
   rowSublabel: {
-    fontSize: 12,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 12,
     color: '#999',
     marginTop: 1,
   },

@@ -96,6 +96,17 @@ export const upgradeAnonymousAccount = async (email, password, displayName) => {
     const emailCredential = EmailAuthProvider.credential(email, password);
     const result = await linkWithCredential(current, emailCredential);
     user = result.user;
+    // Force a server reload so the persisted session snapshot records
+    // isAnonymous:false. Without this, the pre-link ANONYMOUS snapshot can
+    // survive in storage — the next cold start would restore a user that
+    // still looks anonymous and AppContext would treat it as logged out
+    // ("I signed up but it didn't keep me signed in", B11). reload() also
+    // re-persists the corrected user. Best-effort: signup already succeeded.
+    try {
+      await user.reload();
+    } catch (e) {
+      console.log('Post-link reload skipped:', e.message);
+    }
   } else {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     user = credential.user;

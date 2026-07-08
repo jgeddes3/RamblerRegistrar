@@ -15,6 +15,7 @@
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -578,6 +579,7 @@ export const fetchUserProfile = async (uid) => {
       class_year: d.classYear ?? '',
       is_honors: d.isHonors === true,
       is_athlete: d.isAthlete === true,
+      selected_focus_id: d.selectedFocusId ?? null,
     };
 
     // Hydrate full program objects like the backend did (skip 'undecided' —
@@ -642,6 +644,15 @@ export const saveUserProfile = async (uid, profileData, _authToken) => {
     // provided as a non-empty string so merge:true leaves stored tokens alone.
     if (typeof data.expoPushToken === 'string' && data.expoPushToken) {
       payload.expoPushToken = data.expoPushToken.slice(0, 300);
+    }
+    // selectedFocusId: optional string (rules: optStr <=120 — a string when
+    // present, so clearing must REMOVE the key via deleteField(), not write
+    // null). Include when the key is present; undefined leaves the stored
+    // value alone under merge:true.
+    if ('selectedFocusId' in data) {
+      payload.selectedFocusId = data.selectedFocusId == null
+        ? deleteField()
+        : String(data.selectedFocusId).slice(0, 120);
     }
     const ref = doc(db, 'users', userId);
     const existing = await getDoc(ref);
@@ -981,6 +992,29 @@ export const fetchQuizRecommendations = async (code) => {
   } catch (error) {
     logError('fetchQuizRecommendations', error);
     return [];
+  }
+};
+
+// Single focus-area doc by id — restores the saved selection at boot (B10).
+// Same legacy shape as getFocusAreasForProgram rows; null when missing.
+export const fetchFocusAreaById = async (focusId) => {
+  try {
+    if (focusId == null || focusId === '') return null;
+    const snap = await getDoc(doc(db, 'focusAreas', String(focusId)));
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    const riasecMap = data.riasec && typeof data.riasec === 'object' ? data.riasec : {};
+    return {
+      id: snap.id,
+      program_id: data.programId ?? null,
+      name: data.name ?? '',
+      description: data.description ?? null,
+      riasec: Object.entries(riasecMap).map(([dimension, weight]) => ({ dimension, weight })),
+      courses: Array.isArray(data.courses) ? data.courses : [],
+    };
+  } catch (error) {
+    logError('fetchFocusAreaById', error);
+    return null;
   }
 };
 

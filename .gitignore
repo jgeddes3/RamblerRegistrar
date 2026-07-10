@@ -22,6 +22,10 @@ backend/*.db-wal
 backend/firestore-sync-state.json
 backend/firestore-sync-state.json.tmp
 
+# Firebase Android config (API identifiers — keep out of the public repo;
+# EAS reads it locally at build time)
+Rambler1/google-services.json
+
 # Node modules (covered by sub .gitignores but belt-and-suspenders)
 node_modules/
 

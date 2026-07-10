@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Keyboard, Animated, StyleSheet,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../AppContext';
 import { searchCourses as apiSearchCourses, getCourseSections, searchByInstructor } from '../firestore-data';
 import { fetchCourses as fetchLocalCourses } from '../Database';
@@ -141,7 +142,12 @@ const SectionRow = ({ section, onPress }) => {
       <View style={s.sectionMeta}>
         {section.instructor ? <Text style={s.sectionInstructor}>{section.instructor}</Text> : null}
         {section.building || section.room ? (
-          <Text style={s.sectionRoom}>{[section.building, section.room].filter(Boolean).join(' ')}</Text>
+          <Text style={s.sectionRoom}>
+            {section.room && section.building &&
+              section.room.toLowerCase().includes(section.building.toLowerCase())
+              ? section.room
+              : [section.building, section.room].filter(Boolean).join(' ')}
+          </Text>
         ) : null}
       </View>
     </TouchableOpacity>
@@ -202,11 +208,16 @@ const CourseCard = ({ course, sections, sectionsLoading, filters, onCoursePress,
               <Text style={s.cardCode}>{course.code}</Text>
               {fillFlag ? (
                 <View style={[s.fillFlag, fillFlag.tone === 'danger' ? s.fillFlagDanger : s.fillFlagWarn]}>
+                  <Ionicons
+                    name="flash"
+                    size={10}
+                    color={fillFlag.tone === 'danger' ? '#b91c1c' : '#92400e'}
+                  />
                   <Text
                     numberOfLines={1}
                     style={[s.fillFlagText, fillFlag.tone === 'danger' ? s.fillFlagTextDanger : s.fillFlagTextWarn]}
                   >
-                    ⚡ {fillFlag.label}
+                    {fillFlag.label}
                   </Text>
                 </View>
               ) : null}
@@ -574,7 +585,7 @@ const SearchScreen = () => {
 // =============================================================================
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: '#FBF9F4' },
 
   // Search bar
   searchBarWrap: {
@@ -665,6 +676,9 @@ const s = StyleSheet.create({
     marginRight: 8,
   },
   fillFlag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     borderRadius: 8,
     paddingVertical: 1,
     paddingHorizontal: 6,

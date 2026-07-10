@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Platform, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAppContext } from '../AppContext';
 import { fetchQuizRecommendations, fetchQuizFocusAreas } from '../firestore-data';
 import BackgroundImage from '../styleComponents/BackgroundImage';
+
+// Bottom inset so the sticky bar clears the home indicator / nav bar
+const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
 
 // =============================================================================
 // RIASEC DIMENSION INFO
@@ -187,6 +190,7 @@ const QuizResults = () => {
           <TouchableOpacity
             style={s.continueButton}
             onPress={() => navigation.navigate('SchedulingPrefs')}
+            accessibilityLabel="Continue"
           >
             <Text style={s.continueButtonText}>Continue</Text>
           </TouchableOpacity>
@@ -413,7 +417,8 @@ const s = StyleSheet.create({
   },
   // Bottom
   stickyBottom: {
-    paddingVertical: 10,
+    paddingTop: 10,
+    paddingBottom: 10 + BOTTOM_SAFE,
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.95)',
     borderTopWidth: 1,

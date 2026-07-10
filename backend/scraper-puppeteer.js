@@ -379,7 +379,10 @@ class LocusPuppeteerScraper {
   // to avoid PeopleSoft stale session issues.
   // onSubjectComplete(sections) is called after each successful subject scrape,
   // allowing the caller to persist data incrementally so partial runs aren't lost.
-  async scrapeAll(termCode, subjects, fetchEnrollment = false, onSubjectComplete = null) {
+  // shouldRetry(subject, sections): B9 guard — when a subject's result set
+  // collapses vs. what we already know (LOCUS partial-render flake), retry
+  // the subject ONCE before accepting it.
+  async scrapeAll(termCode, subjects, fetchEnrollment = false, onSubjectComplete = null, shouldRetry = null) {
     const BATCH_SIZE = fetchEnrollment ? 5 : 15;
     const allSections = [];
 
@@ -402,7 +405,26 @@ class LocusPuppeteerScraper {
         const subject = batch[i];
         console.log(`\n--- Scraping ${subject} (${batchStart + i + 1}/${subjects.length}) ---`);
         try {
-          const sections = await this.scrapeSubject(termCode, subject, fetchEnrollment);
+          let sections = await this.scrapeSubject(termCode, subject, fetchEnrollment);
+          // B9: a collapsed result set is usually a partially-rendered LOCUS
+          // page, not a mass cancellation (observed 2026-07-06: CHEM returned
+          // 1 of ~156). One retry recovers it most of the time.
+          if (shouldRetry && sections.length > 0 && shouldRetry(subject, sections)) {
+            console.log(`  ${subject}: only ${sections.length} section(s) — looks partial, retrying once...`);
+            try {
+              await this.resetSearch();
+              await this.selectTerm(termCode);
+              const second = await this.scrapeSubject(termCode, subject, fetchEnrollment);
+              if (second.length > sections.length) {
+                console.log(`  ${subject}: retry recovered ${second.length} sections.`);
+                sections = second;
+              } else {
+                console.log(`  ${subject}: retry did not improve (${second.length}) — keeping first result.`);
+              }
+            } catch (retryErr) {
+              console.log(`  ${subject}: retry failed (${retryErr.message}) — keeping first result.`);
+            }
+          }
           allSections.push(...sections);
           console.log(`  Found ${sections.length} sections for ${subject}`);
 
@@ -479,6 +501,20 @@ async function scrape(termCode, subjectsToScrape, fetchEnrollment = false) {
   try {
     await scraper.init();
 
+    // B9 retry baseline: what the DB already holds per subject. A fresh scrape
+    // returning < half of a known-healthy count (min 8) is treated as a
+    // partial LOCUS render and retried once inside scrapeAll.
+    const priorCounts = {};
+    for (const subject of subjects) {
+      try {
+        priorCounts[subject] = db.getSectionsForSubject(code, subject).length;
+      } catch (e) {
+        priorCounts[subject] = 0;
+      }
+    }
+    const shouldRetry = (subject, sections) =>
+      (priorCounts[subject] || 0) >= 8 && sections.length < (priorCounts[subject] || 0) / 2;
+
     // Per-subject callback inserts each subject's sections immediately,
     // so partial data is preserved even if a later subject crashes the run.
     allSections = await scraper.scrapeAll(code, subjects, fetchEnrollment, (newSections) => {
@@ -494,7 +530,7 @@ async function scrape(termCode, subjectsToScrape, fetchEnrollment = false) {
       if (stale > 0) console.log(`  Pruned ${stale} stale ${subj} section(s) no longer in LOCUS`);
       db.save(); // one batched disk write per subject (B5) — not per section
       savedCount += newSections.length;
-    });
+    }, shouldRetry);
 
     console.log(`\nTotal sections found: ${allSections.length}`);
   } catch (err) {

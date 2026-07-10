@@ -1,9 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Modal, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, StyleSheet, Alert } from 'react-native';
-import { getCourseSections, fetchCourseDetail, fetchWatches, addWatch, removeWatch } from './firestore-data';
-import { searchProfessors } from './rmp';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  getCourseSections, fetchCourseDetail, fetchWatches, addWatch, removeWatch,
+  addCourseToPlan, addSectionToSchedule, PLAN_TERM_CAP,
+} from './firestore-data';
+import { getInstructorRating, noRatingCopy, ratingsAttribution } from './ratings';
+import { FONT_ITALIC, STONE } from './theme';
 import { useAppContext } from './AppContext';
 import { fillWarning } from './planning-insights';
+import { planSemesters } from './plan-utils';
+import TrendChart from './components/TrendChart';
+import FeedbackModal from './components/FeedbackModal';
+import showAlert from './alert';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -26,8 +35,10 @@ const TERM = getRegistrationTerm();
 // - watchState: optional { watchedSet, toggleWatch } — when provided (nested
 //   single-section instance), the outermost modal owns the seat-watch state so
 //   bell toggles stay in sync between the sections list and the detail view.
-const CourseDetailModal = ({ visible, course, section: singleSection, sections: preSections, onClose, watchState }) => {
-  const { user, quizResults, classYear, isHonors, isAthlete } = useAppContext();
+// - onRemove: optional (section) => void — single-section view opened from the
+//   schedule grid shows a destructive 'Remove from schedule' button.
+const CourseDetailModal = ({ visible, course, section: singleSection, sections: preSections, onClose, watchState, onRemove }) => {
+  const { user, quizResults, classYear, isHonors, isAthlete, graduationYear } = useAppContext();
   const prefs = quizResults?.schedulingPrefs || {};
   const signedIn = !!user && !user.isAnonymous; // anonymous users can't own watches
 
@@ -43,6 +54,39 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
   // fill_stats (legacy snake_case row from firestore-data). undefined = not yet
   // known, null = known absent, object = present.
   const [fillStats, setFillStats] = useState(undefined);
+  // Planner integration (F-P2/F-P3): inline semester picker + in-flight guard.
+  const [planPicker, setPlanPicker] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
+  // Report-a-problem (#17): pre-tagged with this course's code.
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+
+  const addToPlan = async (termCode, label) => {
+    if (!signedIn || actionBusy) return;
+    setActionBusy(true);
+    const res = await addCourseToPlan(user.uid, termCode, course.code);
+    setActionBusy(false);
+    setPlanPicker(false);
+    if (res?.added) showAlert('Planned', `${course.code} added to ${label}.`);
+    else if (res?.already) showAlert('Already planned', `${course.code} is already in ${label}.`);
+    else if (res?.full) showAlert('Semester full', `A semester plan holds at most ${PLAN_TERM_CAP} courses.`);
+    else showAlert('Save failed', 'Could not update your plan. Please try again.');
+  };
+
+  const addSecToSchedule = async (sec) => {
+    if (!signedIn || actionBusy) return;
+    setActionBusy(true);
+    const res = await addSectionToSchedule(user.uid, TERM.code, sec.class_number);
+    setActionBusy(false);
+    if (res?.added) {
+      showAlert('Added to schedule', `${course.code} Sec ${sec.section_number} is on your ${TERM.label} schedule.`);
+    } else if (res?.already) {
+      showAlert('Already scheduled', 'This section is already on your schedule.');
+    } else if (res?.full) {
+      showAlert('Schedule full', 'A schedule holds at most 40 sections.');
+    } else {
+      showAlert('Save failed', 'Could not update your schedule. Please try again.');
+    }
+  };
 
   // Score a section based on user's scheduling preferences (higher = better match)
   const scoreSection = (sec) => {
@@ -140,7 +184,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
       : await addWatch(user.uid, TERM.code, classNum);
     if (!res) {
       applyWatching(wasWatching); // revert
-      Alert.alert('Watch update failed', 'Could not update your seat watch. Please try again.');
+      showAlert('Watch update failed', 'Could not update your seat watch. Please try again.');
     }
   };
   const toggleWatch = isControlled ? watchState.toggleWatch : ownToggleWatch;
@@ -187,16 +231,8 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
     const instructors = [...new Set(secs.map(s => s.instructor).filter(Boolean))];
     for (const name of instructors) {
       if (profRatings[name]) continue;
-      const lastName = name.split(',')[0]?.trim() || name.split(' ').pop();
-      try {
-        const results = await searchProfessors(lastName);
-        if (results && results.length > 0) {
-          const match = results.find(r =>
-            name.toLowerCase().includes(r.lastName.toLowerCase())
-          ) || results[0];
-          setProfRatings(prev => ({ ...prev, [name]: match }));
-        }
-      } catch (e) {}
+      const rating = await getInstructorRating(name);
+      if (rating) setProfRatings(prev => ({ ...prev, [name]: rating }));
     }
   };
 
@@ -215,27 +251,68 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                 <Text style={s.credits}>{course.credits} credit{course.credits !== 1 ? 's' : ''}</Text>
               ) : null}
             </View>
-            <TouchableOpacity onPress={onClose} style={s.closeBtn}>
-              <Text style={s.closeBtnText}>X</Text>
+            <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel="Close course details">
+              <Ionicons name="close" size={20} color="#666" />
             </TouchableOpacity>
           </View>
 
           {/* Fill-speed warning (empirical, last registration term) */}
           {fillNotice ? (
             fillNotice.level === 'info' ? (
-              <Text style={s.fillInfoLine}>⚡ {fillNotice.text}</Text>
+              <View style={s.fillInfoRow}>
+                <Ionicons name="flash-outline" size={13} color="#888" />
+                <Text style={s.fillInfoLine}>{fillNotice.text}</Text>
+              </View>
             ) : (
               <View style={[s.fillBanner, fillNotice.level === 'high' ? s.fillBannerHigh : s.fillBannerWarn]}>
+                <Ionicons
+                  name="flash"
+                  size={14}
+                  color={fillNotice.level === 'high' ? '#b91c1c' : '#92400e'}
+                  style={{ marginTop: 2 }}
+                />
                 <Text
                   style={[
                     s.fillBannerText,
                     fillNotice.level === 'high' ? s.fillBannerTextHigh : s.fillBannerTextWarn,
                   ]}
                 >
-                  ⚡ {fillNotice.text}
+                  {fillNotice.text}
                 </Text>
               </View>
             )
+          ) : null}
+
+          {/* Add to Plan (F-P2/F-P3): course-level, any future semester */}
+          {signedIn && !singleSection ? (
+            <View style={s.planWrap}>
+              <TouchableOpacity
+                style={s.planBtn}
+                onPress={() => setPlanPicker(!planPicker)}
+                accessibilityLabel="Add to plan"
+              >
+                <View style={s.planBtnInner}>
+                  <Ionicons name="calendar-outline" size={15} color="#A30046" />
+                  <Text style={s.planBtnText}>Add to Plan</Text>
+                  <Ionicons name={planPicker ? 'chevron-up' : 'chevron-down'} size={13} color="#A30046" />
+                </View>
+              </TouchableOpacity>
+              {planPicker ? (
+                <View style={s.planChips}>
+                  {planSemesters(graduationYear).map((sem) => (
+                    <TouchableOpacity
+                      key={sem.code}
+                      style={s.planChip}
+                      onPress={() => addToPlan(sem.code, sem.label)}
+                      disabled={actionBusy}
+                      accessibilityLabel={`Plan for ${sem.label}`}
+                    >
+                      <Text style={s.planChipText}>{sem.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : null}
+            </View>
           ) : null}
 
           {course.description ? (
@@ -290,41 +367,82 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                         <Text style={s.recommendedText}>Recommended for you</Text>
                       </View>
                     )}
-                    {/* Top row: section + badge */}
+                    {/* Top row: section + badges (F-HI4: top-rated prof flag) */}
                     <View style={s.sectionTop}>
                       <Text style={s.sectionNum}>Section {sec.section_number}</Text>
-                      <View style={[s.badge, badgeStyle]}>
-                        <Text style={s.badgeText}>{badgeLabel}</Text>
+                      <View style={s.badgeRow}>
+                        {prof && prof.rating >= 4 ? (
+                          <View style={s.topProfBadge}>
+                            <View style={s.topProfBadgeInner}>
+                              <Ionicons name="star" size={10} color="#92400E" />
+                              <Text style={s.topProfBadgeText}>Top prof</Text>
+                            </View>
+                          </View>
+                        ) : null}
+                        <View style={[s.badge, badgeStyle]}>
+                          <Text style={s.badgeText}>{badgeLabel}</Text>
+                        </View>
                       </View>
                     </View>
 
                     {/* Schedule */}
                     {(sec.meeting_days || sec.meeting_time_start) ? (
                       <View style={s.infoRow}>
-                        <Text style={s.infoIcon}>🕐</Text>
+                        <Ionicons name="time-outline" size={14} color="#8A8177" style={s.infoIconGlyph} />
                         <Text style={s.infoText}>
                           {sec.meeting_days}{sec.meeting_time_start ? `  ${sec.meeting_time_start} - ${sec.meeting_time_end}` : ''}
                         </Text>
                       </View>
                     ) : null}
 
-                    {/* Location */}
+                    {/* Location — room strings often embed the building name
+                        ("Dumbach Hall-Room 227"), so don't print it twice. */}
                     {(sec.building || sec.room) ? (
                       <View style={s.infoRow}>
-                        <Text style={s.infoIcon}>📍</Text>
-                        <Text style={s.infoText}>{[sec.building, sec.room].filter(Boolean).join(' ')}</Text>
+                        <Ionicons name="location-outline" size={14} color="#8A8177" style={s.infoIconGlyph} />
+                        <Text style={s.infoText}>
+                          {sec.room && sec.building && sec.room.toLowerCase().includes(sec.building.toLowerCase())
+                            ? sec.room
+                            : [sec.building, sec.room].filter(Boolean).join(' ')}
+                        </Text>
                       </View>
                     ) : null}
 
                     {/* Enrollment */}
                     <View style={s.infoRow}>
-                      <Text style={s.infoIcon}>👥</Text>
+                      <Ionicons name="people-outline" size={14} color="#8A8177" style={s.infoIconGlyph} />
                       <Text style={s.infoText}>
                         {hasEnrollment
                           ? `${sec.enrollment_total} / ${sec.enrollment_cap} enrolled${spotsLeft > 0 ? `  •  ${spotsLeft} seats open` : ''}`
                           : sec.status || 'Enrollment TBD'}
                       </Text>
                     </View>
+
+                    {/* Enrollment + waitlist trend (single-section view only —
+                        F-QW1 sparkline / F-HI3 waitlist movement) */}
+                    {singleSection && Array.isArray(sec.recent_history) && sec.recent_history.length > 1 ? (
+                      <View>
+                        <Text style={s.trendLabel}>Enrollment trend (last {sec.recent_history.length} snapshots)</Text>
+                        <TrendChart history={sec.recent_history} />
+                      </View>
+                    ) : null}
+
+                    {/* Quick add to the registration-term schedule (F-P3).
+                        Hidden when opened FROM the schedule (onRemove) — the
+                        section is already there; adding only alerts. */}
+                    {signedIn && !onRemove ? (
+                      <TouchableOpacity
+                        style={s.schedAddBtn}
+                        onPress={() => addSecToSchedule(sec)}
+                        disabled={actionBusy}
+                        accessibilityLabel={`Add section ${sec.section_number} to schedule`}
+                      >
+                        <View style={s.btnInner}>
+                          <Ionicons name="add" size={14} color="#FFFFFF" />
+                          <Text style={s.schedAddBtnText}>Add to schedule</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ) : null}
 
                     {/* Seat watch bell (Closed / Wait List sections only) */}
                     {canBellWatch ? (
@@ -334,35 +452,59 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                         disabled={!signedIn}
                         accessibilityLabel={isWatched ? 'Stop watching for open seats' : 'Watch for open seats'}
                       >
-                        <Text style={[s.watchBtnText, isWatched && s.watchBtnTextActive]}>
-                          {isWatched ? '🔔 Watching' : '🔕 Watch'}
-                        </Text>
+                        <View style={s.btnInner}>
+                          <Ionicons
+                            name={isWatched ? 'notifications' : 'notifications-outline'}
+                            size={13}
+                            color={isWatched ? '#FFFFFF' : '#A30046'}
+                          />
+                          <Text style={[s.watchBtnText, isWatched && s.watchBtnTextActive]}>
+                            {isWatched ? 'Watching' : 'Watch for seats'}
+                          </Text>
+                        </View>
                       </TouchableOpacity>
                     ) : null}
 
-                    {/* Professor + RMP Rating */}
+                    {/* Remove from schedule (single-section view opened from the grid) */}
+                    {onRemove && singleSection ? (
+                      <TouchableOpacity
+                        style={s.removeBtn}
+                        onPress={() => onRemove(sec)}
+                        accessibilityLabel="Remove from schedule"
+                      >
+                        <View style={s.btnInner}>
+                          <Ionicons name="trash-outline" size={13} color="#b91c1c" />
+                          <Text style={s.removeBtnText}>Remove from schedule</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ) : null}
+
+                    {/* Professor + rating (via the ratings.js source adapter) */}
                     {sec.instructor ? (
                       <View style={s.profSection}>
                         <Text style={s.profName}>{sec.instructor}</Text>
-                        {prof && prof.avgRating ? (
+                        {prof && prof.rating ? (
                           <View style={s.profStats}>
                             <View style={[s.ratingBadge, {
-                              backgroundColor: prof.avgRating >= 4 ? '#2d6a4f' : prof.avgRating >= 3 ? '#d97706' : '#C62828'
+                              backgroundColor: prof.rating >= 4 ? '#2d6a4f' : prof.rating >= 3 ? '#d97706' : '#C62828'
                             }]}>
-                              <Text style={s.ratingBadgeText}>★ {prof.avgRating.toFixed(1)}</Text>
+                              <View style={s.btnInner}>
+                                <Ionicons name="star" size={10} color="#FFFFFF" />
+                                <Text style={s.ratingBadgeText}>{prof.rating.toFixed(1)}</Text>
+                              </View>
                             </View>
                             {prof.wouldTakeAgainPercent > 0 ? (
                               <Text style={s.profStat}>{Math.round(prof.wouldTakeAgainPercent)}% would take again</Text>
                             ) : null}
-                            {prof.avgDifficulty ? (
-                              <Text style={s.profStat}>Diff: {prof.avgDifficulty.toFixed(1)}</Text>
+                            {prof.difficulty ? (
+                              <Text style={s.profStat}>Diff: {prof.difficulty.toFixed(1)}</Text>
                             ) : null}
                             {prof.numRatings ? (
                               <Text style={s.profStatLight}>{prof.numRatings} ratings</Text>
                             ) : null}
                           </View>
                         ) : (
-                          <Text style={s.profStatLight}>No RMP rating found</Text>
+                          <Text style={s.profStatLight}>{noRatingCopy()}</Text>
                         )}
                       </View>
                     ) : null}
@@ -375,10 +517,29 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                 <Text style={s.emptyHint}>This course may not be offered in {TERM.label}</Text>
               </View>
             )}
+            {/* Attribution — once per modal, only when a rating rendered */}
+            {displaySections.some((sec) => sec.instructor && profRatings[sec.instructor]?.rating) ? (
+              <Text style={s.ratingsAttribution}>{ratingsAttribution()}</Text>
+            ) : null}
+            {/* Report a problem (#17) — pre-tagged with the course code */}
+            {!singleSection ? (
+              <TouchableOpacity
+                onPress={() => setFeedbackVisible(true)}
+                accessibilityLabel={`Report a problem with ${course.code}`}
+              >
+                <Text style={s.reportLink}>Something wrong with this course's data? Report it</Text>
+              </TouchableOpacity>
+            ) : null}
             <View style={{ height: 30 }} />
           </ScrollView>
         </View>
       </View>
+
+      <FeedbackModal
+        visible={feedbackVisible}
+        onClose={() => setFeedbackVisible(false)}
+        context={`course ${course.code}`}
+      />
 
       {/* Single section detail — opened by tapping a section card */}
       {selectedSection && (
@@ -451,6 +612,9 @@ const s = StyleSheet.create({
 
   // Fill-speed warning banner
   fillBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -466,11 +630,27 @@ const s = StyleSheet.create({
   },
   fillBannerTextHigh: { color: '#b91c1c' },
   fillBannerTextWarn: { color: '#92400e' },
+  fillInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 8,
+  },
   fillInfoLine: {
+    flex: 1,
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 14,
     color: '#888',
-    marginTop: 8,
+  },
+  // Icon+text pair inside pill buttons/badges
+  btnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  infoIconGlyph: {
+    width: 22,
+    marginTop: 1,
   },
   divider: {
     borderBottomWidth: 1,
@@ -554,8 +734,88 @@ const s = StyleSheet.create({
   },
   watchBtnActive: { backgroundColor: '#A30046' },
   watchBtnDisabled: { opacity: 0.4 },
-  watchBtnText: { fontSize: 12, fontWeight: '600', color: '#A30046' },
+  watchBtnText: { fontFamily: 'CormorantGaramond-Medium', fontSize: 14, color: '#A30046' },
   watchBtnTextActive: { color: '#FFFFFF' },
+
+  // Section badges row (status + F-HI4 top-prof)
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  topProfBadge: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 10,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+  },
+  topProfBadgeInner: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  topProfBadgeText: {
+    fontFamily: 'CormorantGaramond-Medium', fontSize: 13, color: '#92400E',
+  },
+  // Trend chart label (F-QW1/F-HI3)
+  trendLabel: {
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#888', marginTop: 8,
+  },
+
+  // Remove from schedule (schedule-opened single-section view)
+  removeBtn: {
+    alignSelf: 'flex-start',
+    marginTop: 2,
+    marginBottom: 4,
+    borderRadius: 14,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#b91c1c',
+    backgroundColor: '#FFFFFF',
+  },
+  removeBtnText: { fontFamily: 'CormorantGaramond-Medium', fontSize: 14, color: '#b91c1c' },
+
+  // Quick add-to-schedule (F-P3)
+  schedAddBtn: {
+    alignSelf: 'flex-start',
+    marginTop: 2,
+    marginBottom: 4,
+    borderRadius: 14,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    backgroundColor: '#A30046',
+  },
+  schedAddBtnText: {
+    fontFamily: 'CormorantGaramond-Medium', fontSize: 14, color: '#FFFFFF',
+  },
+
+  // Report a problem (#17)
+  reportLink: {
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#A30046',
+    textDecorationLine: 'underline', textAlign: 'center', marginTop: 14,
+  },
+
+  // Add to Plan (F-P2/F-P3)
+  planWrap: { marginTop: 6, marginBottom: 2 },
+  planBtn: {
+    alignSelf: 'flex-start',
+    borderRadius: 14,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#A30046',
+  },
+  planBtnInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  planBtnText: {
+    fontFamily: 'CormorantGaramond-Medium', fontSize: 15, color: '#A30046',
+  },
+  planChips: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
+  planChip: {
+    backgroundColor: '#FBF0F5',
+    borderWidth: 1,
+    borderColor: '#E8CDD9',
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    marginRight: 6,
+    marginBottom: 6,
+  },
+  planChipText: {
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#A30046', fontWeight: '600',
+  },
 
   // Info rows
   infoRow: {
@@ -615,6 +875,13 @@ const s = StyleSheet.create({
     fontSize: 13,
     color: '#999',
     marginTop: 2,
+  },
+  ratingsAttribution: {
+    fontFamily: FONT_ITALIC,
+    fontSize: 12,
+    color: STONE,
+    textAlign: 'center',
+    marginTop: 4,
   },
 
   // Empty

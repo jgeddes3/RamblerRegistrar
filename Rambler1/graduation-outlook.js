@@ -154,7 +154,8 @@ export function computeGraduationOutlook({ degreeProgress, additionalDegreeProgr
       message =
         `${remainingUnits} ${plural(remainingUnits, 'requirement')} left with ` +
         `${semestersLeft} ${plural(semestersLeft, 'semester')} to go — that's ` +
-        `~${pace} courses/semester. Talk to your advisor.`;
+        // "about", not "~" — the tilde renders like a minus sign in the serif.
+        `about ${pace} courses/semester. Talk to your advisor.`;
     }
   } else if (status === 'at-risk') {
     message =

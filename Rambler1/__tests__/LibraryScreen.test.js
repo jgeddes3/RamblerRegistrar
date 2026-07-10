@@ -78,12 +78,18 @@ describe('LibraryScreen', () => {
     // Today section
     expect(await screen.findByText('Today')).toBeTruthy();
     expect(screen.getAllByText('Cudahy Library').length).toBeGreaterThan(0);
-    expect(screen.getByText('Lewis Library')).toBeTruthy();
+    // Also appears in the F-Q8 booking section, so expect >= 1 not exactly 1.
+    expect(screen.getAllByText('Lewis Library').length).toBeGreaterThan(0);
     // Appears on the today card and again in the weekly grid rows
     expect(screen.getAllByText('8am – 10pm').length).toBeGreaterThan(0);
     expect(screen.getByText('Open')).toBeTruthy();
     // Lewis is closed: pill + hours line both say Closed, plus Saturday in the grid
     expect(screen.getAllByText('Closed').length).toBeGreaterThanOrEqual(2);
+
+    // Study-room booking section (F-Q8): static deep-link rows
+    expect(screen.getByText('Book a study room')).toBeTruthy();
+    expect(screen.getByText('Information Commons')).toBeTruthy();
+    expect(screen.getByText('Schreiber Center')).toBeTruthy();
 
     // Weekly section
     expect(screen.getByText('This week')).toBeTruthy();

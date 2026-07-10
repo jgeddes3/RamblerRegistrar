@@ -15,12 +15,14 @@ rules_version = '2';
 //   USER DATA (read+write: document owner only):
 //     users/{uid}  { selectedProgramId?, selectedProgram2Id?, selectedMinors[],
 //                    graduationYear?, classYear?, expoPushToken?, isHonors?,
-//                    isAthlete?, selectedFocusId?, createdAt?, updatedAt? }
+//                    isAthlete?, selectedFocusId?, privacyPolicyVersion?,
+//                    privacyPolicyAcceptedAt?, createdAt?, updatedAt? }
 //       courses/{courseCode}  { status?, grade?, semester?, courseCode? }
 //       locations/{label}     { label?, address?, latitude, longitude, isPrimary? }
 //       private/{doc}         { scores, code?, profileName?, answers?, schedulingPrefs?, createdAt? }
 //       watches/{classNumber} { termCode?, classNumber, createdAt? }
 //       schedules/{id}        { name?, termCode?, sectionIds[], createdAt?, updatedAt? }
+//       plans/{termCode}      { termCode?, courseCodes[], createdAt?, updatedAt? }
 // =============================================================================
 
 service cloud.firestore {
@@ -51,6 +53,7 @@ service cloud.firestore {
       return d.keys().hasOnly(['selectedProgramId','selectedProgram2Id','selectedMinors',
                                'graduationYear','classYear','expoPushToken',
                                'isHonors','isAthlete','selectedFocusId',
+                               'privacyPolicyVersion','privacyPolicyAcceptedAt',
                                'createdAt','updatedAt'])
         && (!('isHonors' in d) || d.isHonors is bool)
         && (!('isAthlete' in d) || d.isAthlete is bool)
@@ -61,6 +64,8 @@ service cloud.firestore {
         && optStr(d, 'classYear', 12)
         && optStr(d, 'expoPushToken', 300)
         && optStr(d, 'selectedFocusId', 120)
+        && optStr(d, 'privacyPolicyVersion', 20)
+        && (!('privacyPolicyAcceptedAt' in d) || d.privacyPolicyAcceptedAt is timestamp)
         && (!('createdAt' in d) || d.createdAt is timestamp)
         && (!('updatedAt' in d) || d.updatedAt is timestamp);
     }
@@ -105,6 +110,29 @@ service cloud.firestore {
         && optStr(d, 'name', 80)
         && optStr(d, 'termCode', 12)
         && d.sectionIds is list && d.sectionIds.size() <= 40
+        && (!('createdAt' in d) || d.createdAt is timestamp)
+        && (!('updatedAt' in d) || d.updatedAt is timestamp);
+    }
+
+    // In-app feedback (#17): write-only mailbox. Any authed user (anonymous
+    // counts — bug reports before signup are welcome) can CREATE; nobody can
+    // read/update/delete from the client (admin reads via backend script).
+    // uid must match the caller so reports are attributable and not forgeable.
+    function validFeedback(d) {
+      return d.keys().hasOnly(['uid','type','message','context','createdAt'])
+        && d.uid is string && d.uid == request.auth.uid
+        && optStr(d, 'type', 20)
+        && d.message is string && d.message.size() >= 3 && d.message.size() <= 2000
+        && optStr(d, 'context', 200)
+        && (!('createdAt' in d) || d.createdAt is timestamp);
+    }
+
+    // Multi-year planner (F-P1): one doc per future semester, courses only
+    // (no sections yet — that's what the schedule builder is for).
+    function validPlan(d) {
+      return d.keys().hasOnly(['termCode','courseCodes','createdAt','updatedAt'])
+        && optStr(d, 'termCode', 12)
+        && d.courseCodes is list && d.courseCodes.size() <= 15
         && (!('createdAt' in d) || d.createdAt is timestamp)
         && (!('updatedAt' in d) || d.updatedAt is timestamp);
     }
@@ -163,7 +191,10 @@ service cloud.firestore {
       }
       match /watches/{classNumber} {
         allow read:          if isOwner(uid);
-        allow create, update:if isOwner(uid) && validWatch(incoming());
+        // Bind the body's classNumber to the doc id (audit 2026-07-09): keeps
+        // the poller's key derivation and the doc path permanently consistent.
+        allow create, update:if isOwner(uid) && validWatch(incoming())
+                             && string(incoming().classNumber) == classNumber;
         allow delete:        if isOwner(uid);
       }
       match /schedules/{id} {
@@ -171,6 +202,20 @@ service cloud.firestore {
         allow create, update:if isOwner(uid) && validSchedule(incoming());
         allow delete:        if isOwner(uid);
       }
+      match /plans/{termCode} {
+        allow read:          if isOwner(uid);
+        // termCode in the body, when present, must match the doc id (audit
+        // 2026-07-09) — fetchPlans keys the plan map off either.
+        allow create, update:if isOwner(uid) && validPlan(incoming())
+                             && (!('termCode' in incoming()) || incoming().termCode == termCode);
+        allow delete:        if isOwner(uid);
+      }
+    }
+
+    // ============================ FEEDBACK ============================
+    match /feedback/{id} {
+      allow create: if isAuthed() && validFeedback(incoming());
+      allow read, update, delete: if false;
     }
 
     // Default deny for anything not matched above.

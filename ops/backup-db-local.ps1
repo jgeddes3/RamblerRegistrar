@@ -4,7 +4,7 @@
 #
 # NOTE: this is a same-machine backup — it protects against accidental deletion,
 # a bad write, or DB corruption, but NOT a drive failure. For true off-site
-# durability, revisit the cloud/private-repo option later (see HANDOFF).
+# durability, revisit the cloud/private-repo option later (see archive/HANDOFF.md).
 #
 # Scheduled daily by the RamblerBackend-Backup task (launched hidden via run-hidden.vbs).
 

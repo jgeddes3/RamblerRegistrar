@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, ActivityIndicator, StyleSheet, Platform, StatusBar, Switch } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useAppContext } from '../AppContext';
 import { signOut } from '../auth';
-import { fetchPrograms, fetchCourses, addUserCourse, removeUserCourse, saveUserProfile, fetchEnrichedRecommendations, fetchQuizFocusAreas } from '../firestore-data';
+import { fetchPrograms, fetchCourses, addUserCourse, removeUserCourse, saveUserProfile, fetchEnrichedRecommendations, fetchQuizFocusAreas, setUserLocation } from '../firestore-data';
+import { geocodeAddress, suggestAddresses } from '../campus-api';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
@@ -12,6 +15,7 @@ const ProfileScreen = ({ visible, onClose }) => {
     selectedMinors, setSelectedMinors, selectedCourses, setSelectedCourses, graduationYear,
     classYear, quizResults, selectedFocus, setSelectedFocus,
     isHonors, setIsHonors, isAthlete, setIsAthlete,
+    userLocations, setUserLocations,
   } = useAppContext();
 
   const isUndecided = !selectedProgram || selectedProgram.id === 'undecided';
@@ -25,6 +29,90 @@ const ProfileScreen = ({ visible, onClose }) => {
   const [recsLoading, setRecsLoading] = useState(false);
   const [focusAreas, setFocusAreas] = useState([]);
   const [focusLoading, setFocusLoading] = useState(false);
+  // Home address (F-Q7): geocode -> users/{uid}/locations/Home (isPrimary).
+  const savedHome = (userLocations || []).find((l) => l.is_primary) || null;
+  const [addressInput, setAddressInput] = useState('');
+  const [addressSaving, setAddressSaving] = useState(false);
+  const [addressError, setAddressError] = useState(null);
+  // Autofill suggestions while typing (debounced; seq ref drops stale replies).
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const suggestTimerRef = useRef(null);
+  const suggestSeqRef = useRef(0);
+
+  const navigation = useNavigation();
+
+  const clearSuggestions = () => {
+    suggestSeqRef.current += 1; // invalidate any in-flight lookup
+    if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+    setAddressSuggestions([]);
+  };
+
+  const handleAddressChange = (t) => {
+    setAddressInput(t);
+    setAddressError(null);
+    const seq = ++suggestSeqRef.current;
+    if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+    const q = t.trim();
+    if (!q) {
+      setAddressSuggestions([]);
+      return;
+    }
+    suggestTimerRef.current = setTimeout(async () => {
+      const rows = await suggestAddresses(q);
+      if (seq !== suggestSeqRef.current) return; // stale — a newer keystroke won
+      setAddressSuggestions(rows || []);
+    }, 450);
+  };
+
+  // Tap a suggestion: save immediately with its coordinates (no geocode round-trip).
+  const handlePickSuggestion = async (sug) => {
+    if (addressSaving || !user) return;
+    clearSuggestions();
+    setAddressInput(sug.displayName);
+    setAddressSaving(true);
+    setAddressError(null);
+    const res = await setUserLocation(user.uid, 'Home', sug.displayName, sug.latitude, sug.longitude, true);
+    setAddressSaving(false);
+    if (!res) {
+      setAddressError('Save failed. Please try again.');
+      return;
+    }
+    setUserLocations([
+      { user_id: user.uid, label: 'Home', address: sug.displayName, latitude: sug.latitude, longitude: sug.longitude, is_primary: 1 },
+      ...(userLocations || []).filter((l) => l.label !== 'Home'),
+    ]);
+    setAddressInput('');
+  };
+
+  const handleSaveAddress = async () => {
+    const q = addressInput.trim();
+    if (!q || addressSaving || !user) return;
+    clearSuggestions();
+    setAddressSaving(true);
+    setAddressError(null);
+    const geo = await geocodeAddress(q);
+    if (!geo) {
+      setAddressSaving(false);
+      setAddressError("Couldn't find that address — try adding street, city, and zip.");
+      return;
+    }
+    const res = await setUserLocation(user.uid, 'Home', q, geo.latitude, geo.longitude, true);
+    setAddressSaving(false);
+    if (!res) {
+      setAddressError('Save failed. Please try again.');
+      return;
+    }
+    setUserLocations([
+      { user_id: user.uid, label: 'Home', address: q, latitude: geo.latitude, longitude: geo.longitude, is_primary: 1 },
+      ...(userLocations || []).filter((l) => l.label !== 'Home'),
+    ]);
+    setAddressInput('');
+  };
+
+  // Clear the debounce timer on unmount.
+  useEffect(() => () => {
+    if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+  }, []);
 
   const initial = user?.displayName
     ? user.displayName.charAt(0).toUpperCase()
@@ -436,6 +524,20 @@ const ProfileScreen = ({ visible, onClose }) => {
               </TouchableOpacity>
             )}
 
+            {/* Majors & Minors explorer — lives in the More tab; close first, then navigate */}
+            <TouchableOpacity
+              style={s.navRow}
+              onPress={() => { onClose(); navigation.navigate('More', { screen: 'MajorsMinors' }); }}
+              activeOpacity={0.6}
+              accessibilityLabel="Change major, add a major, or add a minor — see the time cost"
+            >
+              <View style={s.navRowIconWrap}>
+                <Ionicons name="compass-outline" size={20} color="#A30046" />
+              </View>
+              <Text style={s.navRowText}>Change major, add a major, or add a minor — see the time cost</Text>
+              <Ionicons name="chevron-forward" size={18} color="#C0C0C0" />
+            </TouchableOpacity>
+
             {/* Double major */}
             {selectedProgram2 && (
               <View style={s.infoBlock}>
@@ -512,6 +614,49 @@ const ProfileScreen = ({ visible, onClose }) => {
               <Text style={s.value}>{(selectedCourses || []).length} courses</Text>
               <Text style={s.editHint}>Tap to add or remove</Text>
             </TouchableOpacity>
+
+            {/* Home address (F-Q7) — powers commute times on the Schedule map */}
+            <View style={s.infoBlock}>
+              <Text style={s.label}>Home Address</Text>
+              {savedHome ? (
+                <Text style={s.value} numberOfLines={2}>{savedHome.address || savedHome.label}</Text>
+              ) : (
+                <Text style={s.valueSmall}>
+                  Add your address to see commute times and leave-by alerts on the Schedule map.
+                </Text>
+              )}
+              <TextInput
+                style={s.addressInput}
+                placeholder={savedHome ? 'Change address...' : 'e.g. 6363 N Winthrop Ave, Chicago, IL'}
+                placeholderTextColor="#999"
+                value={addressInput}
+                onChangeText={handleAddressChange}
+                autoCorrect={false}
+              />
+              {addressSuggestions.length > 0 ? (
+                <View style={s.suggestList}>
+                  {addressSuggestions.map((sug, i) => (
+                    <TouchableOpacity
+                      key={`${sug.latitude},${sug.longitude},${i}`}
+                      style={[s.suggestRow, i < addressSuggestions.length - 1 && s.suggestRowBorder]}
+                      onPress={() => handlePickSuggestion(sug)}
+                      accessibilityLabel={`Use address ${sug.displayName}`}
+                    >
+                      <Text style={s.suggestText} numberOfLines={2}>{sug.displayName}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : null}
+              {addressError ? <Text style={s.addressError}>{addressError}</Text> : null}
+              <TouchableOpacity
+                style={[s.addressSaveBtn, (!addressInput.trim() || addressSaving) && { opacity: 0.4 }]}
+                onPress={handleSaveAddress}
+                disabled={!addressInput.trim() || addressSaving}
+                accessibilityLabel="Save home address"
+              >
+                <Text style={s.addressSaveBtnText}>{addressSaving ? 'Finding address...' : 'Save address'}</Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Focus Area — only for decided majors */}
             {!isUndecided && selectedProgram && (
@@ -618,6 +763,20 @@ const ProfileScreen = ({ visible, onClose }) => {
                 })}
               </View>
             ) : null}
+
+            {/* Retake the quiz — the quiz lives in the More tab; close first, then navigate */}
+            <TouchableOpacity
+              style={s.navRow}
+              onPress={() => { onClose(); navigation.navigate('More', { screen: 'PreferenceQuiz' }); }}
+              activeOpacity={0.6}
+              accessibilityLabel="Retake the quiz"
+            >
+              <View style={s.navRowIconWrap}>
+                <Ionicons name="refresh-outline" size={20} color="#A30046" />
+              </View>
+              <Text style={s.navRowText}>Retake the quiz</Text>
+              <Ionicons name="chevron-forward" size={18} color="#C0C0C0" />
+            </TouchableOpacity>
 
             <View style={s.divider} />
 
@@ -733,6 +892,60 @@ const s = StyleSheet.create({
     fontSize: 12,
     color: '#A30046',
     marginTop: 4,
+  },
+  // Home address (F-Q7)
+  addressInput: {
+    borderWidth: 1, borderColor: '#DDD', borderRadius: 8, padding: 10,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: '#333', marginTop: 8,
+  },
+  addressError: {
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#b91c1c', marginTop: 6,
+  },
+  // Address autofill dropdown (rendered directly under the input)
+  suggestList: {
+    borderWidth: 1, borderColor: '#DDD', borderTopWidth: 0,
+    borderBottomLeftRadius: 8, borderBottomRightRadius: 8,
+    backgroundColor: '#FFFFFF', overflow: 'hidden',
+  },
+  suggestRow: {
+    paddingVertical: 10, paddingHorizontal: 12,
+  },
+  suggestRowBorder: {
+    borderBottomWidth: 1, borderBottomColor: '#EEE',
+  },
+  suggestText: {
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#333',
+  },
+  // Tappable card rows that close the modal and jump into the More tab
+  navRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8FA',
+    borderWidth: 1,
+    borderColor: '#E8C8D4',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+  },
+  navRowIconWrap: {
+    marginRight: 10,
+  },
+  navRowText: {
+    flex: 1,
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 15,
+    color: '#A30046',
+    fontWeight: 'bold',
+    paddingRight: 8,
+  },
+  addressSaveBtn: {
+    alignSelf: 'flex-start', backgroundColor: '#A30046', borderRadius: 10,
+    paddingVertical: 7, paddingHorizontal: 16, marginTop: 8,
+  },
+  addressSaveBtnText: {
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 15, fontWeight: '600', color: '#FFF',
   },
   selectButton: {
     width: '100%',

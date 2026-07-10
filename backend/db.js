@@ -265,22 +265,35 @@ async function initDb() {
 
   const buildingCount = queryAll('SELECT COUNT(*) AS cnt FROM buildings');
   if (buildingCount[0].cnt === 0) {
+    // Coordinates are OSM building centroids (Nominatim, 2026-07) — the old
+    // hand-rounded values stacked several pins on identical points. Names must
+    // keep matching LOCUS `building` strings by substring (e.g. "BVM",
+    // "Francis Hall 142"). Rooney Hall is the Mundelein auditorium wing;
+    // Alfie Hall is the Norville practice facility.
     const buildingSeedData = [
-      ['Cuneo Hall', '6430 N Kenmore Ave', 41.9990, -87.6570, 'LSC'],
-      ['Information Commons', '6501 N Kenmore Ave', 42.0003, -87.6560, 'LSC'],
-      ['Dumbach Hall', '6474 N Kenmore Ave', 42.0010, -87.6570, 'LSC'],
-      ['Crown Center', '1001 W Loyola Ave', 42.0012, -87.6600, 'LSC'],
-      ['Mundelein Center', '1032 W Sheridan Rd', 41.9994, -87.6600, 'LSC'],
-      ['Life Science Building', '1032 W Sheridan Rd', 41.9990, -87.6580, 'LSC'],
-      ['Cudahy Science Hall', '6460 N Kenmore Ave', 41.9992, -87.6580, 'LSC'],
-      ['Sullivan Center', '6339 N Sheridan Rd', 41.9980, -87.6570, 'LSC'],
-      ['Inst for Env Sust', '6349 N Kenmore Ave', 41.9982, -87.6570, 'LSC'],
-      ['Damen Student Center', '6511 N Winthrop Ave', 42.0000, -87.6600, 'LSC'],
-      ['Piper Hall', '970 W Sheridan Rd', 41.9990, -87.6560, 'LSC'],
-      ['Coffey Hall', '1000 W Sheridan Rd', 41.9990, -87.6560, 'LSC'],
-      ['Flanner Hall', '1068 W Sheridan Rd', 41.9990, -87.6580, 'LSC'],
-      ['Cudahy Library', '6515 N Kenmore Ave', 42.0010, -87.6570, 'LSC'],
-      ['Corboy Law Center', '25 E Pearson St', 41.8975, -87.6290, 'WTC'],
+      ['Cuneo Hall', '6430 N Kenmore Ave', 41.99922, -87.65732, 'LSC'],
+      ['Information Commons', '6501 N Kenmore Ave', 42.00032, -87.65632, 'LSC'],
+      ['Dumbach Hall', '6474 N Kenmore Ave', 42.00045, -87.65786, 'LSC'],
+      ['Crown Center', '1001 W Loyola Ave', 42.00120, -87.65657, 'LSC'],
+      ['Mundelein Center', '1032 W Sheridan Rd', 41.99866, -87.65657, 'LSC'],
+      ['Life Science Building', '1050 W Sheridan Rd', 41.99859, -87.65769, 'LSC'],
+      ['Cudahy Science Hall', '6460 N Kenmore Ave', 41.99979, -87.65773, 'LSC'],
+      ['Sullivan Center', '6339 N Sheridan Rd', 41.99780, -87.65503, 'LSC'],
+      ['Inst for Env Sust', '6349 N Kenmore Ave', 41.99758, -87.65663, 'LSC'],
+      ['Damen Student Center', '6511 N Winthrop Ave', 42.00043, -87.65975, 'LSC'],
+      ['Piper Hall', '970 W Sheridan Rd', 41.99867, -87.65555, 'LSC'],
+      ['Coffey Hall', '1000 W Sheridan Rd', 41.99897, -87.65550, 'LSC'],
+      ['Flanner Hall', '1068 W Sheridan Rd', 41.99860, -87.65831, 'LSC'],
+      ['Cudahy Library', '6515 N Kenmore Ave', 42.00076, -87.65684, 'LSC'],
+      ['BVM Hall', '6364 N Sheridan Rd', 41.99796, -87.65667, 'LSC'],
+      ['Rooney Hall', '1020 W Sheridan Rd', 41.99831, -87.65667, 'LSC'],
+      ['Alfie Hall', '1109 W Loyola Ave', 42.00128, -87.65909, 'LSC'],
+      ['Francis Hall', '6314 N Winthrop Ave', 41.99706, -87.65885, 'LSC'],
+      ['Ralph Arnold Annex', '1131 W Sheridan Rd', 41.99829, -87.65888, 'LSC'],
+      ['6347 N Broadway', '6347 N Broadway', 41.99776, -87.66005, 'LSC'],
+      ['Corboy Law Center', '25 E Pearson St', 41.89715, -87.62716, 'WTC'],
+      ['Schreiber Center', '16 E Pearson St', 41.89778, -87.62784, 'WTC'],
+      ['School of COMM', '51 E Pearson St', 41.89746, -87.62656, 'WTC'],
     ];
 
     for (const [name, address, latitude, longitude, campus] of buildingSeedData) {
@@ -838,7 +851,7 @@ module.exports = {
   // maxPoints per section. Used to build the Firestore `recentHistory` sparkline.
   getRecentHistoryByClass(termCode, maxPoints = 30) {
     const rows = queryAll(
-      `SELECT class_number, snapshot_date, enrollment_total, enrollment_cap
+      `SELECT class_number, snapshot_date, enrollment_total, enrollment_cap, waitlist_total
        FROM enrollment_history WHERE term_code = ?
        ORDER BY class_number, snapshot_date DESC`,
       [termCode]
@@ -848,7 +861,14 @@ module.exports = {
       const key = String(r.class_number);
       if (!map[key]) map[key] = [];
       if (map[key].length < maxPoints) {
-        map[key].push({ date: r.snapshot_date, total: r.enrollment_total, cap: r.enrollment_cap });
+        map[key].push({
+          date: r.snapshot_date,
+          total: r.enrollment_total,
+          cap: r.enrollment_cap,
+          // Waitlist series powers the F-HI3 movement chart. Older Firestore
+          // recentHistory points lack this field — clients must tolerate that.
+          waitlist: r.waitlist_total || 0,
+        });
       }
     }
     for (const k in map) map[k].reverse();

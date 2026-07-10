@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { View, Text, Image, KeyboardAvoidingView, ScrollView, Platform, TouchableOpacity, StyleSheet, Switch } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from './AppContext';
 import { upgradeAnonymousAccount } from './auth';
 import { saveUserProfile, addUserCourse, saveQuizResults } from './firestore-data';
+import { POLICY_VERSION } from './privacy-policy-content';
+import PrivacyPolicyModal from './components/PrivacyPolicyModal';
 import SearchBar from './styleComponents/SearchBar';
 import BackgroundImage from './styleComponents/BackgroundImage';
 
@@ -19,7 +22,9 @@ const AccountSetup =() => {
   const [isAthlete, setIsAthleteLocal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const { selectedProgram, selectedProgram2, selectedMinors, selectedCourses, setGraduationYear, setClassYear, setIsHonors, setIsAthlete, quizResults, setUser, setIsLoggedIn } = useAppContext();
+  const [policyAccepted, setPolicyAccepted] = useState(false);
+  const [policyVisible, setPolicyVisible] = useState(false);
+  const { selectedProgram, selectedProgram2, selectedMinors, selectedCourses, setGraduationYear, setClassYear, setIsHonors, setIsAthlete, quizResults, setUser, setIsLoggedIn, setPrivacyPolicyVersion } = useAppContext();
 
   const navigation = useNavigation();
   const currentYear = new Date().getFullYear();
@@ -52,6 +57,7 @@ const AccountSetup =() => {
           classYear: classYearLocal,
           isHonors: isHonors,
           isAthlete: isAthlete,
+          privacyPolicyVersion: POLICY_VERSION,
         });
 
         // Save quiz results to Firestore
@@ -88,6 +94,10 @@ const AccountSetup =() => {
         isAnonymous: false,
       });
       setIsLoggedIn(true);
+      // The user accepted the policy in this flow — reflect it in context so
+      // the App.js consent gate doesn't re-prompt right after signup. If the
+      // profile write above failed, the gate re-prompts on next cold start.
+      setPrivacyPolicyVersion(POLICY_VERSION);
     } catch (error) {
       const code = error.code;
       if (code === 'auth/email-already-in-use' || code === 'auth/credential-already-in-use') {
@@ -186,11 +196,36 @@ const AccountSetup =() => {
         </KeyboardAvoidingView>
         {year && classYearLocal && email && password ? (
           <View style={s.stickyBottom}>
-            <TouchableOpacity style={s.nextButton} onPress={handleNextButtonPress} disabled={loading}>
+            <TouchableOpacity
+              style={s.consentRow}
+              onPress={() => setPolicyVisible(true)}
+              accessibilityLabel="Read and agree to the Privacy Policy"
+            >
+              <Ionicons
+                name={policyAccepted ? 'checkbox' : 'square-outline'}
+                size={20}
+                color="#A30046"
+              />
+              <Text style={s.consentText}>
+                I have read and agree to the{' '}
+                <Text style={s.consentLink}>Privacy Policy</Text>
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.nextButton, !policyAccepted && s.nextButtonDisabled]}
+              onPress={handleNextButtonPress}
+              disabled={loading || !policyAccepted}
+            >
               <Text style={s.nextButtonText}>{loading ? '...' : 'Next'}</Text>
             </TouchableOpacity>
           </View>
         ) : null}
+        <PrivacyPolicyModal
+          visible={policyVisible}
+          mode="consent"
+          onAccept={() => { setPolicyAccepted(true); setPolicyVisible(false); }}
+          onDecline={() => setPolicyVisible(false)}
+        />
       </View>
     </BackgroundImage>
   );
@@ -300,6 +335,28 @@ const s = StyleSheet.create({
     paddingBottom: 34,
     alignItems: 'center',
     backgroundColor: 'transparent',
+  },
+  consentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+  },
+  consentText: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 16,
+    color: 'black',
+    marginLeft: 8,
+  },
+  consentLink: {
+    textDecorationLine: 'underline',
+    color: '#A30046',
+  },
+  nextButtonDisabled: {
+    opacity: 0.4,
   },
   nextButton: {
     backgroundColor: '#A30046',

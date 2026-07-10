@@ -842,7 +842,7 @@ const ProgressScreen = () => {
 };
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: '#FBF9F4' },
 
   // Tab toggle
   tabScrollRow: {

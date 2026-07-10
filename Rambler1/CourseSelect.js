@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Image, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Image, ActivityIndicator, TouchableOpacity, Platform, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { fetchCourses } from './Database';
+import { fetchCourses, fetchProgramCourses } from './Database';
 import { useAppContext } from './AppContext';
 import CustomLongButton1 from './styleComponents/CustomLongButton1';
 import { ScrollView } from 'react-native';
 import BackgroundImage from './styleComponents/BackgroundImage';
 import CourseDetailModal from './CourseDetailModal';
+
+// Bottom inset so the sticky bar clears the home indicator / nav bar
+const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
 
 const CourseSelect =() => {
   const [courses, setCourses] = useState([]);
@@ -14,7 +17,8 @@ const CourseSelect =() => {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [detailCourse, setDetailCourse] = useState(null);
-  const { selectedCourses, setSelectedCourses } = useAppContext();
+  const [majorCourseIds, setMajorCourseIds] = useState(null);
+  const { selectedCourses, setSelectedCourses, selectedProgram } = useAppContext();
   const navigation = useNavigation();
 
   const loadCourses = () => {
@@ -29,6 +33,23 @@ const CourseSelect =() => {
   useEffect(() => {
     loadCourses();
   }, []);
+
+  // Surface the user's major courses first — fall back silently to the
+  // default ordering if the program lookup fails or they're undecided.
+  useEffect(() => {
+    let cancelled = false;
+    const programId = selectedProgram && selectedProgram.id;
+    if (!programId || programId === 'undecided') {
+      setMajorCourseIds(null);
+      return;
+    }
+    fetchProgramCourses(programId)
+      .then((rows) => {
+        if (!cancelled) setMajorCourseIds(new Set(rows.map((r) => r.id)));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [selectedProgram]);
 
   const handleCoursePress = (item) => {
     setSelectedCourses((prev) => {
@@ -47,6 +68,25 @@ const CourseSelect =() => {
   const filteredCourses = courses.filter((item) =>
     (item.name || '').toLowerCase().includes(search.toLowerCase()) ||
     (item.code || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Stable partition: major courses first, everything else keeps its order
+  const majorCourses = majorCourseIds
+    ? filteredCourses.filter((item) => majorCourseIds.has(item.id))
+    : [];
+  const otherCourses = majorCourseIds
+    ? filteredCourses.filter((item) => !majorCourseIds.has(item.id))
+    : filteredCourses;
+
+  const renderCourse = (item) => (
+    <CustomLongButton1
+      key={item.id}
+      onPress={() => handleCoursePress(item)}
+      onLongPress={() => setDetailCourse(item)}
+      selected={selectedCourses.some((c) => c.id === item.id)}
+    >
+      {item.code} — {item.name}
+    </CustomLongButton1>
   );
 
   return (
@@ -84,21 +124,19 @@ const CourseSelect =() => {
             </TouchableOpacity>
           </View>
         ) : (
-          <ScrollView contentContainerStyle={{ alignItems: 'center', paddingBottom: 10 }}>
-            {filteredCourses.map((item) => (
-              <CustomLongButton1
-                key={item.id}
-                onPress={() => handleCoursePress(item)}
-                onLongPress={() => setDetailCourse(item)}
-                selected={selectedCourses.some((c) => c.id === item.id)}
-              >
-                {item.code} — {item.name}
-              </CustomLongButton1>
-            ))}
+          <ScrollView contentContainerStyle={{ alignItems: 'center', paddingBottom: 24 }}>
+            {majorCourses.length > 0 && (
+              <Text style={s.sectionLabel}>From your major</Text>
+            )}
+            {majorCourses.map(renderCourse)}
+            {majorCourses.length > 0 && otherCourses.length > 0 && (
+              <Text style={s.sectionLabel}>Other courses</Text>
+            )}
+            {otherCourses.map(renderCourse)}
           </ScrollView>
         )}
         <View style={s.stickyBottom}>
-          <TouchableOpacity style={s.nextButton} onPress={handleNextButtonPress}>
+          <TouchableOpacity style={s.nextButton} onPress={handleNextButtonPress} accessibilityLabel="Next">
             <Text style={s.nextButtonText}>Next</Text>
           </TouchableOpacity>
         </View>
@@ -181,9 +219,23 @@ const s = StyleSheet.create({
     fontSize: 18,
     color: '#FFFFFF',
   },
+  sectionLabel: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#A30046',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 10,
+    paddingVertical: 3,
+    paddingHorizontal: 12,
+    overflow: 'hidden',
+    alignSelf: 'center',
+    marginTop: 2,
+    marginBottom: 8,
+  },
   stickyBottom: {
     paddingTop: 4,
-    paddingBottom: 8,
+    paddingBottom: 8 + BOTTOM_SAFE,
     alignItems: 'center',
     backgroundColor: 'transparent',
   },

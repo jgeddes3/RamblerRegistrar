@@ -1,15 +1,29 @@
 // screens/LibraryScreen.js — Library hours (LibCal, via campus-api).
-// Today's hours per location as cards + a compact "This week" day grid.
+// Today's hours per location as tappable cards (expand for study-room
+// booking) + a compact "This week" day grid.
 // No back button / no giant header here: the More stack header owns the title.
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, RefreshControl, ActivityIndicator, StyleSheet,
+  TouchableOpacity, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getLibraryHours, getLibraryHoursWeekly } from '../campus-api';
 
 const MAROON = '#A30046';
+
+// Bookable study-room locations (F-Q8). LibCal's booking flow needs a Loyola
+// login, so the app deep-links straight into the official picker for each
+// location (lids from backend/services/studyrooms.js). Same no-backend
+// property as the rest of this screen — pure Linking.
+const STUDY_ROOM_LOCATIONS = [
+  { name: 'Information Commons', campus: 'LSC', lid: 10019 },
+  { name: 'Cudahy Library', campus: 'LSC', lid: 10022 },
+  { name: 'Lewis Library', campus: 'WTC', lid: 10020 },
+  { name: 'Schreiber Center', campus: 'WTC', lid: 10021 },
+];
+const bookingUrl = (lid) => `https://libcal.luc.edu/spaces?lid=${lid}`;
 const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const DAY_ABBREV = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat', Sunday: 'Sun' };
 
@@ -42,12 +56,31 @@ function weeklyDayText(day) {
   return hoursText({ status: day.times?.status, hours: day.times?.hours });
 }
 
+// LibCal's hours feed and the booking lids name locations slightly differently
+// ("Cudahy Library" vs "Cudahy"), so match when either name contains the other.
+function bookableFor(locName) {
+  const n = String(locName || '').trim().toLowerCase();
+  if (!n) return null;
+  return STUDY_ROOM_LOCATIONS.find((b) => {
+    const bn = b.name.toLowerCase();
+    return n.includes(bn) || bn.includes(n);
+  }) || null;
+}
+
 // ------------------------------------------------------------------- pieces
 
-const TodayCard = ({ loc }) => {
+// Tappable accordion card: expands to show how to book a room at this
+// location (or where rooms ARE bookable, if this one isn't).
+const TodayCard = ({ loc, expanded, onToggle }) => {
   const open = isOpenNow(loc);
+  const bookable = bookableFor(loc.name);
   return (
-    <View style={[s.card, { borderLeftColor: open ? '#059669' : '#C9C9C9' }]}>
+    <TouchableOpacity
+      style={[s.card, { borderLeftColor: open ? '#059669' : '#C9C9C9' }]}
+      onPress={onToggle}
+      activeOpacity={0.7}
+      accessibilityLabel={`${loc.name}, show booking details`}
+    >
       <View style={s.cardTop}>
         <Text style={s.cardName} numberOfLines={2}>{loc.name}</Text>
         <View style={[s.statusPill, open ? s.statusOpen : s.statusClosed]}>
@@ -56,13 +89,43 @@ const TodayCard = ({ loc }) => {
             {open ? 'Open' : 'Closed'}
           </Text>
         </View>
+        <Ionicons
+          name={expanded ? 'chevron-up' : 'chevron-down'}
+          size={16}
+          color="#C0C0C0"
+          style={{ marginTop: 2 }}
+        />
       </View>
       <View style={s.hoursRow}>
         <Ionicons name="time-outline" size={14} color="#888" style={{ marginTop: 1 }} />
         <Text style={s.hoursText}>{hoursText(loc)}</Text>
       </View>
       {loc.note ? <Text style={s.noteText}>{loc.note}</Text> : null}
-    </View>
+      {expanded ? (
+        <View style={s.detailWrap}>
+          {bookable ? (
+            <>
+              <TouchableOpacity
+                style={s.bookButton}
+                onPress={() => Linking.openURL(bookingUrl(bookable.lid)).catch(() => {})}
+                accessibilityLabel={`Book a study room at ${loc.name}`}
+              >
+                <Ionicons name="people-outline" size={16} color="#FFFFFF" />
+                <Text style={s.bookButtonText}>Book a study room</Text>
+              </TouchableOpacity>
+              <Text style={s.detailHint}>
+                Opens LibCal — sign in with your Loyola account.
+              </Text>
+            </>
+          ) : (
+            <Text style={s.detailHint}>
+              Study rooms are bookable at the Information Commons, Cudahy,
+              Lewis, and Schreiber — see the section below.
+            </Text>
+          )}
+        </View>
+      ) : null}
+    </TouchableOpacity>
   );
 };
 
@@ -91,6 +154,7 @@ const LibraryScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [today, setToday] = useState(null);   // { date, locations: [...] } | null
   const [weekly, setWeekly] = useState(null); // raw LibCal grid { locations: [...] } | null
+  const [expandedId, setExpandedId] = useState(null); // one Today card open at a time
 
   const load = useCallback(async () => {
     // campus-api never throws (contract: null/[] on failure), but stay defensive.
@@ -152,11 +216,44 @@ const LibraryScreen = () => {
           {todayLocations.length > 0 && (
             <>
               <Text style={s.sectionTitle}>Today</Text>
-              {todayLocations.map((loc) => (
-                <TodayCard key={String(loc.id ?? loc.name)} loc={loc} />
-              ))}
+              {todayLocations.map((loc) => {
+                const key = String(loc.id ?? loc.name);
+                return (
+                  <TodayCard
+                    key={key}
+                    loc={loc}
+                    expanded={expandedId === key}
+                    onToggle={() => setExpandedId((cur) => (cur === key ? null : key))}
+                  />
+                );
+              })}
             </>
           )}
+
+          {/* Study rooms (F-Q8): deep-link into LibCal's official booking
+              picker per location — booking itself requires the Loyola login,
+              so the browser flow is the supported path. */}
+          <Text style={[s.sectionTitle, { marginTop: 18 }]}>Book a study room</Text>
+          {STUDY_ROOM_LOCATIONS.map((loc) => (
+            <TouchableOpacity
+              key={loc.lid}
+              style={s.bookRow}
+              onPress={() => Linking.openURL(bookingUrl(loc.lid)).catch(() => {})}
+              accessibilityLabel={`Book a study room at ${loc.name}`}
+            >
+              <View style={s.bookIconWrap}>
+                <Ionicons name="people-outline" size={18} color={MAROON} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.bookName}>{loc.name}</Text>
+                <Text style={s.bookCampus}>{loc.campus === 'LSC' ? 'Lake Shore Campus' : 'Water Tower Campus'}</Text>
+              </View>
+              <Ionicons name="open-outline" size={18} color="#C0C0C0" />
+            </TouchableOpacity>
+          ))}
+          <Text style={s.bookHint}>
+            Opens LibCal — sign in with your Loyola account to reserve.
+          </Text>
 
           {weeklyLocations.length > 0 && (
             <>
@@ -175,12 +272,12 @@ const LibraryScreen = () => {
 // -------------------------------------------------------------------- styles
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: '#FBF9F4' },
   content: { padding: 16, paddingBottom: 32 },
   emptyContainer: { flexGrow: 1 },
   centerWrap: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#FFFFFF', paddingHorizontal: 24,
+    backgroundColor: '#FBF9F4', paddingHorizontal: 24,
   },
   loadingText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 16, color: '#999', marginTop: 12 },
   emptyTitle: {
@@ -209,6 +306,29 @@ const s = StyleSheet.create({
   hoursRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 6 },
   hoursText: { flex: 1, fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#555' },
   noteText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: '#999', marginTop: 4, fontStyle: 'italic' },
+
+  // Expanded booking detail (accordion)
+  detailWrap: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F0F0F0' },
+  bookButton: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: MAROON, borderRadius: 10, paddingVertical: 10, marginBottom: 8,
+  },
+  bookButtonText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, fontWeight: 'bold', color: '#FFFFFF' },
+  detailHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#999', fontStyle: 'italic' },
+
+  // Study-room booking rows (F-Q8)
+  bookRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#FFFFFF', borderRadius: 12, padding: 12, marginBottom: 8,
+    borderWidth: 1, borderColor: '#F0F0F0',
+  },
+  bookIconWrap: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: '#FBF0F5',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  bookName: { fontFamily: 'CormorantGaramond-Regular', fontSize: 17, color: '#333' },
+  bookCampus: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: '#999' },
+  bookHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: '#AAA', fontStyle: 'italic', marginBottom: 4 },
 
   // Weekly grid
   weekCard: {

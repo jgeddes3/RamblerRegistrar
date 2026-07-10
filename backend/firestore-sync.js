@@ -7,7 +7,7 @@
 // detected by diffing the manifest against this run's rows — the default path
 // performs ZERO Firestore reads (the old implementation re-wrote ~2.5k section
 // docs and read ~2.5k doc ids for pruning EVERY day; on the Spark tier that
-// plus client boots exhausted the daily quota — see HANDOFF Known issue 5).
+// plus client boots exhausted the daily quota — see archive/HANDOFF.md Known issue 5).
 //
 // Writes per run (steady state): only sections whose data actually changed
 // (status/enrollment/meeting fields — during quiet weeks that's near zero),

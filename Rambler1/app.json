@@ -25,7 +25,10 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.johngeddes.ramblerregistrar"
+      "bundleIdentifier": "com.johngeddes.ramblerregistrar",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.johngeddes.ramblerregistrar",

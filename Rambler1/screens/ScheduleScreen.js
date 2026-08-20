@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { BG } from '../theme';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useAppContext } from '../AppContext';
@@ -24,9 +23,14 @@ import {
   unscheduledSections, buildIcs,
 } from '../schedule-utils';
 import { fillWarning, requirementCoverage, coverageSummaryLine } from '../planning-insights';
+import { campusOf } from '../commute-utils';
 import { computeGraduationOutlook } from '../graduation-outlook';
+import { buildRecommendations } from '../recommend';
 import ScheduleGrid from '../components/ScheduleGrid';
 import GenerateScheduleModal from '../components/GenerateScheduleModal';
+import ScheduleMapModal from '../components/ScheduleMapModal';
+import CourseDetailModal from '../CourseDetailModal';
+import showAlert from '../alert';
 
 // Same pattern as ProfileScreen: RN Modal covers the status bar / notch on iOS.
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
@@ -163,13 +167,16 @@ const WatchToggle = ({ watching, disabled, onPress }) => (
     disabled={disabled}
     accessibilityLabel={watching ? 'Stop watching for open seats' : 'Watch for open seats'}
   >
-    <Text style={[s.watchBtnText, watching && s.watchBtnTextActive]}>
+    <View style={s.watchBtnInner}>
       <Ionicons
         name={watching ? 'notifications' : 'notifications-outline'}
         size={12}
         color={watching ? '#FFFFFF' : '#A30046'}
-      /> {watching ? 'Watching' : 'Watch'}
-    </Text>
+      />
+      <Text style={[s.watchBtnText, watching && s.watchBtnTextActive]}>
+        {watching ? 'Watching' : 'Watch'}
+      </Text>
+    </View>
   </TouchableOpacity>
 );
 
@@ -205,8 +212,8 @@ const ModalSectionRow = ({ section, added, onPress, watching, canWatch, onToggle
 
 const ScheduleScreen = () => {
   const {
-    user, selectedProgram, selectedProgram2, selectedMinors,
-    graduationYear, classYear, isHonors, isAthlete,
+    user, selectedProgram, selectedProgram2, selectedMinors, selectedFocus,
+    graduationYear, classYear, isHonors, isAthlete, userLocations, quizResults,
   } = useAppContext();
   const uid = user?.uid;
   const signedIn = !!user && !user.isAnonymous;
@@ -233,6 +240,8 @@ const ScheduleScreen = () => {
   // Add-class modal state
   const [addVisible, setAddVisible] = useState(false);
   const [genVisible, setGenVisible] = useState(false);
+  const [mapVisible, setMapVisible] = useState(false);
+  const [detailSection, setDetailSection] = useState(null); // grid-tapped legacy row (course detail modal)
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -363,6 +372,12 @@ const ScheduleScreen = () => {
   const conflicts = useMemo(() => findConflicts(blocks), [blocks]);
   const unscheduled = useMemo(() => unscheduledSections(sections), [sections]);
   const walkMinutes = useMemo(() => makeWalkMinutes(buildings), [buildings]);
+  // Generator personalization (F-HI4): null until buildings load so the
+  // generator just skips campus scoring instead of resolving everything null.
+  const sectionCampus = useMemo(
+    () => (buildings.length ? (section) => campusOf(section?.building, buildings) : null),
+    [buildings]
+  );
   const tightGaps = useMemo(
     () => (buildings.length ? findTightGaps(blocks, walkMinutes) : []),
     [blocks, walkMinutes, buildings]
@@ -389,7 +404,7 @@ const ScheduleScreen = () => {
       const toName = to?.name || g.to.section?.building || '?';
       out.push({
         kind: 'gap',
-        text: `${g.gapMin} min gap, ~${g.walkMin} min walk: ${fromName} → ${toName} (${g.from.day})`,
+        text: `${g.gapMin} min gap, about ${g.walkMin} min walk: ${fromName} to ${toName} (${g.from.day})`,
       });
     }
     return out;
@@ -445,6 +460,20 @@ const ScheduleScreen = () => {
     }
   }, [planning, results]);
 
+  // F-P4: personalized quick-adds shown in the add modal (and the generator)
+  // before any search — shared ../recommend ordering over the user's remaining
+  // requirements + focus-area courses (tagged isFocus). Placeholders and
+  // courses already on the schedule are excluded.
+  const recommendedCourses = useMemo(() => {
+    const onSchedule = new Set(sections.map((sec) => normCode(courseCodeOf(sec))));
+    return buildRecommendations({
+      remaining: planning?.degreeProgress?.remaining,
+      focusCourses: selectedFocus?.courses,
+      excludeCodes: onSchedule,
+      limit: 6,
+    });
+  }, [planning, sections, selectedFocus]);
+
   // Section-picker header: fill-speed warning line for the picked course.
   const pickedWarning = useMemo(() => {
     try {
@@ -459,7 +488,7 @@ const ScheduleScreen = () => {
   // ------------------------------------------------------------------- save
   const persistIds = useCallback(async (ids) => {
     if (loadFailed) {
-      Alert.alert(
+      showAlert(
         'Schedule not loaded',
         "Your saved schedule couldn't be loaded, so changes are disabled to protect it. Retry loading first."
       );
@@ -469,7 +498,7 @@ const ScheduleScreen = () => {
     const res = await saveSchedule(uid, TERM.code, ids);
     setSaving(false);
     if (!res) {
-      Alert.alert('Save failed', 'Could not update your schedule. Please try again.');
+      showAlert('Save failed', 'Could not update your schedule. Please try again.');
       return false;
     }
     await loadSchedule();
@@ -527,7 +556,7 @@ const ScheduleScreen = () => {
   const addSection = (section) => {
     if (saving) return; // a save is in flight — a second tap would race it and lose the first add
     if (loadFailed) {
-      Alert.alert(
+      showAlert(
         'Schedule not loaded',
         "Your saved schedule couldn't be loaded, so adding is disabled to protect it. Retry loading first."
       );
@@ -535,11 +564,11 @@ const ScheduleScreen = () => {
     }
     const classNum = String(section.class_number);
     if (scheduleIds.includes(classNum)) {
-      Alert.alert('Already added', `${courseCodeOf(section)} (class ${classNum}) is already on your schedule.`);
+      showAlert('Already added', `${courseCodeOf(section)} (class ${classNum}) is already on your schedule.`);
       return;
     }
     if (scheduleIds.length >= 40) {
-      Alert.alert('Schedule full', 'A schedule can hold at most 40 sections. Remove one to add another.');
+      showAlert('Schedule full', 'A schedule can hold at most 40 sections. Remove one to add another.');
       return;
     }
     const doAdd = async () => {
@@ -556,7 +585,7 @@ const ScheduleScreen = () => {
       const other = newConflicts.map(({ a, b }) =>
         String(a.section.class_number) === classNum ? b.label : a.label
       );
-      Alert.alert(
+      showAlert(
         'Time conflict',
         `${courseCodeOf(section)} overlaps ${[...new Set(other)].join(', ')}.`,
         [
@@ -573,7 +602,7 @@ const ScheduleScreen = () => {
   const confirmRemove = (section) => {
     const classNum = String(section.class_number);
     const code = courseCodeOf(section);
-    Alert.alert(
+    showAlert(
       code,
       `${section.title || ''}\n${meetingSummary(section)}${section.instructor ? `\n${section.instructor}` : ''}`.trim(),
       [
@@ -615,12 +644,12 @@ const ScheduleScreen = () => {
       : await addWatch(uid, TERM.code, classNum);
     if (!res) {
       applyWatching(wasWatching); // revert
-      Alert.alert('Watch update failed', 'Could not update your seat watch. Please try again.');
+      showAlert('Watch update failed', 'Could not update your seat watch. Please try again.');
     }
   }, [uid, signedIn, watched]);
 
   const confirmUnwatch = (section) => {
-    Alert.alert(
+    showAlert(
       courseCodeOf(section),
       `Stop watching Sec ${section.section_number} for open seats?`,
       [
@@ -634,24 +663,24 @@ const ScheduleScreen = () => {
   const exportIcs = async () => {
     try {
       if (!sections.length) {
-        Alert.alert('Nothing to export', 'Add some classes first.');
+        showAlert('Nothing to export', 'Add some classes first.');
         return;
       }
       const ics = buildIcs(sections, getTermEndDate(TERM));
       const dir = FileSystem.cacheDirectory;
       if (!dir) {
-        Alert.alert('Export failed', 'No writable directory available on this device.');
+        showAlert('Export failed', 'No writable directory available on this device.');
         return;
       }
       const uri = `${dir}schedule-${TERM.code}.ics`;
       await FileSystem.writeAsStringAsync(uri, ics);
       if (!(await Sharing.isAvailableAsync())) {
-        Alert.alert('Sharing unavailable', 'This device cannot share files.');
+        showAlert('Sharing unavailable', 'This device cannot share files.');
         return;
       }
       await Sharing.shareAsync(uri, { mimeType: 'text/calendar', dialogTitle: `My ${TERM.label} Schedule` });
     } catch (e) {
-      Alert.alert('Export failed', 'Could not export your schedule. Please try again.');
+      showAlert('Export failed', 'Could not export your schedule. Please try again.');
     }
   };
 
@@ -675,14 +704,21 @@ const ScheduleScreen = () => {
           <Text style={s.subtitle}>{TERM.label}</Text>
         </View>
         <TouchableOpacity style={s.headerBtn} onPress={exportIcs} accessibilityLabel="Export schedule">
-          <Ionicons name="share-outline" size={18} color="#A30046" />
+          <Ionicons name="share-outline" size={19} color="#A30046" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={s.headerBtn}
+          onPress={() => setMapVisible(true)}
+          accessibilityLabel="Day map"
+        >
+          <Ionicons name="map-outline" size={18} color="#A30046" />
         </TouchableOpacity>
         <TouchableOpacity
           style={s.headerBtn}
           onPress={() => setGenVisible(true)}
           accessibilityLabel="Generate schedule"
         >
-          <Ionicons name="color-wand-outline" size={18} color="#A30046" />
+          <Ionicons name="sparkles-outline" size={18} color="#A30046" />
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.headerBtn, s.headerBtnPrimary]}
@@ -708,7 +744,7 @@ const ScheduleScreen = () => {
         </View>
       ) : sections.length === 0 ? (
         <View style={s.centerWrap}>
-          <Text style={s.emptyTitle}>No classes yet. Tap + to add</Text>
+          <Text style={s.emptyTitle}>No classes yet — tap + to add</Text>
           <Text style={s.emptyHint}>Search any course and pick a section.</Text>
         </View>
       ) : (
@@ -717,13 +753,17 @@ const ScheduleScreen = () => {
           {warnings.length > 0 && (
             <View style={s.warnBanner}>
               {warnings.map((w, i) => (
-                <Text key={i} style={[s.warnText, w.kind === 'conflict' && s.warnTextConflict]}>
+                <View key={i} style={s.warnRow}>
                   <Ionicons
                     name={w.kind === 'conflict' ? 'close-circle' : 'warning-outline'}
                     size={13}
                     color={w.kind === 'conflict' ? '#b00020' : '#8a6d1d'}
-                  /> {w.text}
-                </Text>
+                    style={{ marginTop: 2 }}
+                  />
+                  <Text style={[s.warnText, w.kind === 'conflict' && s.warnTextConflict]}>
+                    {w.text}
+                  </Text>
+                </View>
               ))}
             </View>
           )}
@@ -744,7 +784,7 @@ const ScheduleScreen = () => {
               startHour={bounds.startHour}
               endHour={bounds.endHour}
               days={bounds.days}
-              onPressBlock={(block) => confirmRemove(block.section)}
+              onPressBlock={(block) => setDetailSection(block.section)}
             />
           </View>
 
@@ -806,6 +846,32 @@ const ScheduleScreen = () => {
         </View>
       )}
 
+      {/* ====================== COURSE-DETAIL MODAL (grid tap) ================== */}
+      <CourseDetailModal
+        visible={!!detailSection}
+        course={
+          detailSection
+            ? { code: courseCodeOf(detailSection), name: detailSection.title }
+            : null
+        }
+        section={detailSection}
+        sections={null}
+        onClose={() => setDetailSection(null)}
+        onRemove={(sec) => {
+          setDetailSection(null);
+          confirmRemove(sec);
+        }}
+      />
+
+      {/* =========================== DAY-MAP MODAL ============================== */}
+      <ScheduleMapModal
+        visible={mapVisible}
+        onClose={() => setMapVisible(false)}
+        sections={sections}
+        buildings={buildings}
+        home={(userLocations || []).find((l) => l.is_primary) || null}
+      />
+
       {/* ======================= GENERATE-SCHEDULE MODAL ======================== */}
       <GenerateScheduleModal
         visible={genVisible}
@@ -814,6 +880,9 @@ const ScheduleScreen = () => {
         termLabel={TERM.label}
         currentSections={sections}
         walkMinutes={walkMinutes}
+        schedulingPrefs={quizResults?.schedulingPrefs || null}
+        sectionCampus={sectionCampus}
+        recommended={recommendedCourses}
         onApply={persistIds}
       />
 
@@ -853,7 +922,7 @@ const ScheduleScreen = () => {
               <Text style={s.pickedCode}>{pickedCourse.code}</Text>
               <Text style={s.pickedName}>{pickedCourse.name}</Text>
               {pickedWarning && (pickedWarning.level === 'high' || pickedWarning.level === 'warn') ? (
-                <Text
+                <View
                   style={[
                     s.pickedFillWarn,
                     pickedWarning.level === 'high' ? s.pickedFillWarnHigh : s.pickedFillWarnAmber,
@@ -861,10 +930,19 @@ const ScheduleScreen = () => {
                 >
                   <Ionicons
                     name="flash"
-                    size={12}
+                    size={13}
                     color={pickedWarning.level === 'high' ? '#b91c1c' : '#92400e'}
-                  /> {pickedWarning.text}
-                </Text>
+                    style={{ marginTop: 2 }}
+                  />
+                  <Text
+                    style={[
+                      s.pickedFillWarnText,
+                      { color: pickedWarning.level === 'high' ? '#b91c1c' : '#92400e' },
+                    ]}
+                  >
+                    {pickedWarning.text}
+                  </Text>
+                </View>
               ) : null}
               {courseSectionsLoading ? (
                 <ActivityIndicator color="#A30046" style={{ marginTop: 24 }} />
@@ -903,27 +981,29 @@ const ScheduleScreen = () => {
                       <Text style={s.courseRowCode}>{item.code}</Text>
                       <Text style={s.courseRowName} numberOfLines={1}>{item.name}</Text>
                       {counts ? (
-                        <Text style={s.countsMarker}>
-                          <Ionicons name="checkmark-circle-outline" size={11} color="#065f46" /> Counts toward your degree
-                        </Text>
+                        <View style={s.countsRow}>
+                          <Ionicons name="checkmark-circle" size={12} color="#065f46" />
+                          <Text style={s.countsMarker}>Counts toward your degree</Text>
+                        </View>
                       ) : null}
                     </View>
                     {fw ? (
                       fw.level === 'info' ? (
-                        <Ionicons name="flash-outline" size={14} color="#999" style={{ marginLeft: 8 }} />
+                        <Ionicons name="flash-outline" size={15} color="#B3ABA1" />
                       ) : (
                         <View style={[s.fillBadge, fw.level === 'high' ? s.fillBadgeHigh : s.fillBadgeAmber]}>
+                          <Ionicons
+                            name="flash"
+                            size={11}
+                            color={fw.level === 'high' ? '#b91c1c' : '#92400e'}
+                          />
                           <Text
                             style={[
                               s.fillBadgeText,
                               fw.level === 'high' ? s.fillBadgeTextHigh : s.fillBadgeTextAmber,
                             ]}
                           >
-                            <Ionicons
-                              name="flash"
-                              size={11}
-                              color={fw.level === 'high' ? '#b91c1c' : '#92400e'}
-                            /> Fills fast
+                            Fills fast
                           </Text>
                         </View>
                       )
@@ -938,7 +1018,37 @@ const ScheduleScreen = () => {
           ) : query.trim().length > 0 ? (
             <Text style={s.noMatchText}>No courses found</Text>
           ) : (
-            <Text style={s.noMatchText}>Search by course code or name</Text>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {recommendedCourses.length > 0 ? (
+                <View style={s.recWrap}>
+                  <Text style={s.recTitle}>Recommended for you</Text>
+                  <Text style={s.recSub}>Your remaining requirements and focus courses</Text>
+                  {recommendedCourses.map((c) => (
+                    <TouchableOpacity
+                      key={c.code}
+                      style={s.courseRow}
+                      onPress={() => pickCourse(c)}
+                      accessibilityLabel={`Recommended ${c.code}`}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <View style={s.recCodeRow}>
+                          <Text style={s.courseRowCode}>{c.code}</Text>
+                          {c.isFocus ? (
+                            <View style={s.focusPill}>
+                              <Ionicons name="star" size={10} color="#FFFFFF" />
+                              <Text style={s.focusPillText}>Focus</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                        {c.name ? <Text style={s.courseRowName} numberOfLines={1}>{c.name}</Text> : null}
+                      </View>
+                      <Text style={s.courseRowChevron}>›</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : null}
+              <Text style={s.noMatchText}>Search by course code or name</Text>
+            </ScrollView>
           )}
         </View>
       </Modal>
@@ -951,10 +1061,10 @@ const ScheduleScreen = () => {
 // =============================================================================
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
+  container: { flex: 1, backgroundColor: '#FBF9F4' },
   centerWrap: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: BG, paddingHorizontal: 24,
+    backgroundColor: '#FBF9F4', paddingHorizontal: 24,
   },
 
   // Header
@@ -971,14 +1081,18 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#A30046', backgroundColor: '#FFFFFF',
   },
   headerBtnPrimary: { backgroundColor: '#A30046' },
+  headerBtnText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 18, color: '#A30046', marginTop: -2 },
+  headerBtnTextPrimary: { color: '#FFFFFF', fontFamily: 'CormorantGaramond-Regular', fontSize: 22 },
 
   // Warnings banner
   warnBanner: {
     backgroundColor: '#FFF8E6', borderBottomWidth: 1, borderBottomColor: '#F3E3B8',
     paddingHorizontal: 14, paddingVertical: 8, gap: 3,
   },
-  warnText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#8a6d1d' },
+  warnRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 5 },
+  warnText: { flex: 1, fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: '#8a6d1d', lineHeight: 19 },
   warnTextConflict: { color: '#b00020', fontWeight: '600' },
+  watchBtnInner: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 
   // Pacing strip (requirement coverage + graduation pace)
   pacingStrip: {
@@ -1028,7 +1142,7 @@ const s = StyleSheet.create({
   },
   watchBtnActive: { backgroundColor: '#A30046' },
   watchBtnDisabled: { opacity: 0.4 },
-  watchBtnText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, fontWeight: '600', color: '#A30046' },
+  watchBtnText: { fontFamily: 'CormorantGaramond-Medium', fontSize: 14, color: '#A30046' },
   watchBtnTextActive: { color: '#FFFFFF' },
 
   // Loading / empty
@@ -1047,7 +1161,7 @@ const s = StyleSheet.create({
   },
 
   // Modal
-  modalContainer: { flex: 1, backgroundColor: BG, paddingTop: STATUSBAR_HEIGHT },
+  modalContainer: { flex: 1, backgroundColor: '#FFFFFF', paddingTop: STATUSBAR_HEIGHT },
   modalHeader: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingBottom: 8,
@@ -1073,6 +1187,22 @@ const s = StyleSheet.create({
     fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: '#999',
     textAlign: 'center', padding: 24,
   },
+  // F-P4 recommended rail (add modal, pre-search)
+  recWrap: { paddingTop: 8 },
+  recTitle: {
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 20, color: '#A30046',
+    paddingHorizontal: 16, marginBottom: 2,
+  },
+  recSub: {
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#999',
+    paddingHorizontal: 16, marginBottom: 6,
+  },
+  recCodeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  focusPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#A30046',
+    borderRadius: 8, paddingVertical: 1, paddingHorizontal: 7,
+  },
+  focusPillText: { fontFamily: 'CormorantGaramond-Medium', fontSize: 13, color: '#FFFFFF' },
 
   // Course result row
   courseRow: {
@@ -1083,16 +1213,24 @@ const s = StyleSheet.create({
   courseRowCode: { fontFamily: 'CormorantGaramond-Regular', fontSize: 17, fontWeight: 'bold', color: '#333' },
   courseRowName: { fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#777', marginTop: 1 },
   courseRowChevron: { fontFamily: 'CormorantGaramond-Regular', fontSize: 20, color: '#CCC', marginLeft: 8 },
-  countsMarker: { fontFamily: 'CormorantGaramond-Regular', fontSize: 11, color: '#065f46', marginTop: 2 },
-  fillBadge: { borderRadius: 8, paddingVertical: 2, paddingHorizontal: 8, marginLeft: 8 },
+  countsRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
+  countsMarker: { fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#065f46' },
+  fillBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    borderRadius: 8, paddingVertical: 2, paddingHorizontal: 8, marginLeft: 8,
+  },
   fillBadgeHigh: { backgroundColor: '#fee2e2' },
   fillBadgeAmber: { backgroundColor: '#fef3c7' },
-  fillBadgeText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 11, fontWeight: 'bold' },
+  fillBadgeText: { fontFamily: 'CormorantGaramond-Medium', fontSize: 13 },
   fillBadgeTextHigh: { color: '#b91c1c' },
   fillBadgeTextAmber: { color: '#92400e' },
-  pickedFillWarn: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, paddingHorizontal: 16, marginBottom: 6, fontWeight: '600' },
-  pickedFillWarnHigh: { color: '#b91c1c' },
-  pickedFillWarnAmber: { color: '#92400e' },
+  pickedFillWarn: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 4,
+    paddingHorizontal: 16, marginBottom: 6,
+  },
+  pickedFillWarnHigh: {},
+  pickedFillWarnAmber: {},
+  pickedFillWarnText: { flex: 1, fontFamily: 'CormorantGaramond-Medium', fontSize: 14, lineHeight: 18 },
 
   // Section row (modal)
   sectionRow: {

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { signIn } from './auth';
 import { useAppContext } from './AppContext';
+import PrivacyPolicyModal from './components/PrivacyPolicyModal';
 import BackgroundImage from './styleComponents/BackgroundImage';
 import LogoImage from './styleComponents/LogoImage1';
 import CustomButton from './styleComponents/customButton1';
@@ -13,6 +14,7 @@ const Login = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [policyVisible, setPolicyVisible] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -86,7 +88,28 @@ const Login = ({ navigation }) => {
             Sign up
           </CustomButton>
         </View>
+        <TouchableOpacity
+          onPress={() => setPolicyVisible(true)}
+          accessibilityLabel="Read the Privacy Policy"
+        >
+          <Text
+            style={{
+              fontFamily: 'CormorantGaramond-Regular',
+              fontSize: 15,
+              color: 'black',
+              textDecorationLine: 'underline',
+              marginTop: 24,
+            }}
+          >
+            Privacy Policy
+          </Text>
+        </TouchableOpacity>
       </View>
+      <PrivacyPolicyModal
+        visible={policyVisible}
+        mode="view"
+        onClose={() => setPolicyVisible(false)}
+      />
     </BackgroundImage>
   );
 };

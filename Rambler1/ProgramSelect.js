@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Image, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Image, ActivityIndicator, TouchableOpacity, Platform, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { fetchPrograms } from './Database';
 import { useAppContext } from './AppContext';
 import CustomLongButton1 from './styleComponents/CustomLongButton1';
 import { ScrollView } from 'react-native';
 import BackgroundImage from './styleComponents/BackgroundImage';
+
+// Bottom inset so the sticky bar clears the home indicator / nav bar
+const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
 
 // Phases: 'major' -> 'doubleMajor' -> 'minorChoice' -> 'minor'
 const PHASES = ['major', 'doubleMajor', 'minorChoice', 'minor'];
@@ -152,6 +155,13 @@ const ProgramSelect =() => {
     return 'Search majors...';
   };
 
+  // Advance button label — makes it clear the optional steps can be declined
+  const getNextLabel = () => {
+    if (phase === 'doubleMajor' && !selectedProgram2) return 'No double major';
+    if (phase === 'minor' && selectedMinors.length === 0) return 'No minors';
+    return 'Next';
+  };
+
   const currentPhaseIndex = PHASES.indexOf(phase);
 
   const renderHeader = () => (
@@ -288,7 +298,7 @@ const ProgramSelect =() => {
             </TouchableOpacity>
           </View>
         ) : (
-          <ScrollView contentContainerStyle={{ alignItems: 'center', paddingBottom: 10 }}>
+          <ScrollView contentContainerStyle={{ alignItems: 'center', paddingBottom: 24 }}>
             {filteredList.map((item) => (
               <CustomLongButton1
                 key={item.id}
@@ -301,8 +311,8 @@ const ProgramSelect =() => {
           </ScrollView>
         )}
         <View style={s.stickyBottom}>
-          <TouchableOpacity style={s.nextButton} onPress={handleNextButtonPress}>
-            <Text style={s.nextButtonText}>Next</Text>
+          <TouchableOpacity style={s.nextButton} onPress={handleNextButtonPress} accessibilityLabel={getNextLabel()}>
+            <Text style={s.nextButtonText}>{getNextLabel()}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -511,7 +521,7 @@ const s = StyleSheet.create({
   },
   stickyBottom: {
     paddingTop: 4,
-    paddingBottom: 8,
+    paddingBottom: 8 + BOTTOM_SAFE,
     alignItems: 'center',
     backgroundColor: 'transparent',
   },
@@ -520,7 +530,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 2,
-    width: 128,
+    minWidth: 128,
+    paddingHorizontal: 20,
     height: 53,
   },
   nextButtonText: {

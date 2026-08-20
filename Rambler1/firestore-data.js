@@ -13,6 +13,7 @@
 //   indexes exist); all sorting is done client-side.
 
 import {
+  addDoc,
   collection,
   deleteDoc,
   deleteField,
@@ -49,7 +50,15 @@ const instructorSlug = (s) =>
     .slice(0, 120) || 'unknown';
 
 const logError = (fn, error) => {
-  console.error(`Firestore fetch failed for ${fn}:`, error.message || String(error));
+  const msg = error.message || String(error);
+  // Permission-denied during an auth transition (sign-out revokes the token
+  // while reads for the old uid are in flight) is expected noise, not a bug —
+  // every caller already handles the null/[] result. Log quietly.
+  if (/insufficient permissions|permission-denied/i.test(msg)) {
+    console.log(`Firestore ${fn} skipped (auth transition):`, msg);
+    return;
+  }
+  console.error(`Firestore fetch failed for ${fn}:`, msg);
 };
 
 // programs/{id} -> legacy program row
@@ -129,6 +138,9 @@ function mapSection(docId, d) {
     status: d.status ?? '',
     start_date: d.startDate ?? '',
     end_date: d.endDate ?? '',
+    // 30-point enrollment time series written by firestore-sync
+    // ([{date,total,cap,waitlist?}]) — waitlist absent on older points.
+    recent_history: Array.isArray(d.recentHistory) ? d.recentHistory : [],
   };
 }
 
@@ -338,6 +350,29 @@ export const fetchCourseDetail = async (code) => {
   } catch (error) {
     logError('fetchCourseDetail', error);
     return null;
+  }
+};
+
+// Courses that filled fastest in the last registration cycle (F-QW1
+// fastest-filling screen). fillStats is written per term by
+// backend/fill-stats.js; 'day1-2' and 'first-week' are the vetted classes.
+// Sorted by days-to-90%-full ascending. ~200 docs — fine as a one-shot read.
+export const fetchFastestFilling = async (limitN = 100) => {
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'courses'),
+      where('fillStats.class', 'in', ['day1-2', 'first-week'])
+    ));
+    const rows = snap.docs.map((d) => mapCourse(d.id, d.data()));
+    rows.sort((a, b) =>
+      ((a.fill_stats && a.fill_stats.days_to_90) ?? 999) -
+      ((b.fill_stats && b.fill_stats.days_to_90) ?? 999) ||
+      String(a.code).localeCompare(String(b.code))
+    );
+    return rows.slice(0, limitN);
+  } catch (error) {
+    logError('fetchFastestFilling', error);
+    return [];
   }
 };
 
@@ -580,8 +615,8 @@ export const fetchUserProfile = async (uid) => {
       is_honors: d.isHonors === true,
       is_athlete: d.isAthlete === true,
       selected_focus_id: d.selectedFocusId ?? null,
-      terms_accepted_version: d.termsAcceptedVersion ?? null,
-      privacy_accepted_version: d.privacyAcceptedVersion ?? null,
+      privacy_policy_version: d.privacyPolicyVersion ?? null,
+      privacy_policy_accepted_at: d.privacyPolicyAcceptedAt ?? null,
     };
 
     // Hydrate full program objects like the backend did (skip 'undecided' —
@@ -656,19 +691,12 @@ export const saveUserProfile = async (uid, profileData, _authToken) => {
         ? deleteField()
         : String(data.selectedFocusId).slice(0, 120);
     }
-    // Legal consent stamps (rules: optStr <=20 each). Include ONLY when
-    // provided as non-empty strings so partial saves never touch a stored
-    // acceptance; legalAcceptedAt records WHEN the stamps were last written.
-    // These are how the consent gate (App.js LegalConsentGate) knows a user
-    // accepted the current Terms/Privacy versions — see legal.js.
-    if (typeof data.termsAcceptedVersion === 'string' && data.termsAcceptedVersion) {
-      payload.termsAcceptedVersion = data.termsAcceptedVersion.slice(0, 20);
-    }
-    if (typeof data.privacyAcceptedVersion === 'string' && data.privacyAcceptedVersion) {
-      payload.privacyAcceptedVersion = data.privacyAcceptedVersion.slice(0, 20);
-    }
-    if (payload.termsAcceptedVersion || payload.privacyAcceptedVersion) {
-      payload.legalAcceptedAt = serverTimestamp();
+    // privacyPolicyVersion: optional string (rules: optStr <=20). Include ONLY
+    // when provided as a non-empty string, and stamp the acceptance moment
+    // server-side — consent records must not trust the device clock.
+    if (typeof data.privacyPolicyVersion === 'string' && data.privacyPolicyVersion) {
+      payload.privacyPolicyVersion = data.privacyPolicyVersion.slice(0, 20);
+      payload.privacyPolicyAcceptedAt = serverTimestamp();
     }
     const ref = doc(db, 'users', userId);
     const existing = await getDoc(ref);
@@ -790,6 +818,177 @@ export const deleteSchedule = async (uid, termCode) => {
     return { success: true };
   } catch (error) {
     logError('deleteSchedule', error);
+    return null;
+  }
+};
+
+// Add one section to the term's saved schedule (used by CourseDetailModal's
+// quick-add, F-P3). Returns { added } | { already } | { full } | null (error).
+export const addSectionToSchedule = async (uid, termCode, classNumber) => {
+  try {
+    const userId = resolveUid(uid);
+    if (!userId || !termCode || classNumber == null) return null;
+    const current = (await fetchSchedule(userId, termCode)) || { section_ids: [] };
+    const ids = current.section_ids.map(String);
+    const num = String(classNumber);
+    if (ids.includes(num)) return { already: true };
+    if (ids.length >= 40) return { full: true };
+    const res = await saveSchedule(userId, termCode, [...ids, num], current.name);
+    return res ? { added: true } : null;
+  } catch (error) {
+    logError('addSectionToSchedule', error);
+    return null;
+  }
+};
+
+// =============================================================================
+// WHAT-IF EXPLORER (lean program-requirement reads)
+// =============================================================================
+
+// Requirement rows WITHOUT the per-course doc joins — the what-if explorer
+// sweeps 200+ programs and only needs codes + requirement structure for
+// requirement-progress math (matching is by code; credits default to 3).
+// getProgramCourses' full join would fire thousands of doc reads here.
+// Session-cached: requirements only change on an admin ETL.
+const _programReqCache = new Map();
+export const fetchProgramRequirementRowsLean = async (programId) => {
+  const key = String(programId);
+  if (_programReqCache.has(key)) return _programReqCache.get(key);
+  try {
+    const snap = await getDocs(collection(db, 'programs', key, 'requiredCourses'));
+    const rows = snap.docs.map((d) => {
+      const data = d.data();
+      if (data.requirementType === 'subject_elective') {
+        return {
+          requirement_type: 'subject_elective',
+          subject: data.subject || '',
+          min_level: data.minLevel ?? null,
+          count: data.count ?? 1,
+        };
+      }
+      return {
+        code: data.courseCode || d.id,
+        credits: 3,
+        requirement_type: data.requirementType || 'required',
+        choice_group: data.choiceGroup ?? null,
+        choose_count: data.chooseCount ?? null,
+      };
+    });
+    _programReqCache.set(key, rows);
+    return rows;
+  } catch (error) {
+    logError('fetchProgramRequirementRowsLean', error);
+    return [];
+  }
+};
+
+// =============================================================================
+// FEEDBACK (write-only mailbox; rules: create-only, uid must match caller)
+// =============================================================================
+
+// type: 'bug' | 'data' | 'idea'; context: free-form origin tag (e.g. course
+// code or screen name). Anonymous users may submit too — auth.currentUser is
+// the source of truth for uid, matching the rules check.
+export const submitFeedback = async ({ type, message, context } = {}) => {
+  try {
+    const uid = auth.currentUser?.uid;
+    const msg = String(message || '').trim();
+    if (!uid || msg.length < 3) return null;
+    await addDoc(collection(db, 'feedback'), {
+      uid,
+      type: String(type || 'bug').slice(0, 20),
+      message: msg.slice(0, 2000),
+      context: String(context || '').slice(0, 200),
+      createdAt: serverTimestamp(),
+    });
+    return { success: true };
+  } catch (error) {
+    logError('submitFeedback', error);
+    return null;
+  }
+};
+
+// =============================================================================
+// MULTI-YEAR PLANS (users/{uid}/plans/{termCode}) — F-P1
+// =============================================================================
+// firestore.rules validPlan: hasOnly ['termCode','courseCodes','createdAt',
+// 'updatedAt'], courseCodes list <= 15. Course codes only — no sections; the
+// schedule builder owns section-level choices for the registration term.
+
+export const PLAN_TERM_CAP = 15;
+
+// All plan docs -> { [termCode]: [courseCodes] }.
+export const fetchPlans = async (uid) => {
+  try {
+    const userId = resolveUid(uid);
+    if (!userId) return {};
+    const snap = await getDocs(collection(db, 'users', userId, 'plans'));
+    const out = {};
+    for (const d of snap.docs) {
+      const data = d.data();
+      out[data.termCode || d.id] = Array.isArray(data.courseCodes)
+        ? data.courseCodes.map(String)
+        : [];
+    }
+    return out;
+  } catch (error) {
+    logError('fetchPlans', error);
+    return {};
+  }
+};
+
+export const savePlan = async (uid, termCode, courseCodes) => {
+  try {
+    const userId = resolveUid(uid);
+    if (!userId || !termCode || !Array.isArray(courseCodes)) return null;
+    if (courseCodes.length > PLAN_TERM_CAP) return null; // rules cap — caller messages
+    const ref = doc(db, 'users', userId, 'plans', String(termCode));
+    const payload = {
+      termCode: String(termCode).slice(0, 12),
+      courseCodes: courseCodes.slice(0, PLAN_TERM_CAP).map((c) => String(c).slice(0, 20)),
+      updatedAt: serverTimestamp(),
+    };
+    const existing = await getDoc(ref);
+    if (!existing.exists()) payload.createdAt = serverTimestamp();
+    await setDoc(ref, payload, { merge: true });
+    return { success: true };
+  } catch (error) {
+    logError('savePlan', error);
+    return null;
+  }
+};
+
+// Returns { added } | { already } | { full } | null.
+export const addCourseToPlan = async (uid, termCode, courseCode) => {
+  try {
+    const userId = resolveUid(uid);
+    if (!userId || !termCode || !courseCode) return null;
+    const plans = await fetchPlans(userId);
+    const codes = plans[String(termCode)] || [];
+    const norm = String(courseCode).trim().replace(/\s+/g, ' ').toUpperCase();
+    if (codes.some((c) => c.toUpperCase() === norm)) return { already: true };
+    if (codes.length >= PLAN_TERM_CAP) return { full: true };
+    const res = await savePlan(userId, termCode, [...codes, norm]);
+    return res ? { added: true } : null;
+  } catch (error) {
+    logError('addCourseToPlan', error);
+    return null;
+  }
+};
+
+export const removeCourseFromPlan = async (uid, termCode, courseCode) => {
+  try {
+    const userId = resolveUid(uid);
+    if (!userId || !termCode || !courseCode) return null;
+    const plans = await fetchPlans(userId);
+    const codes = plans[String(termCode)] || [];
+    const norm = String(courseCode).trim().replace(/\s+/g, ' ').toUpperCase();
+    const next = codes.filter((c) => c.toUpperCase() !== norm);
+    if (next.length === codes.length) return { success: true }; // nothing to remove
+    const res = await savePlan(userId, termCode, next);
+    return res ? { success: true } : null;
+  } catch (error) {
+    logError('removeCourseFromPlan', error);
     return null;
   }
 };

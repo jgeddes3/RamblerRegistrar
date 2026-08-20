@@ -1,8 +1,11 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, Animated, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, Animated, Platform, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAppContext } from './AppContext';
 import BackgroundImage from './styleComponents/BackgroundImage';
+
+// Bottom inset so the sticky bar clears the home indicator / nav bar
+const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
 
 // =============================================================================
 // RIASEC SCORING MODEL — 25 questions, 6 dimensions
@@ -608,7 +611,7 @@ const s = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 10,
-    paddingBottom: 16,
+    paddingBottom: 24,
   },
   questionCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.85)',
@@ -658,7 +661,7 @@ const s = StyleSheet.create({
   },
   stickyBottom: {
     paddingTop: 6,
-    paddingBottom: 34,
+    paddingBottom: 10 + BOTTOM_SAFE,
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.95)',
     borderTopWidth: 1,

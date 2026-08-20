@@ -5,8 +5,6 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { BG } from '../theme';
-import Skeleton from '../components/Skeleton';
 import { useAppContext } from '../AppContext';
 import { searchCourses as apiSearchCourses, getCourseSections, searchByInstructor } from '../firestore-data';
 import { fetchCourses as fetchLocalCourses } from '../Database';
@@ -144,7 +142,12 @@ const SectionRow = ({ section, onPress }) => {
       <View style={s.sectionMeta}>
         {section.instructor ? <Text style={s.sectionInstructor}>{section.instructor}</Text> : null}
         {section.building || section.room ? (
-          <Text style={s.sectionRoom}>{[section.building, section.room].filter(Boolean).join(' ')}</Text>
+          <Text style={s.sectionRoom}>
+            {section.room && section.building &&
+              section.room.toLowerCase().includes(section.building.toLowerCase())
+              ? section.room
+              : [section.building, section.room].filter(Boolean).join(' ')}
+          </Text>
         ) : null}
       </View>
     </TouchableOpacity>
@@ -205,15 +208,16 @@ const CourseCard = ({ course, sections, sectionsLoading, filters, onCoursePress,
               <Text style={s.cardCode}>{course.code}</Text>
               {fillFlag ? (
                 <View style={[s.fillFlag, fillFlag.tone === 'danger' ? s.fillFlagDanger : s.fillFlagWarn]}>
+                  <Ionicons
+                    name="flash"
+                    size={10}
+                    color={fillFlag.tone === 'danger' ? '#b91c1c' : '#92400e'}
+                  />
                   <Text
                     numberOfLines={1}
                     style={[s.fillFlagText, fillFlag.tone === 'danger' ? s.fillFlagTextDanger : s.fillFlagTextWarn]}
                   >
-                    <Ionicons
-                      name="flash"
-                      size={11}
-                      color={fillFlag.tone === 'danger' ? '#b91c1c' : '#92400e'}
-                    /> {fillFlag.label}
+                    {fillFlag.label}
                   </Text>
                 </View>
               ) : null}
@@ -536,15 +540,9 @@ const SearchScreen = () => {
           <Text style={s.hintText}>Try: COMP 170, calculus, Dr. Smith</Text>
         </ScrollView>
       ) : loading && results.length === 0 ? (
-        <View style={{ paddingTop: 10 }}>
-          {[0, 1, 2].map((i) => (
-            <View key={i} style={s.card}>
-              <View style={{ padding: 14 }}>
-                <Skeleton width={110} height={14} />
-                <Skeleton width={210} height={12} style={{ marginTop: 8 }} />
-              </View>
-            </View>
-          ))}
+        <View style={s.loadingWrap}>
+          <ActivityIndicator size="large" color="#A30046" />
+          <Text style={s.loadingText}>Searching...</Text>
         </View>
       ) : results.length === 0 && !loading ? (
         <View style={s.emptyWrap}>
@@ -587,7 +585,7 @@ const SearchScreen = () => {
 // =============================================================================
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
+  container: { flex: 1, backgroundColor: '#FBF9F4' },
 
   // Search bar
   searchBarWrap: {
@@ -678,6 +676,9 @@ const s = StyleSheet.create({
     marginRight: 8,
   },
   fillFlag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     borderRadius: 8,
     paddingVertical: 1,
     paddingHorizontal: 6,
@@ -854,6 +855,13 @@ const s = StyleSheet.create({
     color: '#CCC',
     textAlign: 'center',
     marginTop: 30,
+  },
+  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: {
+    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
+    color: '#999',
+    marginTop: 12,
   },
   emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyTitle: {

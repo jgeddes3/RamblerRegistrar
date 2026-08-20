@@ -175,6 +175,80 @@ export async function getEventsToday() {
   return await getEvents(1);
 }
 
+// =============================================================================
+// GEOCODING (Nominatim / OpenStreetMap) — F-Q7 home-address input.
+// Keyless + CORS-open; fine at our volume (one call per address save, never
+// per-render). Bias results toward Chicago so bare street addresses resolve.
+// =============================================================================
+
+/**
+ * Autocomplete suggestions while typing an address (F: home-address autofill).
+ * Returns up to 5 { latitude, longitude, displayName } rows, Chicago-biased.
+ * Callers MUST debounce (>=400ms) — Nominatim's usage policy is 1 req/sec.
+ * Never throws; [] on any failure.
+ */
+export async function suggestAddresses(query) {
+  try {
+    const q = String(query || '').trim();
+    if (q.length < 4) return [];
+    const url =
+      'https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=us' +
+      '&email=johngeddes%40pm.me&addressdetails=0' +
+      `&viewbox=-87.95,42.10,-87.50,41.60&bounded=0&q=${encodeURIComponent(q)}`;
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) return [];
+    const rows = await res.json();
+    if (!Array.isArray(rows)) return [];
+    return rows
+      .map((r) => ({
+        latitude: Number(r.lat),
+        longitude: Number(r.lon),
+        displayName: r.display_name || '',
+      }))
+      .filter((r) => Number.isFinite(r.latitude) && Number.isFinite(r.longitude) && r.displayName);
+  } catch (err) {
+    return [];
+  }
+}
+
+/**
+ * Address string -> { latitude, longitude, displayName } | null.
+ * Never throws.
+ */
+export async function geocodeAddress(address) {
+  try {
+    const q = String(address || '').trim();
+    if (!q) return null;
+    // email= is Nominatim's documented identifier for browser-side callers
+    // (scripts can't set User-Agent there). Keep volume tiny: one call per
+    // address save.
+    const url =
+      'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us' +
+      '&email=johngeddes%40pm.me' +
+      `&viewbox=-87.95,42.10,-87.50,41.60&q=${encodeURIComponent(q)}`;
+    const res = await fetch(url, {
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) {
+      console.log('[geocode] HTTP', res.status);
+      return null;
+    }
+    const rows = await res.json();
+    const hit = Array.isArray(rows) ? rows[0] : null;
+    if (!hit) {
+      console.log('[geocode] empty result for query');
+      return null;
+    }
+    const latitude = Number(hit.lat);
+    const longitude = Number(hit.lon);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+    return { latitude, longitude, displayName: hit.display_name || q };
+  } catch (err) {
+    console.log('[geocode] failed:', err.message || String(err));
+    return null;
+  }
+}
+
 /** Test helper: clear all in-memory caches. */
 export function _resetCampusApiCaches() {
   hoursCache = null;

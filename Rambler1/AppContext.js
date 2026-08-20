@@ -20,13 +20,12 @@ export const AppProvider = ({ children }) => {
   const [isAthlete, setIsAthlete] = useState(false);
   const [userLocations, setUserLocations] = useState([]);
   const [selectedFocus, setSelectedFocus] = useState(null);
-  // Legal consent (Terms + Privacy) as stored on users/{uid}.
-  //   undefined = not loaded yet (profile fetch pending or failed) — the
-  //               consent gate must NOT show on unknown state;
-  //   {}        = profile exists/none but no acceptance recorded — gate shows;
-  //   {termsAcceptedVersion, privacyAcceptedVersion} = compare via
-  //               needsLegalConsent() in legal.js.
-  const [legalConsent, setLegalConsent] = useState(undefined);
+  // Privacy-policy consent state for the sign-in gate (App.js):
+  //   string    -> the version this account accepted
+  //   null      -> account has never recorded acceptance (gate it)
+  //   undefined -> unknown (profile not restored yet / fetch failed — never
+  //                gate on a read failure; offline users keep working)
+  const [privacyPolicyVersion, setPrivacyPolicyVersion] = useState(undefined);
 
   // Listen to Firebase auth state
   useEffect(() => {
@@ -54,22 +53,23 @@ export const AppProvider = ({ children }) => {
         // they must still go through onboarding.
         setIsLoggedIn(!firebaseUser.isAnonymous);
 
+        // Anonymous users have no profile/quiz/courses/locations to restore —
+        // skip the whole block. This also kills the post-sign-out error spam:
+        // sign-out re-anons, and these fetches racing the auth transition used
+        // to reject with "Missing or insufficient permissions".
+        if (firebaseUser.isAnonymous) {
+          setAuthLoading(false);
+          return;
+        }
+
         // Restore saved profile from backend
         try {
           const profile = await fetchUserProfile(firebaseUser.uid);
-          // Legal consent state (real accounts only — anonymous sessions are
-          // pre-onboarding and never gated). No profile doc = never consented.
-          // A failed fetch (profile === null) leaves consent undefined so the
-          // gate stays hidden rather than blocking on unknown state.
-          if (!firebaseUser.isAnonymous) {
-            if (profile && !profile.error) {
-              setLegalConsent({
-                termsAcceptedVersion: profile.terms_accepted_version ?? null,
-                privacyAcceptedVersion: profile.privacy_accepted_version ?? null,
-              });
-            } else if (profile && profile.error) {
-              setLegalConsent({});
-            }
+          // "No profile found" is a KNOWN state — no doc means no recorded
+          // acceptance, so the consent gate must fire. A null result (read
+          // failed) leaves the value undefined: unknown, not gated.
+          if (profile) {
+            setPrivacyPolicyVersion(profile.error ? null : (profile.privacy_policy_version ?? null));
           }
           if (profile && !profile.error) {
             // Restore program objects
@@ -169,7 +169,7 @@ export const AppProvider = ({ children }) => {
         setIsAthlete(false);
         setUserLocations([]);
         setSelectedFocus(null);
-        setLegalConsent(undefined);
+        setPrivacyPolicyVersion(undefined);
         // Session ended (sign-out, token revocation, account deletion) — re-establish
         // anonymous auth so Firestore catalog reads (rules require ANY auth) keep
         // working during re-onboarding. isLoggedIn already treats anonymous users as
@@ -216,8 +216,8 @@ export const AppProvider = ({ children }) => {
         setUserLocations,
         selectedFocus,
         setSelectedFocus,
-        legalConsent,
-        setLegalConsent,
+        privacyPolicyVersion,
+        setPrivacyPolicyVersion,
       }}
     >
       {children}

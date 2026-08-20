@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getEvents } from '../campus-api';
-import { BG } from '../theme';
 
 const MAROON = '#A30046';
 const DAYS_AHEAD = 14;
@@ -163,12 +162,12 @@ const EventsScreen = () => {
 // -------------------------------------------------------------------- styles
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
+  container: { flex: 1, backgroundColor: '#FBF9F4' },
   content: { padding: 16, paddingBottom: 32 },
   emptyContainer: { flexGrow: 1 },
   centerWrap: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: BG, paddingHorizontal: 24,
+    backgroundColor: '#FBF9F4', paddingHorizontal: 24,
   },
   loadingText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 16, color: '#999', marginTop: 12 },
   emptyTitle: {

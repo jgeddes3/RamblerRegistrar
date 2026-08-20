@@ -34,10 +34,18 @@ const FETCH_DELAY_MS = 350; // politeness between page fetches
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function fetchHtml(url) {
-  const res = await fetch(url, { headers: { 'User-Agent': 'RamblerRegistrar requirements ETL (student project)' } });
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-  return await res.text();
+async function fetchHtml(url, attempt = 1) {
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': 'RamblerRegistrar requirements ETL (student project)' } });
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+    return await res.text();
+  } catch (err) {
+    // Transient network flakes silently emptied programs in earlier runs
+    // (African Studies 2026-07-09) — one retry with backoff fixes most.
+    if (attempt >= 3) throw err;
+    await sleep(1500 * attempt);
+    return fetchHtml(url, attempt + 1);
+  }
 }
 
 // "Philosophy Minor" / "Philosophy, Minor" -> "philosophy"
@@ -54,9 +62,10 @@ const CODE_RE = /^[A-Z]{2,5} \d{2,3}[A-Z]{0,2}$/;
 const WORD_NUMS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8 };
 
 // A comment opens a choice group when it reads like "Select two ...",
-// "Choose one ...", or a bare count of courses ("Two PHIL Elective Courses ...").
+// "Choose one ...", a bare count ("Two PHIL Elective Courses ..."), or an
+// "Any ... Course" prose slot (Anthropology minor: one row per slot).
 function chooseTrigger(text) {
-  return /^(select|choose|take)\b/i.test(text.trim()) ||
+  return /^(select|choose|take|any)\b/i.test(text.trim()) ||
     /^(one|two|three|four|five|six|\d+)\b[^:]*\bcourses?\b/i.test(text.trim());
 }
 
@@ -195,14 +204,17 @@ function parseProgramPage(html) {
     const text = groupComments.get(g) || '';
     const subjM = text.match(/\b([A-Z]{2,5})\b/); // first code-like token
     if (subjM) {
-      // Level parsing: "at any level" or an enumeration like
-      // "(100-, 200-, or 300-level)" = no floor; a single "300-level" = floor.
-      // The enumeration writes dangling hyphens ("100-,"), so match those too.
+      // Level floor: collect every course-level number in the comment
+      // ("(100-, 200-, or 300-level)", "Any 200 or 300 Level ANTH Course",
+      // "Two PHIL 300-level Electives"). Floor = the minimum listed level;
+      // a floor of 100 (or "at any level") means no restriction.
       const anyLevel = /any level/i.test(text);
       const levels = [...new Set(
-        [...text.matchAll(/(\d{3})\s*-\s*(?:,|or\b|level)/gi)].map((m) => parseInt(m[1], 10))
+        [...text.matchAll(/\b([1-4]\d{2})\b(?=\s*-?\s*(?:,|or\b|[Ll]evel))/g)].map((m) => parseInt(m[1], 10))
       )];
-      const minLevel = anyLevel || levels.length !== 1 ? null : levels[0];
+      const minLevel = anyLevel || levels.length === 0 || Math.min(...levels) <= 100
+        ? null
+        : Math.min(...levels);
       const count = parseChooseCount(text, '');
       subjectElectives.push({ subject: subjM[1], minLevel, count });
       oddities.push(`subject elective: ${count}× ${subjM[1]}${minLevel ? ` ${minLevel}+` : ''} ("${text.slice(0, 60)}")`);
@@ -265,6 +277,30 @@ async function discoverMinors() {
   return found;
 }
 
+// Manual URL overrides (B12 phase-2 pass, 2026-07-09): programs whose catalog
+// link text can't be auto-matched — Arrupe College AA programs ("Liberal Arts
+// with a Concentration in X" vs DB "Liberal Arts with X Concentration"),
+// concentration variants, and dual degrees. Keyed by EXACT DB program name.
+// "Ancient Greek" (BA) and "Italian" (BA) have NO catalog page (discontinued);
+// same for minors "Asian Language and Literatures", "Interreligious and
+// Interfaith Studies", "Italian American Studies" — left requirements-unknown.
+const URL_OVERRIDES = {
+  'Classics with Degree of Distinction': '/undergraduate/arts-sciences/classical-studies/classics-degree-distinction-bac-bsc/',
+  'Liberal Arts + Bilingual/Bicultural Education (BSEd)': '/undergraduate/arrupe/liberal-arts-aa-bilingual-bicultural-education-bsed/',
+  'Liberal Arts with Communication Concentration': '/undergraduate/arrupe/liberal-arts-aa-communication-concentration/',
+  'Liberal Arts with English Concentration': '/undergraduate/arrupe/liberal-arts-aa-english-concentration/',
+  'Liberal Arts with History Concentration': '/undergraduate/arrupe/liberal-arts-aa-history-concentration/',
+  'Liberal Arts with Pre-STEM Concentration': '/undergraduate/arrupe/liberal-arts-aa-pre-stem-concentration/',
+  'Music with Liturgical Music Concentration': '/undergraduate/arts-sciences/fine-performing-arts/music-concentration-liturgical-music-ba/',
+  'Music with Vocal Performance Concentration': '/undergraduate/arts-sciences/fine-performing-arts/vocal-performance-concentration/',
+  'Nursing (Four-Year)': '/undergraduate/nursing/four-year-bsn/',
+  'Physics (BS) + Engineering (BS)': '/undergraduate/arts-sciences/physics/physics-bs-engineering-bs/',
+  'Social and Behavioral Sciences + Nursing (BS)': '/undergraduate/arrupe/social-behavioral-sciences-aa-nursing-bs/',
+  'Social and Behavioral Sciences with Criminal Justice Concentration': '/undergraduate/arrupe/social-behavioral-sciences-aa-criminal-justice-concentration/',
+  'Social and Behavioral Sciences with Political Science Concentration': '/undergraduate/arrupe/social-behavioral-sciences-aa-political-science-concentration/',
+  'Social and Behavioral Sciences with Psychology Concentration': '/undergraduate/arrupe/social-behavioral-sciences-aa-psychology-concentration/',
+};
+
 (async () => {
   const args = process.argv.slice(2);
   const APPLY = args.includes('--apply');
@@ -301,6 +337,11 @@ async function discoverMinors() {
     console.log(`  catalog lists ${catalogMajors.size} major names; DB has ${majors.length} EMPTY major(s) in scope.\n`);
 
     for (const m of majors) {
+      // Manual override first (Arrupe/dual-degree names never auto-match).
+      if (URL_OVERRIDES[m.name]) {
+        matched.push({ ...m, url: CATALOG_BASE + URL_OVERRIDES[m.name], catalogText: `${m.name} [override]` });
+        continue;
+      }
       const candidates = catalogMajors.get(normName(m.name)) || [];
       let hit = null;
       if (candidates.length === 1) hit = candidates[0];

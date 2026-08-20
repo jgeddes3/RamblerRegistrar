@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, Platform, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAppContext } from '../AppContext';
+import { saveQuizResults } from '../firestore-data';
 import BackgroundImage from '../styleComponents/BackgroundImage';
+
+// Bottom inset so the sticky bar clears the home indicator / nav bar
+const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
 
 const QUESTIONS = [
   {
@@ -60,7 +64,7 @@ const SchedulingPrefs = () => {
   const [answers, setAnswers] = useState({});
   const [currentQ, setCurrentQ] = useState(0);
   const navigation = useNavigation();
-  const { setQuizResults, quizResults } = useAppContext();
+  const { setQuizResults, quizResults, user, isLoggedIn } = useAppContext();
 
   const q = QUESTIONS[currentQ];
   const currentAnswer = answers[q.key];
@@ -74,8 +78,24 @@ const SchedulingPrefs = () => {
       setCurrentQ(currentQ + 1);
     } else {
       // Save scheduling prefs into quiz results
-      if (quizResults) {
-        setQuizResults({ ...quizResults, schedulingPrefs: answers });
+      const merged = quizResults ? { ...quizResults, schedulingPrefs: answers } : null;
+      if (merged) setQuizResults(merged);
+
+      // RETAKE path (quiz relaunched from Profile/More while signed in):
+      // there is no AccountSetup ahead — persist straight to Firestore and
+      // return to the More hub. Onboarding path is unchanged.
+      if (isLoggedIn && user && !user.isAnonymous) {
+        if (merged) {
+          saveQuizResults(user.uid, {
+            scores: merged.scores,
+            code: merged.code,
+            profileName: merged.profileName,
+            answers: merged.answers,
+            schedulingPrefs: merged.schedulingPrefs || {},
+          }).catch(() => {});
+        }
+        navigation.navigate('MoreHome');
+        return;
       }
       navigation.navigate('AccountSetup');
     }
@@ -223,7 +243,7 @@ const s = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 16,
+    paddingBottom: 24,
   },
   questionCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.85)',
@@ -264,7 +284,7 @@ const s = StyleSheet.create({
   },
   stickyBottom: {
     paddingTop: 6,
-    paddingBottom: 34,
+    paddingBottom: 10 + BOTTOM_SAFE,
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.95)',
     borderTopWidth: 1,

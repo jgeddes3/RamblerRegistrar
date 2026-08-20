@@ -3,8 +3,11 @@ import {
   generateSchedules,
   scoreSchedule,
   sectionFilterReason,
+  personalizationAdjust,
   formatMinutes,
   WEIGHTS,
+  PERSONAL_WEIGHTS,
+  PERSONAL_CLAMP,
 } from '../schedule-generator';
 
 // --- fixtures ----------------------------------------------------------------
@@ -80,7 +83,7 @@ describe('generateSchedules', () => {
     expect(nums).toEqual([comp2.class_number, math1.class_number].sort());
   });
 
-  test('impossible combination -> empty with explanatory note', () => {
+  test('impossible combination -> empty, both mutual blockers named', () => {
     const a = sec('COMP', '170', '001', 'MoWeFr', '9:20AM', '10:10AM');
     const b = sec('MATH', '131', '001', 'MoWeFr', '9:20AM', '10:10AM');
     const { candidates, notes } = generateSchedules({
@@ -90,7 +93,7 @@ describe('generateSchedules', () => {
       ],
     });
     expect(candidates).toEqual([]);
-    expect(notes.join(' ')).toMatch(/No conflict-free combination/);
+    expect(notes.join(' ')).toMatch(/COMP 170 and MATH 131 each block the rest/);
   });
 
   test('touching endpoints do not conflict', () => {
@@ -114,7 +117,7 @@ describe('generateSchedules', () => {
         { code: 'COMP 170', sections: [open] },
       ],
     });
-    expect(notes.join(' ')).toMatch(/FINC 345: no sections match.*not open/);
+    expect(notes.join(' ')).toMatch(/FINC 345: its only section is blocked by your filters — not open/);
     expect(candidates).toHaveLength(1);
     expect(candidates[0].sections).toHaveLength(1);
   });
@@ -225,6 +228,289 @@ describe('generateSchedules', () => {
     };
     const r1 = generateSchedules({ courseGroups: build(), walkMinutes: noWalk });
     const r2 = generateSchedules({ courseGroups: build(), walkMinutes: noWalk });
+    expect(JSON.stringify(r1)).toBe(JSON.stringify(r2));
+  });
+});
+
+// --- personalization (F-HI4) ----------------------------------------------------
+describe('personalizationAdjust', () => {
+  test('missing / empty prefs are a no-op', () => {
+    const s = sec('COMP', '170', '001', 'MoWeFr', '9:20AM', '10:10AM');
+    expect(personalizationAdjust([s], null)).toEqual({ delta: 0, reasons: [] });
+    expect(personalizationAdjust([s], {})).toEqual({ delta: 0, reasons: [] });
+    expect(personalizationAdjust([s], {
+      timePreference: 'none', weekShape: 'none', classSize: 'none',
+      modality: 'none', campus: 'either',
+    })).toEqual({ delta: 0, reasons: [] });
+  });
+
+  test('total adjustment clamps at PERSONAL_CLAMP', () => {
+    const big = Array.from({ length: 10 }, (_, i) =>
+      sec('COMP', String(100 + i), '001', 'Mo', '9:00AM', '9:50AM', { enrollment_cap: 100 }));
+    const { delta } = personalizationAdjust(big, { classSize: 'small' });
+    expect(delta).toBe(-PERSONAL_CLAMP);
+  });
+
+  test('modality pref scores In Person vs Online sections', () => {
+    const inPerson = sec('COMP', '170', '001', 'Mo', '9:00AM', '9:50AM', { instruction_mode: 'In Person' });
+    const online = sec('MATH', '131', '001', 'Tu', '9:00AM', '9:50AM', { instruction_mode: 'Online' });
+    const { delta, reasons } = personalizationAdjust([inPerson, online], { modality: 'in-person' });
+    expect(delta).toBe(PERSONAL_WEIGHTS.MODALITY_MATCH + PERSONAL_WEIGHTS.MODALITY_MISS);
+    expect(reasons).toHaveLength(2);
+  });
+
+  test('campus pref skipped when sectionCampus is absent or throws', () => {
+    const s = sec('COMP', '170', '001', 'Mo', '9:00AM', '9:50AM', { building: 'Cuneo Hall' });
+    expect(personalizationAdjust([s], { campus: 'lsc' })).toEqual({ delta: 0, reasons: [] });
+    const boom = () => { throw new Error('no buildings'); };
+    expect(personalizationAdjust([s], { campus: 'lsc' }, boom)).toEqual({ delta: 0, reasons: [] });
+  });
+});
+
+describe('generateSchedules personalization', () => {
+  test('early-bird prefs rank the early day above the late one (equal base scores)', () => {
+    // Both single-section candidates score an identical base 100; only the
+    // 4:30 PM end violates the early-bird pref. Late section inserted first
+    // so v1 order (insertion tiebreak) is the mirror of the personalized one.
+    const build = () => {
+      nextClassNum = 8000;
+      return [{
+        code: 'COMP 170',
+        sections: [
+          sec('COMP', '170', '001', 'Mo', '4:30PM', '5:20PM'),
+          sec('COMP', '170', '002', 'Mo', '1:00PM', '1:50PM'),
+        ],
+      }];
+    };
+    const v1 = generateSchedules({ courseGroups: build(), walkMinutes: noWalk });
+    expect(v1.candidates[0].score).toBe(v1.candidates[1].score);
+    expect(v1.candidates[0].sections[0].meeting_time_start).toBe('4:30PM');
+    expect(v1.candidates[0].stats.personalization).toBeUndefined();
+
+    const v2 = generateSchedules({
+      courseGroups: build(), walkMinutes: noWalk,
+      schedulingPrefs: { timePreference: 'early' },
+    });
+    expect(v2.candidates[0].sections[0].meeting_time_start).toBe('1:00PM');
+    expect(v2.candidates[0].stats.personalization).toEqual({ applied: true, delta: 0, reasons: [] });
+    expect(v2.candidates[1].stats.personalization.delta).toBe(PERSONAL_WEIGHTS.TIME_DAY);
+    expect(v2.candidates[1].stats.personalization.reasons.join(' ')).toMatch(/ends after 4 PM/);
+  });
+
+  test('weekShape mwf promotes the MoWe pick over the TuTh pick', () => {
+    const build = () => {
+      nextClassNum = 8100;
+      return [{
+        code: 'COMP 170',
+        sections: [
+          sec('COMP', '170', '001', 'TuTh', '10:00AM', '11:15AM'),
+          sec('COMP', '170', '002', 'MoWe', '10:00AM', '11:15AM'),
+        ],
+      }];
+    };
+    const v1 = generateSchedules({ courseGroups: build(), walkMinutes: noWalk });
+    expect(v1.candidates[0].sections[0].meeting_days).toBe('TuTh');
+
+    const v2 = generateSchedules({
+      courseGroups: build(), walkMinutes: noWalk,
+      schedulingPrefs: { weekShape: 'mwf' },
+    });
+    expect(v2.candidates[0].sections[0].meeting_days).toBe('MoWe');
+    // Mirror image: tuth flips the order back.
+    const v3 = generateSchedules({
+      courseGroups: build(), walkMinutes: noWalk,
+      schedulingPrefs: { weekShape: 'tuth' },
+    });
+    expect(v3.candidates[0].sections[0].meeting_days).toBe('TuTh');
+  });
+
+  test('campus preference demotes cross-campus picks', () => {
+    const campusByBuilding = { 'Corboy Law Center': 'WTC', 'Cuneo Hall': 'LSC' };
+    const sectionCampus = (s) => campusByBuilding[s.building] || null;
+    const build = () => {
+      nextClassNum = 8200;
+      return [{
+        code: 'COMP 170',
+        sections: [
+          sec('COMP', '170', '001', 'TuTh', '10:00AM', '11:15AM', { building: 'Corboy Law Center' }),
+          sec('COMP', '170', '002', 'TuTh', '10:00AM', '11:15AM', { building: 'Cuneo Hall' }),
+        ],
+      }];
+    };
+    const v1 = generateSchedules({ courseGroups: build(), walkMinutes: noWalk });
+    expect(v1.candidates[0].sections[0].building).toBe('Corboy Law Center');
+
+    const v2 = generateSchedules({
+      courseGroups: build(), walkMinutes: noWalk,
+      schedulingPrefs: { campus: 'lsc' }, sectionCampus,
+    });
+    expect(v2.candidates[0].sections[0].building).toBe('Cuneo Hall');
+    expect(v2.candidates[1].stats.personalization.delta).toBe(PERSONAL_WEIGHTS.CAMPUS_MISS);
+
+    // No callback -> campus scoring skipped, v1 ordering kept, nothing flagged.
+    const v3 = generateSchedules({
+      courseGroups: build(), walkMinutes: noWalk,
+      schedulingPrefs: { campus: 'lsc' },
+    });
+    expect(v3.candidates[0].sections[0].building).toBe('Corboy Law Center');
+    expect(v3.candidates[0].stats.personalization).toBeUndefined();
+  });
+
+  test('prefs all "none" leave the output identical to v1', () => {
+    const build = () => {
+      nextClassNum = 8300;
+      return [
+        {
+          code: 'COMP 170',
+          sections: [
+            sec('COMP', '170', '001', 'TuTh', '10:00AM', '11:15AM', { enrollment_cap: 19 }),
+            sec('COMP', '170', '002', 'MoWe', '2:00PM', '3:15PM', { enrollment_cap: 80 }),
+          ],
+        },
+        { code: 'MATH 131', sections: [sec('MATH', '131', '001', 'TuTh', '11:30AM', '12:45PM')] },
+      ];
+    };
+    const nonePrefs = {
+      timePreference: 'none', weekShape: 'none', classSize: 'none',
+      modality: 'none', campus: 'either',
+    };
+    const v1 = generateSchedules({ courseGroups: build(), walkMinutes: noWalk });
+    const v2 = generateSchedules({
+      courseGroups: build(), walkMinutes: noWalk, schedulingPrefs: nonePrefs,
+    });
+    expect(JSON.stringify(v2)).toBe(JSON.stringify(v1));
+  });
+
+  test('personalized runs stay deterministic across identical inputs', () => {
+    const prefs = { timePreference: 'early', weekShape: 'mwf', classSize: 'small' };
+    const build = () => {
+      nextClassNum = 8400;
+      return [
+        {
+          code: 'COMP 170',
+          sections: [
+            sec('COMP', '170', '001', 'TuTh', '10:00AM', '11:15AM', { enrollment_cap: 19 }),
+            sec('COMP', '170', '002', 'MoWeFr', '4:10PM', '5:00PM', { enrollment_cap: 80 }),
+          ],
+        },
+        { code: 'MATH 131', sections: [sec('MATH', '131', '001', 'Fr', '9:00AM', '9:50AM')] },
+      ];
+    };
+    const r1 = generateSchedules({ courseGroups: build(), walkMinutes: noWalk, schedulingPrefs: prefs });
+    const r2 = generateSchedules({ courseGroups: build(), walkMinutes: noWalk, schedulingPrefs: prefs });
+    expect(JSON.stringify(r1)).toBe(JSON.stringify(r2));
+  });
+});
+
+// --- failure diagnostics --------------------------------------------------------
+describe('generateSchedules failure diagnostics', () => {
+  test('fully filtered-out course note counts sections per reason', () => {
+    const late = (n) => sec('FINC', '345', n, 'Mo', '5:00PM', '6:30PM');
+    const closed = (n) => sec('FINC', '345', n, 'Mo', '10:00AM', '10:50AM', { status: 'Closed' });
+    const ok = sec('COMP', '170', '001', 'Mo', '9:00AM', '9:50AM');
+    const { candidates, notes } = generateSchedules({
+      courseGroups: [
+        { code: 'FINC 345', sections: [late('001'), late('002'), late('003'), closed('004'), closed('005')] },
+        { code: 'COMP 170', sections: [ok] },
+      ],
+      prefs: { latestEnd: 17 * 60 },
+    });
+    expect(notes.join(' ')).toMatch(
+      /FINC 345: all 5 sections blocked by your filters — 3 end too late, 2 not open\./
+    );
+    expect(candidates).toHaveLength(1);
+  });
+
+  test('single-course blocker is named first in the notes', () => {
+    const a = sec('COMP', '170', '001', 'Mo', '9:00AM', '9:50AM');
+    const b = sec('MATH', '131', '001', 'Mo', '10:30AM', '11:20AM');
+    const c = sec('PHIL', '130', '001', 'Mo', '9:30AM', '10:45AM'); // clashes both
+    const closedOnly = sec('FINC', '345', '001', 'Tu', '9:00AM', '9:50AM', { status: 'Closed' });
+    const { candidates, notes } = generateSchedules({
+      courseGroups: [
+        { code: 'COMP 170', sections: [a] },
+        { code: 'MATH 131', sections: [b] },
+        { code: 'PHIL 130', sections: [c] },
+        { code: 'FINC 345', sections: [closedOnly] },
+      ],
+    });
+    expect(candidates).toEqual([]);
+    expect(notes[0]).toMatch(/PHIL 130 is the blocker — every one of its sections that passes your filters collides with the rest/);
+    expect(notes.join(' ')).toMatch(/FINC 345: its only section is blocked/);
+  });
+
+  test('latestEnd relaxation is suggested when it frees a schedule', () => {
+    const a = sec('COMP', '170', '001', 'Mo', '9:00AM', '9:50AM');
+    const bClash = sec('MATH', '131', '001', 'Mo', '9:00AM', '9:50AM');
+    const bLate = sec('MATH', '131', '002', 'Mo', '5:30PM', '6:45PM'); // past the cutoff
+    const { candidates, notes } = generateSchedules({
+      courseGroups: [
+        { code: 'COMP 170', sections: [a] },
+        { code: 'MATH 131', sections: [bClash, bLate] },
+      ],
+      prefs: { latestEnd: 17 * 60 },
+    });
+    expect(candidates).toEqual([]);
+    expect(notes.join(' ')).toMatch(/Relaxing your latest-class filter would free a schedule\./);
+  });
+
+  test('freeDays relaxation names the day', () => {
+    const a = sec('COMP', '170', '001', 'Mo', '9:00AM', '9:50AM');
+    const bClash = sec('MATH', '131', '001', 'Mo', '9:00AM', '9:50AM');
+    const bFriday = sec('MATH', '131', '002', 'Fr', '9:00AM', '9:50AM');
+    const { candidates, notes } = generateSchedules({
+      courseGroups: [
+        { code: 'COMP 170', sections: [a] },
+        { code: 'MATH 131', sections: [bClash, bFriday] },
+      ],
+      prefs: { freeDays: ['Fr'] },
+    });
+    expect(candidates).toEqual([]);
+    expect(notes.join(' ')).toMatch(/Allowing classes on Friday would free a schedule\./);
+  });
+
+  test('locked section named as the blocker when only its removal helps', () => {
+    const locked = sec('PHYS', '101', '001', 'Mo', '9:00AM', '11:30AM');
+    const a = sec('COMP', '170', '001', 'Mo', '9:20AM', '10:10AM');
+    const b = sec('MATH', '131', '001', 'Mo', '10:25AM', '11:15AM');
+    const { candidates, notes } = generateSchedules({
+      courseGroups: [
+        { code: 'COMP 170', sections: [a] },
+        { code: 'MATH 131', sections: [b] },
+      ],
+      lockedSections: [locked],
+    });
+    expect(candidates).toEqual([]);
+    expect(notes[0]).toMatch(/Your current PHYS 101 section is the blocker — every combination collides with it\./);
+  });
+
+  test('all-relaxed-still-impossible message, with the overlapping pair named', () => {
+    const a = sec('COMP', '170', '001', 'Mo', '9:00AM', '9:50AM');
+    const b = sec('MATH', '131', '001', 'Mo', '9:30AM', '10:20AM');
+    const c = sec('PHIL', '130', '001', 'Mo', '9:45AM', '10:35AM');
+    const { candidates, notes } = generateSchedules({
+      courseGroups: [
+        { code: 'COMP 170', sections: [a] },
+        { code: 'MATH 131', sections: [b] },
+        { code: 'PHIL 130', sections: [c] },
+      ],
+    });
+    expect(candidates).toEqual([]);
+    expect(notes[0]).toMatch(/Even with every filter relaxed, these courses overlap in every combination/);
+    expect(notes[1]).toMatch(/COMP 170 and MATH 131 overlap in every offered combination\./);
+  });
+
+  test('diagnostics stay deterministic across runs', () => {
+    const build = () => {
+      nextClassNum = 7000;
+      return [
+        { code: 'COMP 170', sections: [sec('COMP', '170', '001', 'Mo', '9:00AM', '9:50AM')] },
+        { code: 'MATH 131', sections: [sec('MATH', '131', '001', 'Mo', '9:30AM', '10:20AM')] },
+        { code: 'PHIL 130', sections: [sec('PHIL', '130', '001', 'Mo', '9:45AM', '10:35AM')] },
+      ];
+    };
+    const r1 = generateSchedules({ courseGroups: build() });
+    const r2 = generateSchedules({ courseGroups: build() });
     expect(JSON.stringify(r1)).toBe(JSON.stringify(r2));
   });
 });

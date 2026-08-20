@@ -9,15 +9,15 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
 import { initDatabase } from './Database';
-import { BG } from './theme';
 import { ensureAnonymousSignIn, signOut } from './auth';
 import { setupNotificationHandler, registerAndSaveToken } from './push';
 import { AppProvider, useAppContext } from './AppContext';
-import { needsLegalConsent, TERMS_VERSION, PRIVACY_VERSION } from './legal';
 import { saveUserProfile } from './firestore-data';
-import LegalConsentModal from './components/LegalConsentModal';
+import { POLICY_VERSION } from './privacy-policy-content';
+import showAlert from './alert';
 import TopBar from './components/TopBar';
 import MenuOverlay from './components/MenuOverlay';
+import PrivacyPolicyModal from './components/PrivacyPolicyModal';
 import ProfileScreen from './screens/ProfileScreen';
 
 // Auth screens
@@ -35,6 +35,10 @@ import ScheduleScreen from './screens/ScheduleScreen';
 import SearchScreen from './screens/SearchScreen';
 import ProgressScreen from './screens/ProgressScreen';
 import MoreScreen from './screens/MoreScreen';
+import PlanningScreen from './screens/PlanningScreen';
+import FastestFillingScreen from './screens/FastestFillingScreen';
+import BookARideScreen from './screens/BookARideScreen';
+import MajorsMinorsScreen from './screens/MajorsMinorsScreen';
 import MapScreen from './screens/MapScreen';
 import LibraryScreen from './screens/LibraryScreen';
 import EventsScreen from './screens/EventsScreen';
@@ -105,15 +109,24 @@ const MoreStack = () => (
         color: '#A30046',
       },
       headerShadowVisible: false,
-      headerStyle: { backgroundColor: BG },
+      headerStyle: { backgroundColor: '#FFFFFF' },
       headerBackTitleVisible: false,
-      cardStyle: { backgroundColor: BG },
+      cardStyle: { backgroundColor: '#FFFFFF' },
     }}
   >
     <Stack.Screen name="MoreHome" component={MoreScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="Planning" component={PlanningScreen} options={{ title: 'Planning' }} />
+    <Stack.Screen name="MajorsMinors" component={MajorsMinorsScreen} options={{ title: 'Majors & Minors', headerShown: false }} />
+    <Stack.Screen name="FastestFilling" component={FastestFillingScreen} options={{ title: 'Fills Fast' }} />
+    <Stack.Screen name="BookARide" component={BookARideScreen} options={{ title: 'Book a Ride' }} />
     <Stack.Screen name="Map" component={MapScreen} options={{ title: 'Campus Map' }} />
     <Stack.Screen name="Library" component={LibraryScreen} options={{ title: 'Library Hours' }} />
     <Stack.Screen name="Events" component={EventsScreen} options={{ title: 'Campus Events' }} />
+    {/* Quiz retake (signed-in relaunch of the onboarding quiz; SchedulingPrefs
+        detects the logged-in state and returns to MoreHome when done) */}
+    <Stack.Screen name="PreferenceQuiz" component={PreferenceQuiz} options={{ headerShown: false }} />
+    <Stack.Screen name="QuizResults" component={QuizResults} options={{ headerShown: false }} />
+    <Stack.Screen name="SchedulingPrefs" component={SchedulingPrefs} options={{ headerShown: false }} />
   </Stack.Navigator>
 );
 
@@ -132,7 +145,7 @@ const MainTabs = () => {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
       <TopBar
         onMenuPress={() => setMenuVisible(true)}
         onProfilePress={() => setProfileVisible(true)}
@@ -201,41 +214,48 @@ const PushTokenGate = () => {
 };
 
 // =============================================================================
-// LEGAL CONSENT GATE — every signed-in real account must have accepted the
-// CURRENT Terms of Service + Privacy Policy versions (legal.js). Covers
-// accounts created before the gate shipped and any future version bump; new
-// signups accept inline in AccountSetup, so they normally never see this.
-// legalConsent === undefined means the profile hasn't loaded (or the fetch
-// failed) — never gate on unknown state, the next successful profile load
-// re-evaluates. Declining signs the account out (AppContext then resets to
-// the anonymous session and the AuthStack).
+// PRIVACY CONSENT GATE — One-time blocking gate for signed-in accounts that
+// have never recorded acceptance of the current policy (or accepted an older
+// version). Renders ABOVE MainTabs as a full-screen consent modal. Anonymous
+// browsers are never gated, and neither is a session whose profile could not
+// be read (privacyPolicyVersion === undefined) — never lock users out over a
+// transient read failure.
 // =============================================================================
-const LegalConsentGate = () => {
-  const { user, isLoggedIn, legalConsent, setLegalConsent } = useAppContext();
+const PrivacyConsentGate = () => {
+  const { user, privacyPolicyVersion, setPrivacyPolicyVersion } = useAppContext();
+  const [saving, setSaving] = useState(false);
 
-  const show =
-    isLoggedIn &&
+  const needsConsent =
     !!user &&
     !user.isAnonymous &&
-    legalConsent !== undefined &&
-    needsLegalConsent(legalConsent);
+    privacyPolicyVersion !== undefined &&
+    privacyPolicyVersion !== POLICY_VERSION;
 
   const handleAccept = async () => {
-    const accepted = {
-      termsAcceptedVersion: TERMS_VERSION,
-      privacyAcceptedVersion: PRIVACY_VERSION,
-    };
-    const result = await saveUserProfile(user.uid, accepted);
-    // Only unblock once the acceptance is actually persisted — an optimistic
-    // update would let a failed write skip the gate until next launch.
-    if (result) setLegalConsent(accepted);
+    if (saving) return;
+    setSaving(true);
+    const res = await saveUserProfile(user.uid, { privacyPolicyVersion: POLICY_VERSION });
+    setSaving(false);
+    if (res) {
+      setPrivacyPolicyVersion(POLICY_VERSION);
+    } else {
+      showAlert('Could not save', 'Your acceptance did not reach the server. Check your connection and try again.');
+    }
+  };
+
+  const handleDecline = async () => {
+    // signOut fires onAuthChange -> AppContext resets -> AuthStack replaces
+    // MainTabs, which unmounts this gate.
+    await signOut();
+    showAlert('Signed out', 'Using an account requires accepting the Privacy Policy. You can sign back in and accept any time.');
   };
 
   return (
-    <LegalConsentModal
-      visible={show}
+    <PrivacyPolicyModal
+      visible={needsConsent}
+      mode="consent"
       onAccept={handleAccept}
-      onDecline={() => signOut().catch(() => {})}
+      onDecline={handleDecline}
     />
   );
 };
@@ -248,7 +268,14 @@ const RootNavigator = () => {
 
   if (authLoading) return null; // Still checking Firebase auth state
 
-  return isLoggedIn ? <MainTabs /> : <AuthStack />;
+  return isLoggedIn ? (
+    <>
+      <MainTabs />
+      <PrivacyConsentGate />
+    </>
+  ) : (
+    <AuthStack />
+  );
 };
 
 // =============================================================================
@@ -257,6 +284,10 @@ const RootNavigator = () => {
 const App = () => {
   const [fontsLoaded] = useFonts({
     'CormorantGaramond-Regular': require('./assets/Fonts/CormorantGaramond-Regular.ttf'),
+    // Real weights for headings (Android can't synthesize bold on custom fonts)
+    'CormorantGaramond-Medium': require('./assets/Fonts/CormorantGaramond-Medium.ttf'),
+    'CormorantGaramond-SemiBold': require('./assets/Fonts/CormorantGaramond-SemiBold.ttf'),
+    'CormorantGaramond-Italic': require('./assets/Fonts/CormorantGaramond-Italic.ttf'),
   });
   const [dbReady, setDbReady] = useState(false);
 
@@ -291,7 +322,6 @@ const App = () => {
   return (
     <AppProvider>
       <PushTokenGate />
-      <LegalConsentGate />
       <View style={{ flex: 1, backgroundColor: '#A30046' }} onLayout={onLayoutRootView}>
         <NavigationContainer
           theme={{

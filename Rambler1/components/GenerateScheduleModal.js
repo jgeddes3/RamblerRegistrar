@@ -11,11 +11,13 @@ import {
   View, Text, TextInput, TouchableOpacity, FlatList, ScrollView,
   ActivityIndicator, Modal, Alert, Switch, StyleSheet, Platform, StatusBar,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { searchCourses, getCourseSections } from '../firestore-data';
-import { FONT, BG } from '../theme';
+import { FONT, FONT_ITALIC, STONE } from '../theme';
 import { generateSchedules, formatMinutes } from '../schedule-generator';
 import { sectionsToBlocks, gridBounds, findConflicts } from '../schedule-utils';
 import ScheduleGrid from './ScheduleGrid';
+import showAlert from '../alert';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 const MAX_COURSES = 8;
@@ -24,6 +26,11 @@ const START_CHOICES = [
   { label: 'Any time', value: null },
   { label: '9 AM+', value: 9 * 60 },
   { label: '10 AM+', value: 10 * 60 },
+];
+const END_CHOICES = [
+  { label: 'Any time', value: null },
+  { label: 'Done by 3 PM', value: 15 * 60 },
+  { label: 'Done by 5 PM', value: 17 * 60 },
 ];
 
 const courseCodeOf = (section) =>
@@ -51,6 +58,9 @@ const GenerateScheduleModal = ({
   termLabel,
   currentSections = [],
   walkMinutes,
+  schedulingPrefs = null, // quizResults.schedulingPrefs — personalizes ranking
+  sectionCampus = null, // (section) => 'LSC' | 'WTC' | null
+  recommended = [], // [{code, name, isFocus}] quick-adds shown before any search
   onApply, // async (classNumbers: string[]) => boolean
 }) => {
   // --- setup state ---
@@ -61,6 +71,7 @@ const GenerateScheduleModal = ({
   const [openOnly, setOpenOnly] = useState(true);
   const [keepCurrent, setKeepCurrent] = useState(true);
   const [earliestStart, setEarliestStart] = useState(null);
+  const [latestEnd, setLatestEnd] = useState(null);
   const [freeDays, setFreeDays] = useState([]); // ['Fr']
   // --- run state ---
   const [phase, setPhase] = useState('setup'); // 'setup' | 'results'
@@ -80,6 +91,7 @@ const GenerateScheduleModal = ({
     setQuery('');
     setResults([]);
     setSearchLoading(false);
+    setLatestEnd(null);
     setPhase('setup');
     setGenerating(false);
     setGenerated(null);
@@ -112,7 +124,7 @@ const GenerateScheduleModal = ({
   const addCourse = (course) => {
     if (picked.some((c) => c.code === course.code)) return;
     if (picked.length >= MAX_COURSES) {
-      Alert.alert('That’s plenty', `Pick at most ${MAX_COURSES} courses per run.`);
+      showAlert('That’s plenty', `Pick at most ${MAX_COURSES} courses per run.`);
       return;
     }
     setPicked([...picked, { code: course.code, name: course.name || '' }]);
@@ -138,14 +150,16 @@ const GenerateScheduleModal = ({
       const out = generateSchedules({
         courseGroups: groups,
         lockedSections: keepCurrent ? currentSections : [],
-        prefs: { openOnly, earliestStart, freeDays },
+        prefs: { openOnly, earliestStart, latestEnd, freeDays },
         walkMinutes,
         limit: 5,
+        schedulingPrefs,
+        sectionCampus,
       });
       setGenerated(out);
       setPhase('results');
     } catch (e) {
-      Alert.alert('Generation failed', 'Could not fetch sections. Check your connection and try again.');
+      showAlert('Generation failed', 'Could not fetch sections. Check your connection and try again.');
     } finally {
       setGenerating(false);
     }
@@ -162,7 +176,7 @@ const GenerateScheduleModal = ({
       if (ok) close();
     };
     if (replacing) {
-      Alert.alert(
+      showAlert(
         'Replace schedule?',
         `This replaces your current ${currentSections.length} class${currentSections.length === 1 ? '' : 'es'} for ${termLabel}.`,
         [
@@ -214,6 +228,33 @@ const GenerateScheduleModal = ({
           <Text style={st.resultName} numberOfLines={1}>{course.name || ''}</Text>
         </TouchableOpacity>
       ))}
+      {/* Recommended quick-adds (shared ../recommend ordering) — only before
+          any search, and never rows already picked. */}
+      {!query.trim() && results.length === 0 &&
+        recommended.some((r) => !picked.some((c) => c.code === r.code)) && (
+        <View>
+          <Text style={st.recLabel}>Recommended for you</Text>
+          {recommended
+            .filter((r) => !picked.some((c) => c.code === r.code))
+            .map((r) => (
+              <TouchableOpacity
+                key={r.code}
+                style={st.resultRow}
+                onPress={() => addCourse({ code: r.code, name: r.name })}
+                accessibilityLabel={`Add recommended ${r.code}`}
+              >
+                <Text style={st.resultCode}>{r.code}</Text>
+                <Text style={st.resultName} numberOfLines={1}>{r.name || ''}</Text>
+                {r.isFocus ? (
+                  <View style={st.focusPill}>
+                    <Ionicons name="star" size={10} color="#fff" />
+                    <Text style={st.focusPillText}>Focus</Text>
+                  </View>
+                ) : null}
+              </TouchableOpacity>
+            ))}
+        </View>
+      )}
 
       <Text style={st.sectionLabel}>Preferences</Text>
       <View style={st.prefRow}>
@@ -249,6 +290,19 @@ const GenerateScheduleModal = ({
           </TouchableOpacity>
         ))}
       </View>
+      <Text style={st.prefSubLabel}>Latest class</Text>
+      <View style={st.chipsWrap}>
+        {END_CHOICES.map((c) => (
+          <TouchableOpacity
+            key={c.label}
+            style={[st.optChip, latestEnd === c.value && st.optChipOn]}
+            onPress={() => setLatestEnd(c.value)}
+            accessibilityLabel={`Latest class ${c.label}`}
+          >
+            <Text style={[st.optChipText, latestEnd === c.value && st.optChipTextOn]}>{c.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
       <Text style={st.prefSubLabel}>Days to keep free</Text>
       <View style={st.chipsWrap}>
         {WEEKDAYS.map((d) => (
@@ -276,45 +330,62 @@ const GenerateScheduleModal = ({
     </ScrollView>
   );
 
+  const personalized =
+    !!generated &&
+    generated.candidates.some((c) => c.stats && c.stats.personalization &&
+      c.stats.personalization.applied);
+
   const renderResults = () => (
     <View style={{ flex: 1 }}>
-      {generated.notes.length > 0 && (
-        <View style={st.notesWrap}>
-          {generated.notes.map((n, i) => (
-            <Text key={i} style={st.noteText}>• {n}</Text>
-          ))}
-        </View>
-      )}
+      {/* On failure the first note is the blocker diagnosis — it IS the
+          empty state, not a footnote above one. */}
       {generated.candidates.length === 0 ? (
-        <View style={st.emptyWrap}>
-          <Text style={st.emptyText}>No schedules found.</Text>
-          <Text style={st.emptyHint}>Try fewer courses or looser preferences.</Text>
-        </View>
+        <ScrollView contentContainerStyle={st.emptyWrap}>
+          <Ionicons name="alert-circle-outline" size={32} color="#A30046" />
+          <Text style={st.emptyHeadline}>
+            {generated.notes[0] || 'No conflict-free schedule exists for these courses.'}
+          </Text>
+          {generated.notes.slice(1).map((n, i) => (
+            <Text key={i} style={st.emptyNote}>{n}</Text>
+          ))}
+        </ScrollView>
       ) : (
-        <FlatList
-          data={generated.candidates}
-          keyExtractor={(_, i) => String(i)}
-          renderItem={({ item, index }) => (
-            <TouchableOpacity
-              style={st.candRow}
-              onPress={() => setPreview(item)}
-              accessibilityLabel={`Preview schedule option ${index + 1}`}
-            >
-              <View style={st.candScoreBadge}>
-                <Text style={st.candScoreText}>{item.score}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={st.candTitle}>Option {index + 1}</Text>
-                <Text style={st.candStats}>{statsLine(item)}</Text>
-                <Text style={st.candCourses} numberOfLines={2}>
-                  {item.sections.map((s) =>
-                    `${courseCodeOf(s)}${s.section_number ? `-${s.section_number}` : ''}`).join('  ')}
-                </Text>
-              </View>
-              <Text style={st.candChevron}>›</Text>
-            </TouchableOpacity>
+        <>
+          {personalized && (
+            <Text style={st.personalizedLine}>Ranked with your quiz preferences.</Text>
           )}
-        />
+          {generated.notes.length > 0 && (
+            <View style={st.notesWrap}>
+              {generated.notes.map((n, i) => (
+                <Text key={i} style={st.noteText}>• {n}</Text>
+              ))}
+            </View>
+          )}
+          <FlatList
+            data={generated.candidates}
+            keyExtractor={(_, i) => String(i)}
+            renderItem={({ item, index }) => (
+              <TouchableOpacity
+                style={st.candRow}
+                onPress={() => setPreview(item)}
+                accessibilityLabel={`Preview schedule option ${index + 1}`}
+              >
+                <View style={st.candScoreBadge}>
+                  <Text style={st.candScoreText}>{item.score}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={st.candTitle}>Option {index + 1}</Text>
+                  <Text style={st.candStats}>{statsLine(item)}</Text>
+                  <Text style={st.candCourses} numberOfLines={2}>
+                    {item.sections.map((s) =>
+                      `${courseCodeOf(s)}${s.section_number ? `-${s.section_number}` : ''}`).join('  ')}
+                  </Text>
+                </View>
+                <Text style={st.candChevron}>›</Text>
+              </TouchableOpacity>
+            )}
+          />
+        </>
       )}
       <TouchableOpacity
         style={st.adjustBtn}
@@ -385,7 +456,7 @@ const GenerateScheduleModal = ({
 };
 
 const st = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG, paddingTop: STATUSBAR_HEIGHT },
+  container: { flex: 1, backgroundColor: '#fff', paddingTop: STATUSBAR_HEIGHT },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingBottom: 4,
@@ -415,6 +486,12 @@ const st = StyleSheet.create({
   },
   resultCode: { fontFamily: FONT, fontSize: 16, fontWeight: '700', color: '#A30046', width: 100 },
   resultName: { fontFamily: FONT, fontSize: 16, flex: 1, color: '#444' },
+  recLabel: { fontFamily: FONT, fontSize: 15, color: '#666', paddingHorizontal: 16, marginTop: 12, marginBottom: 4 },
+  focusPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#A30046',
+    borderRadius: 8, paddingVertical: 2, paddingHorizontal: 7, marginLeft: 8,
+  },
+  focusPillText: { fontFamily: FONT, color: '#fff', fontSize: 13, fontWeight: '600' },
 
   prefRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -437,11 +514,21 @@ const st = StyleSheet.create({
   generateBtnDisabled: { opacity: 0.4 },
   generateBtnText: { fontFamily: FONT, color: '#fff', fontSize: 18, fontWeight: '700' },
 
+  personalizedLine: {
+    fontFamily: FONT_ITALIC, color: STONE, fontSize: 14,
+    paddingHorizontal: 16, marginBottom: 6,
+  },
   notesWrap: { backgroundColor: '#FEF3C7', padding: 12, marginHorizontal: 16, borderRadius: 10, marginBottom: 8 },
   noteText: { fontFamily: FONT, color: '#92400E', fontSize: 15, marginBottom: 2 },
-  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  emptyText: { fontFamily: FONT, fontSize: 19, fontWeight: '600', color: '#444' },
-  emptyHint: { fontFamily: FONT, fontSize: 15, color: '#888', marginTop: 6 },
+  emptyWrap: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
+  emptyHeadline: {
+    fontFamily: FONT, fontSize: 19, fontWeight: '600', color: '#1a1a1a',
+    textAlign: 'center', marginTop: 12, lineHeight: 26,
+  },
+  emptyNote: {
+    fontFamily: FONT, fontSize: 15, color: '#666',
+    textAlign: 'center', marginTop: 10, lineHeight: 21,
+  },
 
   candRow: {
     flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16,

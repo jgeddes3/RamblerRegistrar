@@ -1,12 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { BG } from '../theme';
-import { openTerms, openPrivacy } from '../legal';
+import FeedbackModal from '../components/FeedbackModal';
+import PrivacyPolicyModal from '../components/PrivacyPolicyModal';
+import ProfileScreen from './ProfileScreen';
 
 const MAROON = '#A30046';
 
 const MENU_ROWS = [
+  {
+    key: 'Planning',
+    label: 'Planning',
+    sublabel: 'Map courses to future semesters',
+    icon: 'trail-sign-outline',
+  },
+  {
+    key: 'MajorsMinors',
+    label: 'Majors & Minors',
+    sublabel: 'Change or add a major or minor — with the time cost',
+    icon: 'compass-outline',
+  },
+  {
+    key: 'FastestFilling',
+    label: 'Fills Fast',
+    sublabel: 'Courses that filled quickest last cycle',
+    icon: 'flash-outline',
+  },
+  {
+    key: 'BookARide',
+    label: 'Book a Ride',
+    sublabel: '8-RIDE evenings & the intercampus shuttle',
+    icon: 'bus-outline',
+  },
   {
     key: 'Map',
     label: 'Campus Map',
@@ -16,7 +41,7 @@ const MENU_ROWS = [
   {
     key: 'Library',
     label: 'Library Hours',
-    sublabel: 'Today’s hours at the libraries',
+    sublabel: 'Hours and study-room booking',
     icon: 'library-outline',
   },
   {
@@ -25,26 +50,19 @@ const MENU_ROWS = [
     sublabel: 'What’s happening at Loyola',
     icon: 'calendar-outline',
   },
-];
-
-const LEGAL_ROWS = [
   {
-    key: 'terms',
-    label: 'Terms of Service',
-    sublabel: 'The agreement covering your use',
-    icon: 'document-text-outline',
-    onPress: openTerms,
-  },
-  {
-    key: 'privacy',
-    label: 'Privacy Policy',
-    sublabel: 'What we collect and how it’s used',
-    icon: 'shield-checkmark-outline',
-    onPress: openPrivacy,
+    key: 'PreferenceQuiz',
+    label: 'Retake the Quiz',
+    sublabel: 'Redo your interests & scheduling preferences',
+    icon: 'refresh-outline',
   },
 ];
 
-const MoreScreen = ({ navigation }) => (
+const MoreScreen = ({ navigation }) => {
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const [profileVisible, setProfileVisible] = useState(false);
+  const [policyVisible, setPolicyVisible] = useState(false);
+  return (
   <ScrollView style={styles.container} contentContainerStyle={styles.content}>
     <Text style={styles.title}>More</Text>
     <Text style={styles.subtitle}>Campus tools and resources</Text>
@@ -70,44 +88,64 @@ const MoreScreen = ({ navigation }) => (
     </View>
 
     <View style={styles.card}>
-      <View style={styles.row}>
-        <View style={[styles.iconWrap, styles.iconWrapDisabled]}>
-          <Ionicons name="settings-outline" size={22} color="#AAAAAA" />
+      <TouchableOpacity
+        style={[styles.row, styles.rowBorder]}
+        onPress={() => setFeedbackVisible(true)}
+        activeOpacity={0.6}
+        accessibilityLabel="Send feedback"
+      >
+        <View style={styles.iconWrap}>
+          <Ionicons name="chatbox-ellipses-outline" size={22} color={MAROON} />
         </View>
         <View style={styles.rowText}>
-          <Text style={[styles.rowLabel, styles.rowLabelDisabled]}>Settings</Text>
-          <Text style={styles.rowSublabel}>Coming soon</Text>
+          <Text style={styles.rowLabel}>Send Feedback</Text>
+          <Text style={styles.rowSublabel}>Bugs, wrong data, ideas — straight to us</Text>
         </View>
-      </View>
+        <Ionicons name="chevron-forward" size={20} color="#C0C0C0" />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.row, styles.rowBorder]}
+        onPress={() => setProfileVisible(true)}
+        activeOpacity={0.6}
+        accessibilityLabel="Open settings and profile"
+      >
+        <View style={styles.iconWrap}>
+          <Ionicons name="settings-outline" size={22} color={MAROON} />
+        </View>
+        <View style={styles.rowText}>
+          <Text style={styles.rowLabel}>Settings</Text>
+          <Text style={styles.rowSublabel}>Your profile, programs, and preferences</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#C0C0C0" />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.row}
+        onPress={() => setPolicyVisible(true)}
+        activeOpacity={0.6}
+        accessibilityLabel="Read the Privacy Policy"
+      >
+        <View style={styles.iconWrap}>
+          <Ionicons name="shield-checkmark-outline" size={22} color={MAROON} />
+        </View>
+        <View style={styles.rowText}>
+          <Text style={styles.rowLabel}>Privacy Policy</Text>
+          <Text style={styles.rowSublabel}>What we collect, why, and your choices</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#C0C0C0" />
+      </TouchableOpacity>
     </View>
 
-    {/* Legal — opens the canonical documents on the web (see legal.js). */}
-    <View style={styles.card}>
-      {LEGAL_ROWS.map((row, index) => (
-        <TouchableOpacity
-          key={row.key}
-          style={[styles.row, index < LEGAL_ROWS.length - 1 && styles.rowBorder]}
-          onPress={row.onPress}
-          activeOpacity={0.6}
-        >
-          <View style={styles.iconWrap}>
-            <Ionicons name={row.icon} size={22} color={MAROON} />
-          </View>
-          <View style={styles.rowText}>
-            <Text style={styles.rowLabel}>{row.label}</Text>
-            <Text style={styles.rowSublabel}>{row.sublabel}</Text>
-          </View>
-          <Ionicons name="open-outline" size={18} color="#C0C0C0" />
-        </TouchableOpacity>
-      ))}
-    </View>
+    <FeedbackModal visible={feedbackVisible} onClose={() => setFeedbackVisible(false)} context="More screen" />
+    <ProfileScreen visible={profileVisible} onClose={() => setProfileVisible(false)} />
+    <PrivacyPolicyModal visible={policyVisible} mode="view" onClose={() => setPolicyVisible(false)} />
   </ScrollView>
-);
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: BG,
+    backgroundColor: '#FBF9F4',
   },
   content: {
     padding: 20,

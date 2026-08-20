@@ -142,7 +142,7 @@ const WhatIfModal = ({
     } else {
       showAlert(
         p.name,
-        `${entry.remaining} more course unit${entry.remaining === 1 ? '' : 's'} — fits your current timeline. Confirm?`,
+        `${entry.remaining} more course unit${entry.remaining === 1 ? '' : 's'}. Fits your current timeline. Confirm?`,
         [{ text: 'Cancel', style: 'cancel' }, { text: 'Confirm', onPress: doApply }]
       );
     }
@@ -163,7 +163,7 @@ const WhatIfModal = ({
         <Text style={s.rowName}>{entry.program.name}{entry.program.degree ? ` (${entry.program.degree})` : ''}</Text>
         <Text style={s.rowSub}>
           {entry.unknown
-            ? 'Requirements not loaded yet — impact unknown'
+            ? 'Requirements not loaded yet, so impact is unknown'
             : `${entry.remaining} more unit${entry.remaining === 1 ? '' : 's'} after your completed + planned courses`}
         </Text>
       </View>

@@ -4,6 +4,7 @@
 // correct for in-button/action feedback; this is for content areas.
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing } from 'react-native';
+import { HAIRLINE } from '../theme';
 
 const Skeleton = ({ width, height = 12, radius = 4, style }) => {
   const opacity = useRef(new Animated.Value(0.45)).current;
@@ -32,7 +33,7 @@ const Skeleton = ({ width, height = 12, radius = 4, style }) => {
   return (
     <Animated.View
       style={[
-        { width, height, borderRadius: radius, backgroundColor: '#ECE8E4', opacity },
+        { width, height, borderRadius: radius, backgroundColor: HAIRLINE, opacity },
         style,
       ]}
     />

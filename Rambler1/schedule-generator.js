@@ -220,12 +220,12 @@ function diagnoseFailure({ groups, courseGroups, lockedCodes, lockedSections, lo
     .map((g) => g.code);
   if (unblockers.length === 1) {
     findings.push(
-      `${unblockers[0]} is the blocker — every one of its sections that passes your filters ` +
+      `${unblockers[0]} is the blocker. Every one of its sections that passes your filters ` +
       'collides with the rest. Drop it or relax a filter to free a schedule.'
     );
   } else if (unblockers.length > 1) {
     findings.push(
-      `${joinAnd(unblockers)} each block the rest — dropping any one of them would free a schedule.`
+      `${joinAnd(unblockers)} each block the rest. Dropping any one of them would free a schedule.`
     );
   }
 
@@ -240,7 +240,7 @@ function diagnoseFailure({ groups, courseGroups, lockedCodes, lockedSections, lo
     for (const [code, secs] of lockedByCourse) {
       const otherBlocks = sectionsToBlocks(lockedSections.filter((s) => !secs.includes(s)));
       if (solvable(groups, otherBlocks)) {
-        findings.push(`Your current ${code} section is the blocker — every combination collides with it.`);
+        findings.push(`Your current ${code} section is the blocker. Every combination collides with it.`);
       }
     }
   }
@@ -278,11 +278,11 @@ function diagnoseFailure({ groups, courseGroups, lockedCodes, lockedSections, lo
     const probed = probeGroups(courseGroups, lockedCodes, noPrefs);
     if (solvable(probed, lockedBlocks)) {
       findings.push(
-        'Relaxing more than one filter at once would free a schedule — loosen a couple of preferences together.'
+        'Relaxing more than one filter at once would free a schedule. Loosen a couple of preferences together.'
       );
     } else {
       findings.push(
-        'Even with every filter relaxed, these courses overlap in every combination — try different courses.'
+        'Even with every filter relaxed, these courses overlap in every combination. Try different courses.'
       );
       if (probed.length >= 2 && probed.length <= 6) {
         outer:
@@ -587,7 +587,7 @@ export function generateSchedules({
   for (const g of courseGroups) {
     const code = String(g.code || '').trim();
     if (lockedCodes.has(code.toUpperCase())) {
-      notes.push(`${code}: already on your schedule — kept your current section.`);
+      notes.push(`${code}: already on your schedule, so your current section was kept.`);
       continue;
     }
     const { usable, reasons } = filterGroup(g.sections, prefs);
@@ -595,13 +595,13 @@ export function generateSchedules({
       const total = (g.sections || []).length;
       const why = [...reasons.entries()].sort((a, b) => b[1] - a[1]);
       if (!total) {
-        notes.push(`${code}: no sections found — left out.`);
+        notes.push(`${code}: no sections found, so it was left out.`);
       } else if (total === 1) {
-        notes.push(`${code}: its only section is blocked by your filters — ${why[0][0]}.`);
+        notes.push(`${code}: its only section is blocked by your filters (${why[0][0]}).`);
       } else {
         notes.push(
-          `${code}: all ${total} sections blocked by your filters — ` +
-          `${why.map(([r, n]) => countedReason(r, n)).join(', ')}.`
+          `${code}: all ${total} sections blocked by your filters ` +
+          `(${why.map(([r, n]) => countedReason(r, n)).join(', ')}).`
         );
       }
       continue;
@@ -625,7 +625,7 @@ export function generateSchedules({
     return { candidates: [], notes };
   }
   if (truncated) {
-    notes.push('Lots of possibilities — showing the best of the first few hundred found.');
+    notes.push('Lots of possibilities. Showing the best of the first few hundred found.');
   }
 
   const scored = complete.map((sectionSet, idx) => {

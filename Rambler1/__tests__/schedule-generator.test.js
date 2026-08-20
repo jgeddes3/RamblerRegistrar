@@ -117,7 +117,7 @@ describe('generateSchedules', () => {
         { code: 'COMP 170', sections: [open] },
       ],
     });
-    expect(notes.join(' ')).toMatch(/FINC 345: its only section is blocked by your filters — not open/);
+    expect(notes.join(' ')).toMatch(/FINC 345: its only section is blocked by your filters \(not open\)/);
     expect(candidates).toHaveLength(1);
     expect(candidates[0].sections).toHaveLength(1);
   });
@@ -416,7 +416,7 @@ describe('generateSchedules failure diagnostics', () => {
       prefs: { latestEnd: 17 * 60 },
     });
     expect(notes.join(' ')).toMatch(
-      /FINC 345: all 5 sections blocked by your filters — 3 end too late, 2 not open\./
+      /FINC 345: all 5 sections blocked by your filters \(3 end too late, 2 not open\)\./
     );
     expect(candidates).toHaveLength(1);
   });
@@ -435,7 +435,7 @@ describe('generateSchedules failure diagnostics', () => {
       ],
     });
     expect(candidates).toEqual([]);
-    expect(notes[0]).toMatch(/PHIL 130 is the blocker — every one of its sections that passes your filters collides with the rest/);
+    expect(notes[0]).toMatch(/PHIL 130 is the blocker\. Every one of its sections that passes your filters collides with the rest/);
     expect(notes.join(' ')).toMatch(/FINC 345: its only section is blocked/);
   });
 
@@ -481,7 +481,7 @@ describe('generateSchedules failure diagnostics', () => {
       lockedSections: [locked],
     });
     expect(candidates).toEqual([]);
-    expect(notes[0]).toMatch(/Your current PHYS 101 section is the blocker — every combination collides with it\./);
+    expect(notes[0]).toMatch(/Your current PHYS 101 section is the blocker\. Every combination collides with it\./);
   });
 
   test('all-relaxed-still-impossible message, with the overlapping pair named', () => {

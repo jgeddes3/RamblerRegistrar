@@ -29,7 +29,7 @@
 export const OUTLOOK_DISCLAIMER =
   'This outlook is an estimate. It does not model electives, GPA requirements, ' +
   'credit-hour minimums, or transfer credit. The official degree audit in LOCUS ' +
-  'is authoritative — always confirm your graduation plan with your advisor.';
+  'is authoritative. Always confirm your graduation plan with your advisor.';
 
 /**
  * Parse a graduation year that may arrive as a string or number.
@@ -153,14 +153,14 @@ export function computeGraduationOutlook({ degreeProgress, additionalDegreeProgr
     } else {
       message =
         `${remainingUnits} ${plural(remainingUnits, 'requirement')} left with ` +
-        `${semestersLeft} ${plural(semestersLeft, 'semester')} to go — that's ` +
+        `${semestersLeft} ${plural(semestersLeft, 'semester')} to go. That's ` +
         // "about", not "~" — the tilde renders like a minus sign in the serif.
         `about ${pace} courses/semester. Talk to your advisor.`;
     }
   } else if (status === 'at-risk') {
     message =
       `${remainingUnits} ${plural(remainingUnits, 'requirement')} left with ` +
-      `${semestersLeft} ${plural(semestersLeft, 'semester')} to go — that's ` +
+      `${semestersLeft} ${plural(semestersLeft, 'semester')} to go. That's ` +
       (semestersLeft === 1
         ? 'a full 5-course load next semester.'
         : 'close to a full 5-course load every semester.');

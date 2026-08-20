@@ -323,7 +323,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
 
           {/* Sections */}
           <Text style={s.termLabel}>
-            {singleSection ? `Section ${singleSection.section_number} — ${TERM.label}` : `${TERM.label} Sections`}
+            {singleSection ? `Section ${singleSection.section_number} · ${TERM.label}` : `${TERM.label} Sections`}
           </Text>
 
           <ScrollView style={s.sectionsList} showsVerticalScrollIndicator={false}>

@@ -3,6 +3,7 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from './AppContext';
+import Skeleton from './components/Skeleton';
 import {
   FONT, FONT_MED, FONT_SEMI, FONT_ITALIC, MAROON, PARCHMENT, INK, STONE, HAIRLINE, GOLD,
   CARD, EYEBROW,
@@ -124,8 +125,8 @@ const OUTLOOK_COLORS = {
 // One-line status label for the outlook card.
 function outlookStatusLine(outlook) {
   if (outlook.status === 'on-track') return `On track for ${outlook.gradLabel}`;
-  if (outlook.status === 'at-risk') return 'At risk — see Progress';
-  return 'Off track — see your advisor';
+  if (outlook.status === 'at-risk') return 'At risk: see Progress';
+  return 'Off track: see your advisor';
 }
 
 // Compact one-line hours string for a LibCal location.
@@ -365,8 +366,16 @@ const Home = () => {
         <Text style={s.eyebrow}>Today's classes</Text>
         <View style={s.card}>
           {schedState === 'loading' ? (
-            <View style={s.cardCenter}>
-              <ActivityIndicator color={MAROON} />
+            <View>
+              {[0, 1].map((i) => (
+                <View key={i} style={s.classRow}>
+                  <Skeleton width={54} height={12} style={{ marginTop: 3, marginRight: 16 }} />
+                  <View style={s.classMain}>
+                    <Skeleton width={92} height={14} />
+                    <Skeleton width={160} height={11} style={{ marginTop: 7 }} />
+                  </View>
+                </View>
+              ))}
             </View>
           ) : schedState === 'unavailable' ? (
             <View style={s.cardCenter}>
@@ -552,8 +561,13 @@ const Home = () => {
         <Text style={s.eyebrow}>Library hours</Text>
         <View style={s.card}>
           {libLoading ? (
-            <View style={s.cardCenter}>
-              <ActivityIndicator color={MAROON} />
+            <View>
+              {[0, 1, 2].map((i) => (
+                <View key={i} style={s.libRow}>
+                  <Skeleton width={150} height={13} />
+                  <Skeleton width={70} height={13} />
+                </View>
+              ))}
             </View>
           ) : libLocations.length === 0 ? (
             <View style={s.cardCenter}>

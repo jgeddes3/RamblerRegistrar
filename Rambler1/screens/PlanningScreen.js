@@ -266,12 +266,12 @@ const PlanningScreen = () => {
           <Text style={s.coverageText}>
             Your plan covers {coverage.covered} of your remaining requirements
             ({coverage.planned} course{coverage.planned === 1 ? '' : 's'} planned
-            {coverage.unplanned > 0 ? `, ${coverage.unplanned} requirement${coverage.unplanned === 1 ? '' : 's'} still unplanned` : ' — everything is planned!'}).
+            {coverage.unplanned > 0 ? `, ${coverage.unplanned} requirement${coverage.unplanned === 1 ? '' : 's'} still unplanned` : ', everything is planned!'}).
           </Text>
         </View>
       ) : (
         <Text style={s.introText}>
-          Sketch future semesters with courses — add them here, from Progress,
+          Sketch future semesters with courses. Add them here, from Progress,
           or from any course page. Sections come later on the Schedule tab.
         </Text>
       )}
@@ -285,7 +285,7 @@ const PlanningScreen = () => {
       >
         <Ionicons name="compass-outline" size={18} color={MAROON} />
         <Text style={s.whatIfBtnText}>
-          What if? — change or add a major/minor and see the time cost
+          What if? Change or add a major/minor and see the time cost
         </Text>
       </TouchableOpacity>
 
@@ -297,9 +297,9 @@ const PlanningScreen = () => {
               <Ionicons name="warning-outline" size={13} color="#92400E" style={{ marginTop: 2 }} />
               <Text style={s.orderText}>
                 {iss.code} ({termLabelFor(iss.term)}) needs {iss.prereq}
-                {iss.reason === 'later' ? ' — planned AFTER it'
-                  : iss.reason === 'same' ? ' — planned the same semester'
-                  : ' — not completed or planned'}
+                {iss.reason === 'later' ? ' (planned AFTER it)'
+                  : iss.reason === 'same' ? ' (planned the same semester)'
+                  : ' (not completed or planned)'}
               </Text>
             </View>
           ))}

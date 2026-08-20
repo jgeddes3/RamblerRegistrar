@@ -24,7 +24,7 @@ import {
   fetchBuildings, fetchSchedule, getSectionsByClassNumbers,
   fetchUserPrimaryLocation,
 } from '../firestore-data';
-import { BG } from '../theme';
+import { PARCHMENT } from '../theme';
 
 const MAROON = '#A30046';
 const GOLD = '#FFB81C'; // Loyola gold — "your classes" pins
@@ -278,7 +278,7 @@ const MapScreen = () => {
 // =============================================================================
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
+  container: { flex: 1, backgroundColor: PARCHMENT },
   title: { fontFamily: 'CormorantGaramond-Regular', fontSize: 28, color: MAROON },
   subtitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: '#999', marginTop: -2 },
 

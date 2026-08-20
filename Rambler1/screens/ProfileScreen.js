@@ -93,7 +93,7 @@ const ProfileScreen = ({ visible, onClose }) => {
     const geo = await geocodeAddress(q);
     if (!geo) {
       setAddressSaving(false);
-      setAddressError("Couldn't find that address — try adding street, city, and zip.");
+      setAddressError("Couldn't find that address. Try adding street, city, and zip.");
       return;
     }
     const res = await setUserLocation(user.uid, 'Home', q, geo.latitude, geo.longitude, true);
@@ -529,7 +529,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               style={s.navRow}
               onPress={() => { onClose(); navigation.navigate('More', { screen: 'MajorsMinors' }); }}
               activeOpacity={0.6}
-              accessibilityLabel="Change major, add a major, or add a minor — see the time cost"
+              accessibilityLabel="Change major, add a major, or add a minor, and see the time cost"
             >
               <View style={s.navRowIconWrap}>
                 <Ionicons name="compass-outline" size={20} color="#A30046" />

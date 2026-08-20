@@ -17,7 +17,7 @@ const MENU_ROWS = [
   {
     key: 'MajorsMinors',
     label: 'Majors & Minors',
-    sublabel: 'Change or add a major or minor — with the time cost',
+    sublabel: 'Change or add a major or minor, with the time cost',
     icon: 'compass-outline',
   },
   {

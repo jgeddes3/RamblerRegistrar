@@ -198,7 +198,7 @@ const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
                           {t.gapMin} min gap
                           {t.neededMin != null
                             ? t.mode === 'shuttle'
-                              ? ` · different campuses — shuttle needs about ${t.neededMin} min`
+                              ? ` · different campuses, shuttle needs about ${t.neededMin} min`
                               : ` · ${t.neededMin} min walk`
                             : ' · route unknown'}
                         </Text>

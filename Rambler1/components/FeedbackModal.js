@@ -41,7 +41,7 @@ const FeedbackModal = ({ visible, onClose, context = '' }) => {
     setSending(false);
     if (res) {
       close();
-      showAlert('Thanks!', 'Your feedback is in — it genuinely helps.');
+      showAlert('Thanks!', 'Your feedback is in. It genuinely helps.');
     } else {
       showAlert('Send failed', 'Could not send feedback. Please try again.');
     }

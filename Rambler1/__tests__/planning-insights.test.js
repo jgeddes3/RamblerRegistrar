@@ -5,17 +5,17 @@ import {
 } from '../planning-insights';
 
 const DAY12_HIGH =
-  'Filled before sophomore registration opened last term — have a backup plan.';
+  'Filled before sophomore registration opened last term. Have a backup plan.';
 const DAY12_INFO =
-  'Fills on day one of registration — register the moment your window opens.';
+  'Fills on day one of registration. Register the moment your window opens.';
 const FIRST_WEEK_WARN =
-  'Filled during registration week last term — register the moment your window opens.';
+  'Filled during registration week last term. Register the moment your window opens.';
 const FIRST_WEEK_INFO = 'Fills within the first week of registration.';
 const SUFFIX = ' (seat counts changed last term, so treat as an estimate)';
 const ATHLETE_INFO =
-  'Your athlete priority window opens before general registration — register early and you should be fine.';
+  'Your athlete priority window opens before general registration. Register early and you should be fine.';
 const HONORS_INFO =
-  'You have Honors priority — register right when your window opens.';
+  'You have Honors priority. Register right when your window opens.';
 
 describe('fillWarning', () => {
   describe("class 'day1-2'", () => {
@@ -376,7 +376,7 @@ describe('coverageSummaryLine', () => {
     expect(
       coverageSummaryLine({ coveredCount: 2, plannedCount: 4, neededPerSemester: 5 })
     ).toBe(
-      'Covers 2 of your remaining requirements — you need about 5/semester to stay on pace.'
+      'Covers 2 of your remaining requirements. You need about 5/semester to stay on pace.'
     );
   });
 
@@ -390,7 +390,7 @@ describe('coverageSummaryLine', () => {
     expect(
       coverageSummaryLine({ coveredCount: 0, plannedCount: 3, neededPerSemester: 5 })
     ).toBe(
-      'None of your 3 planned courses cover a remaining requirement — you need about 5/semester to stay on pace.'
+      'None of your 3 planned courses cover a remaining requirement. You need about 5/semester to stay on pace.'
     );
   });
 

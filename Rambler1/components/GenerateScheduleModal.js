@@ -12,7 +12,7 @@ import {
   ActivityIndicator, Modal, Alert, Switch, StyleSheet, Platform, StatusBar,
 } from 'react-native';
 import { searchCourses, getCourseSections } from '../firestore-data';
-import { FONT } from '../theme';
+import { FONT, BG } from '../theme';
 import { generateSchedules, formatMinutes } from '../schedule-generator';
 import { sectionsToBlocks, gridBounds, findConflicts } from '../schedule-utils';
 import ScheduleGrid from './ScheduleGrid';
@@ -385,7 +385,7 @@ const GenerateScheduleModal = ({
 };
 
 const st = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingTop: STATUSBAR_HEIGHT },
+  container: { flex: 1, backgroundColor: BG, paddingTop: STATUSBAR_HEIGHT },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingBottom: 4,

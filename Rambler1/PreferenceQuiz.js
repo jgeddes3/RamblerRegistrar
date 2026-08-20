@@ -35,10 +35,10 @@ const QUESTIONS = [
   {
     question: "You're watching a documentary about a social issue. Halfway through, your brain is mostly:",
     options: [
-      { label: 'Evaluating the data — are their statistics legit?', scoring: { I: 3, C: 1 } },
-      { label: 'Feeling the emotions of the people — this hits you in the gut', scoring: { S: 3 } },
+      { label: 'Evaluating the data: are their statistics legit?', scoring: { I: 3, C: 1 } },
+      { label: 'Feeling the emotions of the people: this hits you in the gut', scoring: { S: 3 } },
       { label: 'Imagining what you would build or create to solve this', scoring: { R: 1, A: 1, E: 2 } },
-      { label: 'Noticing the filmmaking — music, editing, storytelling craft', scoring: { A: 3 } },
+      { label: 'Noticing the filmmaking: music, editing, storytelling craft', scoring: { A: 3 } },
     ],
   },
   {
@@ -53,8 +53,8 @@ const QUESTIONS = [
   {
     question: 'Two approaches: creative but risky, or proven but boring. You:',
     options: [
-      { label: "Go creative — even if it fails you'll learn more", scoring: { A: 3, E: 1 } },
-      { label: 'Go proven — why take unnecessary risk?', scoring: { C: 3 } },
+      { label: "Go creative: even if it fails you'll learn more", scoring: { A: 3, E: 1 } },
+      { label: 'Go proven: why take unnecessary risk?', scoring: { C: 3 } },
       { label: 'Try to find a third option combining both', scoring: { I: 2, E: 1 } },
       { label: 'Calculate the risk-reward first', scoring: { I: 1, E: 1, C: 1 } },
     ],
@@ -76,7 +76,7 @@ const QUESTIONS = [
       { label: 'Raise your hand and challenge it respectfully', scoring: { I: 1, E: 2 } },
       { label: 'Research it later before forming a strong opinion', scoring: { I: 3 } },
       { label: 'Talk to classmates after class to see if they noticed', scoring: { S: 2 } },
-      { label: "Let it go — you're here to learn their perspective", scoring: { S: 1, C: 1 } },
+      { label: "Let it go: you're here to learn their perspective", scoring: { S: 1, C: 1 } },
     ],
   },
   {
@@ -92,20 +92,20 @@ const QUESTIONS = [
   {
     question: 'What would make you feel most successful at 30?',
     options: [
-      { label: 'Financial security — property, no debt, investments', scoring: { E: 1, C: 2 } },
-      { label: 'Expertise — being the go-to person in your field', scoring: { I: 3 } },
-      { label: "Impact — your work directly improved people's lives", scoring: { S: 3 } },
-      { label: 'Freedom — working on your own terms, no boss', scoring: { R: 1, A: 2 } },
-      { label: 'Influence — people listen when you talk', scoring: { E: 3 } },
-      { label: "Creation — a body of work you made that you're proud of", scoring: { A: 3 } },
+      { label: 'Financial security: property, no debt, investments', scoring: { E: 1, C: 2 } },
+      { label: 'Expertise: being the go-to person in your field', scoring: { I: 3 } },
+      { label: "Impact: your work directly improved people's lives", scoring: { S: 3 } },
+      { label: 'Freedom: working on your own terms, no boss', scoring: { R: 1, A: 2 } },
+      { label: 'Influence: people listen when you talk', scoring: { E: 3 } },
+      { label: "Creation: a body of work you made that you're proud of", scoring: { A: 3 } },
     ],
   },
   {
     question: 'Which failure would sting the MOST?',
     options: [
       { label: 'Working hard and still not being the best', scoring: { E: 2, C: 1 } },
-      { label: 'Selling out — doing something against your values for money', scoring: { A: 1, S: 2 } },
-      { label: 'Being irrelevant — nobody cares about your work', scoring: { A: 2, E: 1 } },
+      { label: 'Selling out: doing something against your values for money', scoring: { A: 1, S: 2 } },
+      { label: 'Being irrelevant: nobody cares about your work', scoring: { A: 2, E: 1 } },
       { label: 'Letting someone down who was counting on you', scoring: { S: 3 } },
       { label: 'Looking back and realizing you played it too safe', scoring: { A: 1, E: 2 } },
     ],
@@ -125,7 +125,7 @@ const QUESTIONS = [
       { label: 'Making more money than you imagined', scoring: { E: 2, C: 1 } },
       { label: "Solving a problem that changes people's lives", scoring: { I: 1, S: 2 } },
       { label: 'Becoming a recognized leader in your field', scoring: { E: 3 } },
-      { label: "Living authentically — a life that's truly yours", scoring: { A: 3 } },
+      { label: "Living authentically: a life that's truly yours", scoring: { A: 3 } },
       { label: 'Deep relationships and strong community', scoring: { S: 3 } },
       { label: 'Understanding the world more deeply than most', scoring: { I: 3 } },
     ],
@@ -144,27 +144,27 @@ const QUESTIONS = [
   {
     question: 'The Jesuit value that resonates with you most:',
     options: [
-      { label: 'Cura Personalis — care for the whole person', scoring: { S: 3 } },
-      { label: 'Magis — always striving for more', scoring: { E: 2, C: 1 } },
+      { label: 'Cura Personalis: care for the whole person', scoring: { S: 3 } },
+      { label: 'Magis: always striving for more', scoring: { E: 2, C: 1 } },
       { label: 'Men and women for others', scoring: { S: 3 } },
-      { label: 'Finding God in all things — curiosity, wonder', scoring: { I: 2, A: 1 } },
-      { label: 'Contemplatives in action — reflect, then do', scoring: { I: 1, E: 1 } },
+      { label: 'Finding God in all things: curiosity, wonder', scoring: { I: 2, A: 1 } },
+      { label: 'Contemplatives in action: reflect, then do', scoring: { I: 1, E: 1 } },
     ],
   },
   // ===== Section 3: How You Work (Q13-18) =====
   {
     question: 'Your ideal study environment:',
     options: [
-      { label: 'Coffee shop — ambient noise helps you focus', scoring: { A: 1, S: 1, E: 1 } },
+      { label: 'Coffee shop: ambient noise helps you focus', scoring: { A: 1, S: 1, E: 1 } },
       { label: 'Silent library with noise-canceling headphones', scoring: { I: 2, C: 1 } },
       { label: 'Your room with music, moving between desk and bed', scoring: { A: 2 } },
-      { label: 'Group study room — you talk things through', scoring: { S: 2, E: 1 } },
+      { label: 'Group study room: you talk things through', scoring: { S: 2, E: 1 } },
     ],
   },
   {
     question: 'When you hit a wall, your first instinct:',
     options: [
-      { label: "Push through alone — you'll figure it out", scoring: { R: 2, I: 1 } },
+      { label: "Push through alone: you'll figure it out", scoring: { R: 2, I: 1 } },
       { label: 'Ask someone for a different perspective', scoring: { S: 2 } },
       { label: 'Take a break and come back fresh', scoring: { A: 2 } },
       { label: 'Switch to a different part and circle back', scoring: { E: 1, C: 1 } },
@@ -173,26 +173,26 @@ const QUESTIONS = [
   {
     question: 'How much of your ideal job involves other people?',
     options: [
-      { label: '80%+ — you feed off collaboration', scoring: { S: 2, E: 2 } },
-      { label: '50/50 — some collaboration, some solo', scoring: { I: 1, S: 1 } },
-      { label: '20% — you need long uninterrupted focus', scoring: { R: 1, I: 2 } },
+      { label: '80%+: you feed off collaboration', scoring: { S: 2, E: 2 } },
+      { label: '50/50: some collaboration, some solo', scoring: { I: 1, S: 1 } },
+      { label: '20%: you need long uninterrupted focus', scoring: { R: 1, I: 2 } },
       { label: 'You want to choose when, not have it forced', scoring: { A: 2 } },
     ],
   },
   {
     question: "How do you handle a deadline that's too tight?",
     options: [
-      { label: 'You thrive under pressure — deadlines are fuel', scoring: { E: 2 } },
+      { label: 'You thrive under pressure: deadlines are fuel', scoring: { E: 2 } },
       { label: 'Anxious but always deliver', scoring: { C: 2 } },
-      { label: 'Negotiate the deadline — why accept unreasonable constraints', scoring: { E: 2 } },
-      { label: "Triage — figure out what's essential, cut the rest", scoring: { I: 1, C: 1 } },
+      { label: 'Negotiate the deadline: why accept unreasonable constraints', scoring: { E: 2 } },
+      { label: "Triage: figure out what's essential, cut the rest", scoring: { I: 1, C: 1 } },
     ],
   },
   {
     question: 'Which scenario is your personal nightmare?',
     options: [
-      { label: 'Every day is the same — no variety', scoring: { A: 2, E: 1 } },
-      { label: 'Rules change every week — no consistency', scoring: { C: 3 } },
+      { label: 'Every day is the same: no variety', scoring: { A: 2, E: 1 } },
+      { label: 'Rules change every week: no consistency', scoring: { C: 3 } },
       { label: 'You work alone and never collaborate', scoring: { S: 2, E: 1 } },
       { label: "You're in meetings all day, never deep work", scoring: { R: 1, I: 2 } },
       { label: 'Tons of responsibility but no authority', scoring: { E: 3 } },
@@ -201,9 +201,9 @@ const QUESTIONS = [
   {
     question: 'Professor gives a final project with NO guidelines. You feel:',
     options: [
-      { label: 'Excited — finally, freedom', scoring: { A: 3 } },
-      { label: 'Anxious — you need more structure', scoring: { C: 3 } },
-      { label: 'Strategic — what will get the best grade', scoring: { E: 2, C: 1 } },
+      { label: 'Excited: finally, freedom', scoring: { A: 3 } },
+      { label: 'Anxious: you need more structure', scoring: { C: 3 } },
+      { label: 'Strategic: what will get the best grade', scoring: { E: 2, C: 1 } },
       { label: 'Overwhelmed at first, then go deep', scoring: { I: 3 } },
     ],
   },
@@ -258,11 +258,11 @@ const QUESTIONS = [
     question: "It's 2 AM. You can't sleep. You go down a rabbit hole about:",
     options: [
       { label: 'A weird medical case or disease', scoring: { R: 1, I: 2 } },
-      { label: 'An unsolved mystery — you need to figure it out', scoring: { I: 3 } },
+      { label: 'An unsolved mystery: you need to figure it out', scoring: { I: 3 } },
       { label: 'Redesigning your room layout', scoring: { R: 1, A: 2 } },
-      { label: "Your future — where you'll live, what life looks like", scoring: { E: 2, C: 1 } },
+      { label: "Your future: where you'll live, what life looks like", scoring: { E: 2, C: 1 } },
       { label: "Someone's incredible creative portfolio", scoring: { A: 3 } },
-      { label: "A social issue — you're genuinely upset", scoring: { S: 2, E: 1 } },
+      { label: "A social issue: you're genuinely upset", scoring: { S: 2, E: 1 } },
     ],
   },
   {
@@ -283,7 +283,7 @@ const QUESTIONS = [
     options: [
       { label: 'Student consulting group for Chicago nonprofits', scoring: { S: 1, E: 2 } },
       { label: 'Pre-health mentoring program', scoring: { I: 1, S: 2 } },
-      { label: 'Creative magazine — writing, art, photography', scoring: { A: 3 } },
+      { label: 'Creative magazine: writing, art, photography', scoring: { A: 3 } },
       { label: 'Political advocacy / voter registration', scoring: { S: 1, E: 2 } },
       { label: "Research team on a professor's grant", scoring: { I: 3 } },
       { label: 'Tech club building apps for community orgs', scoring: { R: 2, I: 1 } },
@@ -295,9 +295,9 @@ const QUESTIONS = [
     options: [
       { label: 'In a lab or hospital, front lines of health and science', scoring: { R: 2, I: 1 } },
       { label: 'In a room full of people, teaching or inspiring them', scoring: { S: 2, E: 1 } },
-      { label: 'At a desk creating — writing, designing, coding, composing', scoring: { A: 2 } },
+      { label: 'At a desk creating: writing, designing, coding, composing', scoring: { A: 2 } },
       { label: 'In a boardroom, making big decisions and leading a team', scoring: { E: 3 } },
-      { label: 'In the field — different city/country, making direct impact', scoring: { S: 2 } },
+      { label: 'In the field: different city/country, making direct impact', scoring: { S: 2 } },
       { label: 'Behind the scenes, analyzing data and solving problems', scoring: { I: 2, C: 1 } },
       { label: "Honestly? Still exploring, and that's okay", scoring: { I: 1, A: 1 } },
     ],

@@ -16,6 +16,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BG } from '../theme';
 
 const MAROON = '#A30046';
 
@@ -31,7 +32,7 @@ const MapScreen = () => (
 const s = StyleSheet.create({
   centerWrap: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#FFFFFF', paddingHorizontal: 24,
+    backgroundColor: BG, paddingHorizontal: 24,
   },
   title: { fontFamily: 'CormorantGaramond-Regular', fontSize: 28, color: MAROON },
   emptyTitle: {

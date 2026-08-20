@@ -28,8 +28,8 @@ function hourLabel(hour) {
 }
 
 // Readable text color for a block background: white fails WCAG on the lighter
-// palette entries (amber #d97706, green #059669, teal #0891b2), so pick dark
-// text when the background's relative luminance is high enough.
+// palette entries (e.g. ochre #B07A21), so pick dark text when the
+// background's relative luminance is high enough.
 function textColorFor(hex) {
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
   if (!m) return '#ffffff';

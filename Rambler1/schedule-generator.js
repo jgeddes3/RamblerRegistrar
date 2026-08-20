@@ -197,7 +197,7 @@ export function generateSchedules({
   for (const g of courseGroups) {
     const code = String(g.code || '').trim();
     if (lockedCodes.has(code.toUpperCase())) {
-      notes.push(`${code}: already on your schedule — kept your current section.`);
+      notes.push(`${code}: already on your schedule, so your current section was kept.`);
       continue;
     }
     const reasons = new Map(); // reason -> count
@@ -213,7 +213,7 @@ export function generateSchedules({
     if (!usable.length) {
       const why = [...reasons.entries()].sort((a, b) => b[1] - a[1]).map(([r]) => r);
       notes.push(
-        `${code}: no sections match your filters${why.length ? ` (${why.join(', ')})` : ''} — left out.`
+        `${code}: no sections match your filters${why.length ? ` (${why.join(', ')})` : ''}, so it was left out.`
       );
       continue;
     }
@@ -265,7 +265,7 @@ export function generateSchedules({
     return { candidates: [], notes };
   }
   if (truncated) {
-    notes.push('Lots of possibilities — showing the best of the first few hundred found.');
+    notes.push('Lots of possibilities. Showing the best of the first few hundred found.');
   }
 
   const scored = complete.map((sectionSet, idx) => {

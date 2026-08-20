@@ -24,10 +24,11 @@ import {
   fetchBuildings, fetchSchedule, getSectionsByClassNumbers,
   fetchUserPrimaryLocation,
 } from '../firestore-data';
+import { BG } from '../theme';
 
 const MAROON = '#A30046';
 const GOLD = '#FFB81C'; // Loyola gold — "your classes" pins
-const HOME_BLUE = '#2563eb';
+const HOME_BLUE = '#2E5E9E';
 
 // =============================================================================
 // TERM (same helper as ScheduleScreen/SearchScreen/ProgressScreen)
@@ -277,7 +278,7 @@ const MapScreen = () => {
 // =============================================================================
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: BG },
   title: { fontFamily: 'CormorantGaramond-Regular', fontSize: 28, color: MAROON },
   subtitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: '#999', marginTop: -2 },
 

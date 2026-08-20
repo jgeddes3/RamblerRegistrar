@@ -5,6 +5,7 @@ import { fetchDegreeProgress, fetchPrerequisites, addUserCourse, fetchUserCourse
 import { computeGraduationOutlook, OUTLOOK_DISCLAIMER } from '../graduation-outlook';
 import { getIdToken } from '../auth';
 import CourseDetailModal from '../CourseDetailModal';
+import { BG } from '../theme';
 
 // Graduation Outlook banner design tokens (status -> colors)
 const OUTLOOK_COLORS = {
@@ -333,7 +334,7 @@ const ProgressScreen = () => {
             completed={0}
             total={selectedProgram2.min_credits || 60}
             unit="credits"
-            color="#2563eb"
+            color="#2E5E9E"
           />
         </TouchableOpacity>
       )}
@@ -361,7 +362,7 @@ const ProgressScreen = () => {
             completed={coreProgress.completedCredits}
             total={coreProgress.totalCredits}
             unit="credits"
-            color="#7c3aed"
+            color="#6B4E8E"
           />
         </TouchableOpacity>
       )}
@@ -407,7 +408,7 @@ const ProgressScreen = () => {
             The required-course list for this major isn't loaded into
             RamblerRegistrar yet, so progress can't be tracked here. The
             official requirements are in the LUC academic catalog
-            (catalog.luc.edu) — we're working on adding them.
+            (catalog.luc.edu). We're working on adding them.
           </Text>
         ) : (
         <ProgressBar
@@ -432,7 +433,7 @@ const ProgressScreen = () => {
         {upNext.length > 0 && (
           <View style={s.section}>
             <Text style={s.sectionHeader}>Up Next</Text>
-            <Text style={s.sectionSub}>Prerequisites met — ready to take</Text>
+            <Text style={s.sectionSub}>Prerequisites met, ready to take</Text>
             {upNext.map((c) => (
               <CourseRow key={c.code || c.id} icon="○" iconColor="#A30046" code={c.code} name={c.name} onPress={() => openCourseModal(c)} />
             ))}
@@ -500,7 +501,7 @@ const ProgressScreen = () => {
           completed={coreProgress.completedAreas}
           total={coreProgress.totalAreas}
           unit="areas"
-          color="#7c3aed"
+          color="#6B4E8E"
         />
 
         {/* One-course areas */}
@@ -581,7 +582,7 @@ const ProgressScreen = () => {
       key: String(selectedProgram2.id),
       label: selectedProgram2.name.length > 12 ? selectedProgram2.name.substring(0, 12) + '...' : selectedProgram2.name,
       percent: 0,
-      color: '#2563eb',
+      color: '#2E5E9E',
     });
   }
 
@@ -591,7 +592,7 @@ const ProgressScreen = () => {
         key: String(minor.id),
         label: minor.name.length > 12 ? minor.name.substring(0, 12) + '...' : minor.name,
         percent: 0,
-        color: '#059669',
+        color: '#217A46',
       });
     }
   }
@@ -601,7 +602,7 @@ const ProgressScreen = () => {
       key: 'core',
       label: 'Core',
       percent: coreProgress.percentComplete || 0,
-      color: '#7c3aed',
+      color: '#6B4E8E',
     });
   }
 
@@ -666,7 +667,7 @@ const ProgressScreen = () => {
               <Text style={s.subheading}>Your major requires more than 120 credits</Text>
               <View style={s.addedClassesCard}>
                 <Text style={s.addedClassesDetail}>
-                  Your major requires {majorCreditsRequired} credits and the university core requires {coreCreditsRequired} credits, totaling {accountedFor} credits — {addedCredits} beyond the standard 120. No elective space is needed.
+                  Your major requires {majorCreditsRequired} credits and the university core requires {coreCreditsRequired} credits, totaling {accountedFor} credits. That is {addedCredits} beyond the standard 120, so no elective space is needed.
                 </Text>
               </View>
               {electiveCourses.length > 0 && (
@@ -736,7 +737,7 @@ const ProgressScreen = () => {
                 The required-course list for this program isn't loaded into
                 RamblerRegistrar yet, so progress can't be tracked here. The
                 official requirements are in the LUC academic catalog
-                (catalog.luc.edu) — we're working on adding them.
+                (catalog.luc.edu). We're working on adding them.
               </Text>
             ) : (
               <>
@@ -750,7 +751,7 @@ const ProgressScreen = () => {
                 />
                 <Text style={s.sectionSub}>
                   Covers the specifically-listed requirements. Open electives in the
-                  catalog (e.g. "any two 300-level courses") may add more — confirm
+                  catalog (e.g. "any two 300-level courses") may add more, so confirm
                   with the official catalog.
                 </Text>
                 {prog.completed && prog.completed.length > 0 && (
@@ -842,7 +843,7 @@ const ProgressScreen = () => {
 };
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: BG },
 
   // Tab toggle
   tabScrollRow: {
@@ -1092,7 +1093,7 @@ const s = StyleSheet.create({
     fontWeight: 'bold',
   },
   requiredBadge: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: '#6B4E8E',
     borderRadius: 8,
     paddingVertical: 1,
     paddingHorizontal: 6,

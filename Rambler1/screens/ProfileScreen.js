@@ -260,8 +260,8 @@ const ProfileScreen = ({ visible, onClose }) => {
                             {rec.feasible !== null && (
                               <Text style={[s.recFeasibility, rec.feasible ? s.recFeasible : s.recNotFeasible]}>
                                 {rec.feasible
-                                  ? `Completable by ${graduationYear || 'graduation'} — ${rec.remainingCourses} courses left`
-                                  : `May need extra time — ${rec.remainingCourses} courses, ~${rec.estimatedSemesters} semesters`}
+                                  ? `Completable by ${graduationYear || 'graduation'}: ${rec.remainingCourses} courses left`
+                                  : `May need extra time: ${rec.remainingCourses} courses, ~${rec.estimatedSemesters} semesters`}
                               </Text>
                             )}
                           </View>

@@ -3,15 +3,19 @@
 // rows returned by firestore-data.js (meeting_days, meeting_time_start, ...).
 
 // Stable 8-color palette assigned per courseCode (hash-based, order-independent).
+// Categorical block colors, anchored on Loyola maroon. Validated (CVD-safe
+// adjacent pairs, chroma floor, >=3:1 contrast on the white grid) — blocks are
+// also always direct-labeled with the course code, so identity never rides on
+// color alone. Greens deliberately never sit next to warm hues in this order.
 export const COURSE_COLORS = [
+  '#217A46', // green
+  '#2E5E9E', // steel blue
+  '#B07A21', // ochre
   '#A30046', // Loyola maroon
-  '#2563eb',
-  '#059669',
-  '#d97706',
-  '#7c3aed',
-  '#dc2626',
-  '#0891b2',
-  '#c026d3',
+  '#0A87A8', // teal
+  '#B5542B', // rust
+  '#6B4E8E', // plum
+  '#6E7C1F', // olive
 ];
 
 const DAY_TOKENS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];

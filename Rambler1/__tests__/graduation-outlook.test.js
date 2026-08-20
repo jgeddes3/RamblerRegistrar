@@ -129,7 +129,7 @@ describe('computeGraduationOutlook', () => {
     expect(result.semestersLeft).toBe(1);
     expect(result.pace).toBe(9);
     expect(result.message).toBe(
-      "9 requirements left with 1 semester to go — that's ~9 courses/semester. Talk to your advisor."
+      "9 requirements left with 1 semester to go. That's ~9 courses/semester. Talk to your advisor."
     );
   });
 

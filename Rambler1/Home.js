@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppContext } from './AppContext';
 import {
@@ -11,6 +11,8 @@ import {
 import { parseMeetingPatterns, courseColor } from './schedule-utils';
 import { getLibraryHours } from './campus-api';
 import { computeGraduationOutlook } from './graduation-outlook';
+import { BG } from './theme';
+import Skeleton from './components/Skeleton';
 
 // Term currently IN SESSION — deliberately different from the
 // getRegistrationTerm() helper used by ScheduleScreen/SearchScreen/
@@ -78,8 +80,8 @@ const OUTLOOK_COLORS = {
 // One-line status label for the outlook card.
 function outlookStatusLine(outlook) {
   if (outlook.status === 'on-track') return `On track for ${outlook.gradLabel}`;
-  if (outlook.status === 'at-risk') return 'At risk — see Progress';
-  return 'Off track — see your advisor';
+  if (outlook.status === 'at-risk') return 'At risk: see Progress';
+  return 'Off track: see your advisor';
 }
 
 // Compact one-line hours string for a LibCal location.
@@ -229,11 +231,11 @@ const Home = () => {
           <>
             <Text style={s.sectionHeader}>{selectedProgram2 ? 'Your Majors' : 'Your Major'}</Text>
             <Text style={s.infoText}>
-              {selectedProgram.name} ({selectedProgram.degree}) — {selectedProgram.school}
+              {selectedProgram.name} ({selectedProgram.degree}) · {selectedProgram.school}
             </Text>
             {selectedProgram2 ? (
               <Text style={s.infoText}>
-                {selectedProgram2.name} ({selectedProgram2.degree}) — {selectedProgram2.school}
+                {selectedProgram2.name} ({selectedProgram2.degree}) · {selectedProgram2.school}
               </Text>
             ) : null}
           </>
@@ -244,7 +246,7 @@ const Home = () => {
             <Text style={s.sectionHeader}>{selectedMinors.length > 1 ? 'Your Minors' : 'Your Minor'}</Text>
             {selectedMinors.map((minor) => (
               <Text key={minor.id} style={s.infoText}>
-                {minor.name} — {minor.school}
+                {minor.name} · {minor.school}
               </Text>
             ))}
           </>
@@ -258,7 +260,7 @@ const Home = () => {
           <>
             <Text style={s.sectionHeader}>Courses Taken ({selectedCourses.length})</Text>
             {selectedCourses.map((c) => (
-              <Text key={c.id} style={s.classItem}>{c.code} — {c.name}</Text>
+              <Text key={c.id} style={s.classItem}>{c.code} · {c.name}</Text>
             ))}
           </>
         ) : null}
@@ -280,8 +282,16 @@ const Home = () => {
         <Text style={s.sectionHeader}>Today's Schedule</Text>
         <View style={s.card}>
           {schedState === 'loading' ? (
-            <View style={s.cardCenter}>
-              <ActivityIndicator color="#A30046" />
+            <View>
+              {[0, 1].map((i) => (
+                <View key={i} style={[s.classRow, i === 0 && s.classRowBorder]}>
+                  <Skeleton width={104} height={12} style={{ marginTop: 2, marginRight: 24 }} />
+                  <View style={s.classMain}>
+                    <Skeleton width={88} height={13} />
+                    <Skeleton width={160} height={11} style={{ marginTop: 7 }} />
+                  </View>
+                </View>
+              ))}
             </View>
           ) : schedState === 'unavailable' ? (
             <View style={s.cardCenter}>
@@ -292,7 +302,7 @@ const Home = () => {
             <View style={s.cardCenter}>
               <Text style={s.cardEmptyText}>No term in session</Text>
               <Text style={s.cardHintText}>
-                Enjoy summer break — your schedule returns in the fall.
+                Enjoy summer break. Your schedule returns in the fall.
               </Text>
             </View>
           ) : schedState === 'none' ? (
@@ -304,7 +314,7 @@ const Home = () => {
             </View>
           ) : todayRows.length === 0 ? (
             <View style={s.cardCenter}>
-              <Text style={s.cardEmptyText}>No classes today 🎉</Text>
+              <Text style={s.cardEmptyText}>No classes today</Text>
             </View>
           ) : (
             todayRows.map((row, i) => (
@@ -367,7 +377,7 @@ const Home = () => {
               ) : null}
               {/* The heuristic must never be surfaced without its disclaimer. */}
               <Text style={s.outlookDisclaimer} numberOfLines={2}>
-                Estimate only — confirm with your advisor and the LOCUS degree audit.
+                Estimate only. Confirm with your advisor and the LOCUS degree audit.
               </Text>
             </View>
           </>
@@ -377,8 +387,13 @@ const Home = () => {
         <Text style={s.sectionHeader}>Library Hours</Text>
         <View style={s.card}>
           {libLoading ? (
-            <View style={s.cardCenter}>
-              <ActivityIndicator color="#A30046" />
+            <View>
+              {[0, 1, 2].map((i) => (
+                <View key={i} style={[s.libRow, i < 2 && s.classRowBorder]}>
+                  <Skeleton width={150} height={13} />
+                  <Skeleton width={70} height={13} />
+                </View>
+              ))}
             </View>
           ) : libLocations.length === 0 ? (
             <View style={s.cardCenter}>
@@ -410,7 +425,7 @@ const Home = () => {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: BG,
   },
   scrollContent: {
     paddingHorizontal: 16,

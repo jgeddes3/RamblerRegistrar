@@ -8,6 +8,8 @@ import {
   ActivityIndicator, Modal, Alert, StyleSheet, Platform, StatusBar,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { BG } from '../theme';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useAppContext } from '../AppContext';
@@ -162,7 +164,11 @@ const WatchToggle = ({ watching, disabled, onPress }) => (
     accessibilityLabel={watching ? 'Stop watching for open seats' : 'Watch for open seats'}
   >
     <Text style={[s.watchBtnText, watching && s.watchBtnTextActive]}>
-      {watching ? '🔔 Watching' : '🔕 Watch'}
+      <Ionicons
+        name={watching ? 'notifications' : 'notifications-outline'}
+        size={12}
+        color={watching ? '#FFFFFF' : '#A30046'}
+      /> {watching ? 'Watching' : 'Watch'}
     </Text>
   </TouchableOpacity>
 );
@@ -374,7 +380,7 @@ const ScheduleScreen = () => {
     }
     for (const [key, days] of pairDays) {
       const [l1, l2] = key.split('|');
-      out.push({ kind: 'conflict', text: `⛔ ${l1} overlaps ${l2} (${[...days].join(', ')})` });
+      out.push({ kind: 'conflict', text: `${l1} overlaps ${l2} (${[...days].join(', ')})` });
     }
     for (const g of tightGaps) {
       const from = matchBuilding(buildings, g.from.section?.building);
@@ -383,7 +389,7 @@ const ScheduleScreen = () => {
       const toName = to?.name || g.to.section?.building || '?';
       out.push({
         kind: 'gap',
-        text: `⚠ ${g.gapMin} min gap, ~${g.walkMin} min walk: ${fromName} → ${toName} (${g.from.day})`,
+        text: `${g.gapMin} min gap, ~${g.walkMin} min walk: ${fromName} → ${toName} (${g.from.day})`,
       });
     }
     return out;
@@ -669,21 +675,21 @@ const ScheduleScreen = () => {
           <Text style={s.subtitle}>{TERM.label}</Text>
         </View>
         <TouchableOpacity style={s.headerBtn} onPress={exportIcs} accessibilityLabel="Export schedule">
-          <Text style={s.headerBtnText}>⤴</Text>
+          <Ionicons name="share-outline" size={18} color="#A30046" />
         </TouchableOpacity>
         <TouchableOpacity
           style={s.headerBtn}
           onPress={() => setGenVisible(true)}
           accessibilityLabel="Generate schedule"
         >
-          <Text style={s.headerBtnText}>✨</Text>
+          <Ionicons name="color-wand-outline" size={18} color="#A30046" />
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.headerBtn, s.headerBtnPrimary]}
           onPress={() => setAddVisible(true)}
           accessibilityLabel="Add class"
         >
-          <Text style={[s.headerBtnText, s.headerBtnTextPrimary]}>+</Text>
+          <Ionicons name="add" size={22} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
@@ -702,7 +708,7 @@ const ScheduleScreen = () => {
         </View>
       ) : sections.length === 0 ? (
         <View style={s.centerWrap}>
-          <Text style={s.emptyTitle}>No classes yet — tap + to add</Text>
+          <Text style={s.emptyTitle}>No classes yet. Tap + to add</Text>
           <Text style={s.emptyHint}>Search any course and pick a section.</Text>
         </View>
       ) : (
@@ -712,7 +718,11 @@ const ScheduleScreen = () => {
             <View style={s.warnBanner}>
               {warnings.map((w, i) => (
                 <Text key={i} style={[s.warnText, w.kind === 'conflict' && s.warnTextConflict]}>
-                  {w.text}
+                  <Ionicons
+                    name={w.kind === 'conflict' ? 'close-circle' : 'warning-outline'}
+                    size={13}
+                    color={w.kind === 'conflict' ? '#b00020' : '#8a6d1d'}
+                  /> {w.text}
                 </Text>
               ))}
             </View>
@@ -849,7 +859,11 @@ const ScheduleScreen = () => {
                     pickedWarning.level === 'high' ? s.pickedFillWarnHigh : s.pickedFillWarnAmber,
                   ]}
                 >
-                  ⚡ {pickedWarning.text}
+                  <Ionicons
+                    name="flash"
+                    size={12}
+                    color={pickedWarning.level === 'high' ? '#b91c1c' : '#92400e'}
+                  /> {pickedWarning.text}
                 </Text>
               ) : null}
               {courseSectionsLoading ? (
@@ -889,12 +903,14 @@ const ScheduleScreen = () => {
                       <Text style={s.courseRowCode}>{item.code}</Text>
                       <Text style={s.courseRowName} numberOfLines={1}>{item.name}</Text>
                       {counts ? (
-                        <Text style={s.countsMarker}>✓ Counts toward your degree</Text>
+                        <Text style={s.countsMarker}>
+                          <Ionicons name="checkmark-circle-outline" size={11} color="#065f46" /> Counts toward your degree
+                        </Text>
                       ) : null}
                     </View>
                     {fw ? (
                       fw.level === 'info' ? (
-                        <Text style={s.fillInfoGlyph}>⚡</Text>
+                        <Ionicons name="flash-outline" size={14} color="#999" style={{ marginLeft: 8 }} />
                       ) : (
                         <View style={[s.fillBadge, fw.level === 'high' ? s.fillBadgeHigh : s.fillBadgeAmber]}>
                           <Text
@@ -903,7 +919,11 @@ const ScheduleScreen = () => {
                               fw.level === 'high' ? s.fillBadgeTextHigh : s.fillBadgeTextAmber,
                             ]}
                           >
-                            ⚡ Fills fast
+                            <Ionicons
+                              name="flash"
+                              size={11}
+                              color={fw.level === 'high' ? '#b91c1c' : '#92400e'}
+                            /> Fills fast
                           </Text>
                         </View>
                       )
@@ -931,10 +951,10 @@ const ScheduleScreen = () => {
 // =============================================================================
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: BG },
   centerWrap: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#FFFFFF', paddingHorizontal: 24,
+    backgroundColor: BG, paddingHorizontal: 24,
   },
 
   // Header
@@ -951,8 +971,6 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#A30046', backgroundColor: '#FFFFFF',
   },
   headerBtnPrimary: { backgroundColor: '#A30046' },
-  headerBtnText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 18, color: '#A30046', marginTop: -2 },
-  headerBtnTextPrimary: { color: '#FFFFFF', fontFamily: 'CormorantGaramond-Regular', fontSize: 22 },
 
   // Warnings banner
   warnBanner: {
@@ -1029,7 +1047,7 @@ const s = StyleSheet.create({
   },
 
   // Modal
-  modalContainer: { flex: 1, backgroundColor: '#FFFFFF', paddingTop: STATUSBAR_HEIGHT },
+  modalContainer: { flex: 1, backgroundColor: BG, paddingTop: STATUSBAR_HEIGHT },
   modalHeader: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingBottom: 8,
@@ -1072,7 +1090,6 @@ const s = StyleSheet.create({
   fillBadgeText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 11, fontWeight: 'bold' },
   fillBadgeTextHigh: { color: '#b91c1c' },
   fillBadgeTextAmber: { color: '#92400e' },
-  fillInfoGlyph: { fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#999', marginLeft: 8 },
   pickedFillWarn: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, paddingHorizontal: 16, marginBottom: 6, fontWeight: '600' },
   pickedFillWarnHigh: { color: '#b91c1c' },
   pickedFillWarnAmber: { color: '#92400e' },

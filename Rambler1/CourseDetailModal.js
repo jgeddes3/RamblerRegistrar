@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Modal, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, StyleSheet, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { getCourseSections, fetchCourseDetail, fetchWatches, addWatch, removeWatch } from './firestore-data';
 import { searchProfessors } from './rmp';
 import { useAppContext } from './AppContext';
@@ -223,7 +224,9 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
           {/* Fill-speed warning (empirical, last registration term) */}
           {fillNotice ? (
             fillNotice.level === 'info' ? (
-              <Text style={s.fillInfoLine}>⚡ {fillNotice.text}</Text>
+              <Text style={s.fillInfoLine}>
+                <Ionicons name="flash-outline" size={13} color="#888" /> {fillNotice.text}
+              </Text>
             ) : (
               <View style={[s.fillBanner, fillNotice.level === 'high' ? s.fillBannerHigh : s.fillBannerWarn]}>
                 <Text
@@ -232,7 +235,11 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                     fillNotice.level === 'high' ? s.fillBannerTextHigh : s.fillBannerTextWarn,
                   ]}
                 >
-                  ⚡ {fillNotice.text}
+                  <Ionicons
+                    name="flash"
+                    size={14}
+                    color={fillNotice.level === 'high' ? '#b91c1c' : '#92400e'}
+                  /> {fillNotice.text}
                 </Text>
               </View>
             )
@@ -246,7 +253,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
 
           {/* Sections */}
           <Text style={s.termLabel}>
-            {singleSection ? `Section ${singleSection.section_number} — ${TERM.label}` : `${TERM.label} Sections`}
+            {singleSection ? `Section ${singleSection.section_number} · ${TERM.label}` : `${TERM.label} Sections`}
           </Text>
 
           <ScrollView style={s.sectionsList} showsVerticalScrollIndicator={false}>
@@ -301,7 +308,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                     {/* Schedule */}
                     {(sec.meeting_days || sec.meeting_time_start) ? (
                       <View style={s.infoRow}>
-                        <Text style={s.infoIcon}>🕐</Text>
+                        <Ionicons name="time-outline" size={14} color="#888" style={s.infoIcon} />
                         <Text style={s.infoText}>
                           {sec.meeting_days}{sec.meeting_time_start ? `  ${sec.meeting_time_start} - ${sec.meeting_time_end}` : ''}
                         </Text>
@@ -311,14 +318,14 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                     {/* Location */}
                     {(sec.building || sec.room) ? (
                       <View style={s.infoRow}>
-                        <Text style={s.infoIcon}>📍</Text>
+                        <Ionicons name="location-outline" size={14} color="#888" style={s.infoIcon} />
                         <Text style={s.infoText}>{[sec.building, sec.room].filter(Boolean).join(' ')}</Text>
                       </View>
                     ) : null}
 
                     {/* Enrollment */}
                     <View style={s.infoRow}>
-                      <Text style={s.infoIcon}>👥</Text>
+                      <Ionicons name="people-outline" size={14} color="#888" style={s.infoIcon} />
                       <Text style={s.infoText}>
                         {hasEnrollment
                           ? `${sec.enrollment_total} / ${sec.enrollment_cap} enrolled${spotsLeft > 0 ? `  •  ${spotsLeft} seats open` : ''}`
@@ -335,7 +342,11 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                         accessibilityLabel={isWatched ? 'Stop watching for open seats' : 'Watch for open seats'}
                       >
                         <Text style={[s.watchBtnText, isWatched && s.watchBtnTextActive]}>
-                          {isWatched ? '🔔 Watching' : '🔕 Watch'}
+                          <Ionicons
+                            name={isWatched ? 'notifications' : 'notifications-outline'}
+                            size={12}
+                            color={isWatched ? '#FFFFFF' : '#A30046'}
+                          /> {isWatched ? 'Watching' : 'Watch'}
                         </Text>
                       </TouchableOpacity>
                     ) : null}
@@ -564,7 +575,6 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   infoIcon: {
-    fontSize: 14,
     width: 24,
   },
   infoText: {

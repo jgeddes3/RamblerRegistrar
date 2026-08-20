@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getLibraryHours, getLibraryHoursWeekly } from '../campus-api';
+import { BG } from '../theme';
 
 const MAROON = '#A30046';
 const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -175,12 +176,12 @@ const LibraryScreen = () => {
 // -------------------------------------------------------------------- styles
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: BG },
   content: { padding: 16, paddingBottom: 32 },
   emptyContainer: { flexGrow: 1 },
   centerWrap: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#FFFFFF', paddingHorizontal: 24,
+    backgroundColor: BG, paddingHorizontal: 24,
   },
   loadingText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 16, color: '#999', marginTop: 12 },
   emptyTitle: {

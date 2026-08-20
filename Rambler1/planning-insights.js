@@ -22,19 +22,19 @@
  */
 
 const DAY12_HIGH_TEXT =
-  'Filled before sophomore registration opened last term — have a backup plan.';
+  'Filled before sophomore registration opened last term. Have a backup plan.';
 const DAY12_INFO_TEXT =
-  'Fills on day one of registration — register the moment your window opens.';
+  'Fills on day one of registration. Register the moment your window opens.';
 const FIRST_WEEK_WARN_TEXT =
-  'Filled during registration week last term — register the moment your window opens.';
+  'Filled during registration week last term. Register the moment your window opens.';
 const FIRST_WEEK_INFO_TEXT =
   'Fills within the first week of registration.';
 const CAP_CHANGED_SUFFIX =
   ' (seat counts changed last term, so treat as an estimate)';
 const ATHLETE_PRIORITY_TEXT =
-  'Your athlete priority window opens before general registration — register early and you should be fine.';
+  'Your athlete priority window opens before general registration. Register early and you should be fine.';
 const HONORS_PRIORITY_TEXT =
-  'You have Honors priority — register right when your window opens.';
+  'You have Honors priority. Register right when your window opens.';
 
 /**
  * @param {object|null} fillStats - { class: 'day1-2'|'first-week'|'steady'|'open',
@@ -251,8 +251,8 @@ export function requirementCoverage({
  * @param {number} params.plannedCount
  * @param {number|null} [params.neededPerSemester] - nullable; when absent the
  *   pace clause is omitted.
- * @returns {string} e.g. "Covers 2 of your remaining requirements — you need
- *   ~5/semester to stay on pace." Empty string when nothing is planned.
+ * @returns {string} e.g. "Covers 2 of your remaining requirements. You need
+ *   about 5/semester to stay on pace." Empty string when nothing is planned.
  */
 export function coverageSummaryLine({ coveredCount, plannedCount, neededPerSemester } = {}) {
   const plannedN = Number.isFinite(plannedCount) ? plannedCount : 0;
@@ -266,7 +266,7 @@ export function coverageSummaryLine({ coveredCount, plannedCount, neededPerSemes
   if (Number.isFinite(neededPerSemester)) {
     // "about", not "~": the tilde renders like a minus sign in the brand serif
     // font ("~13/semester" read as "-13/semester" — caught in a visual check).
-    return `${base} — you need about ${neededPerSemester}/semester to stay on pace.`;
+    return `${base}. You need about ${neededPerSemester}/semester to stay on pace.`;
   }
   return `${base}.`;
 }

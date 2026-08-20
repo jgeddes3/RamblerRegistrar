@@ -4,6 +4,9 @@ import {
   ActivityIndicator, Keyboard, Animated, StyleSheet,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import { BG } from '../theme';
+import Skeleton from '../components/Skeleton';
 import { useAppContext } from '../AppContext';
 import { searchCourses as apiSearchCourses, getCourseSections, searchByInstructor } from '../firestore-data';
 import { fetchCourses as fetchLocalCourses } from '../Database';
@@ -206,7 +209,11 @@ const CourseCard = ({ course, sections, sectionsLoading, filters, onCoursePress,
                     numberOfLines={1}
                     style={[s.fillFlagText, fillFlag.tone === 'danger' ? s.fillFlagTextDanger : s.fillFlagTextWarn]}
                   >
-                    ⚡ {fillFlag.label}
+                    <Ionicons
+                      name="flash"
+                      size={11}
+                      color={fillFlag.tone === 'danger' ? '#b91c1c' : '#92400e'}
+                    /> {fillFlag.label}
                   </Text>
                 </View>
               ) : null}
@@ -529,9 +536,15 @@ const SearchScreen = () => {
           <Text style={s.hintText}>Try: COMP 170, calculus, Dr. Smith</Text>
         </ScrollView>
       ) : loading && results.length === 0 ? (
-        <View style={s.loadingWrap}>
-          <ActivityIndicator size="large" color="#A30046" />
-          <Text style={s.loadingText}>Searching...</Text>
+        <View style={{ paddingTop: 10 }}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={s.card}>
+              <View style={{ padding: 14 }}>
+                <Skeleton width={110} height={14} />
+                <Skeleton width={210} height={12} style={{ marginTop: 8 }} />
+              </View>
+            </View>
+          ))}
         </View>
       ) : results.length === 0 && !loading ? (
         <View style={s.emptyWrap}>
@@ -574,7 +587,7 @@ const SearchScreen = () => {
 // =============================================================================
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: BG },
 
   // Search bar
   searchBarWrap: {
@@ -841,13 +854,6 @@ const s = StyleSheet.create({
     color: '#CCC',
     textAlign: 'center',
     marginTop: 30,
-  },
-  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
-    color: '#999',
-    marginTop: 12,
   },
   emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyTitle: {

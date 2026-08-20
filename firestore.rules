@@ -15,7 +15,9 @@ rules_version = '2';
 //   USER DATA (read+write: document owner only):
 //     users/{uid}  { selectedProgramId?, selectedProgram2Id?, selectedMinors[],
 //                    graduationYear?, classYear?, expoPushToken?, isHonors?,
-//                    isAthlete?, selectedFocusId?, createdAt?, updatedAt? }
+//                    isAthlete?, selectedFocusId?, termsAcceptedVersion?,
+//                    privacyAcceptedVersion?, legalAcceptedAt?,
+//                    createdAt?, updatedAt? }
 //       courses/{courseCode}  { status?, grade?, semester?, courseCode? }
 //       locations/{label}     { label?, address?, latitude, longitude, isPrimary? }
 //       private/{doc}         { scores, code?, profileName?, answers?, schedulingPrefs?, createdAt? }
@@ -51,6 +53,7 @@ service cloud.firestore {
       return d.keys().hasOnly(['selectedProgramId','selectedProgram2Id','selectedMinors',
                                'graduationYear','classYear','expoPushToken',
                                'isHonors','isAthlete','selectedFocusId',
+                               'termsAcceptedVersion','privacyAcceptedVersion','legalAcceptedAt',
                                'createdAt','updatedAt'])
         && (!('isHonors' in d) || d.isHonors is bool)
         && (!('isAthlete' in d) || d.isAthlete is bool)
@@ -61,6 +64,9 @@ service cloud.firestore {
         && optStr(d, 'classYear', 12)
         && optStr(d, 'expoPushToken', 300)
         && optStr(d, 'selectedFocusId', 120)
+        && optStr(d, 'termsAcceptedVersion', 20)
+        && optStr(d, 'privacyAcceptedVersion', 20)
+        && (!('legalAcceptedAt' in d) || d.legalAcceptedAt is timestamp)
         && (!('createdAt' in d) || d.createdAt is timestamp)
         && (!('updatedAt' in d) || d.updatedAt is timestamp);
     }

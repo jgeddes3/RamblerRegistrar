@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BG } from '../theme';
+import { openTerms, openPrivacy } from '../legal';
 
 const MAROON = '#A30046';
 
@@ -22,6 +24,23 @@ const MENU_ROWS = [
     label: 'Campus Events',
     sublabel: 'What’s happening at Loyola',
     icon: 'calendar-outline',
+  },
+];
+
+const LEGAL_ROWS = [
+  {
+    key: 'terms',
+    label: 'Terms of Service',
+    sublabel: 'The agreement covering your use',
+    icon: 'document-text-outline',
+    onPress: openTerms,
+  },
+  {
+    key: 'privacy',
+    label: 'Privacy Policy',
+    sublabel: 'What we collect and how it’s used',
+    icon: 'shield-checkmark-outline',
+    onPress: openPrivacy,
   },
 ];
 
@@ -61,13 +80,34 @@ const MoreScreen = ({ navigation }) => (
         </View>
       </View>
     </View>
+
+    {/* Legal — opens the canonical documents on the web (see legal.js). */}
+    <View style={styles.card}>
+      {LEGAL_ROWS.map((row, index) => (
+        <TouchableOpacity
+          key={row.key}
+          style={[styles.row, index < LEGAL_ROWS.length - 1 && styles.rowBorder]}
+          onPress={row.onPress}
+          activeOpacity={0.6}
+        >
+          <View style={styles.iconWrap}>
+            <Ionicons name={row.icon} size={22} color={MAROON} />
+          </View>
+          <View style={styles.rowText}>
+            <Text style={styles.rowLabel}>{row.label}</Text>
+            <Text style={styles.rowSublabel}>{row.sublabel}</Text>
+          </View>
+          <Ionicons name="open-outline" size={18} color="#C0C0C0" />
+        </TouchableOpacity>
+      ))}
+    </View>
   </ScrollView>
 );
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: BG,
   },
   content: {
     padding: 20,

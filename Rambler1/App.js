@@ -9,9 +9,13 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
 import { initDatabase } from './Database';
-import { ensureAnonymousSignIn } from './auth';
+import { BG } from './theme';
+import { ensureAnonymousSignIn, signOut } from './auth';
 import { setupNotificationHandler, registerAndSaveToken } from './push';
 import { AppProvider, useAppContext } from './AppContext';
+import { needsLegalConsent, TERMS_VERSION, PRIVACY_VERSION } from './legal';
+import { saveUserProfile } from './firestore-data';
+import LegalConsentModal from './components/LegalConsentModal';
 import TopBar from './components/TopBar';
 import MenuOverlay from './components/MenuOverlay';
 import ProfileScreen from './screens/ProfileScreen';
@@ -101,9 +105,9 @@ const MoreStack = () => (
         color: '#A30046',
       },
       headerShadowVisible: false,
-      headerStyle: { backgroundColor: '#FFFFFF' },
+      headerStyle: { backgroundColor: BG },
       headerBackTitleVisible: false,
-      cardStyle: { backgroundColor: '#FFFFFF' },
+      cardStyle: { backgroundColor: BG },
     }}
   >
     <Stack.Screen name="MoreHome" component={MoreScreen} options={{ headerShown: false }} />
@@ -128,7 +132,7 @@ const MainTabs = () => {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+    <View style={{ flex: 1, backgroundColor: BG }}>
       <TopBar
         onMenuPress={() => setMenuVisible(true)}
         onProfilePress={() => setProfileVisible(true)}
@@ -197,6 +201,46 @@ const PushTokenGate = () => {
 };
 
 // =============================================================================
+// LEGAL CONSENT GATE — every signed-in real account must have accepted the
+// CURRENT Terms of Service + Privacy Policy versions (legal.js). Covers
+// accounts created before the gate shipped and any future version bump; new
+// signups accept inline in AccountSetup, so they normally never see this.
+// legalConsent === undefined means the profile hasn't loaded (or the fetch
+// failed) — never gate on unknown state, the next successful profile load
+// re-evaluates. Declining signs the account out (AppContext then resets to
+// the anonymous session and the AuthStack).
+// =============================================================================
+const LegalConsentGate = () => {
+  const { user, isLoggedIn, legalConsent, setLegalConsent } = useAppContext();
+
+  const show =
+    isLoggedIn &&
+    !!user &&
+    !user.isAnonymous &&
+    legalConsent !== undefined &&
+    needsLegalConsent(legalConsent);
+
+  const handleAccept = async () => {
+    const accepted = {
+      termsAcceptedVersion: TERMS_VERSION,
+      privacyAcceptedVersion: PRIVACY_VERSION,
+    };
+    const result = await saveUserProfile(user.uid, accepted);
+    // Only unblock once the acceptance is actually persisted — an optimistic
+    // update would let a failed write skip the gate until next launch.
+    if (result) setLegalConsent(accepted);
+  };
+
+  return (
+    <LegalConsentModal
+      visible={show}
+      onAccept={handleAccept}
+      onDecline={() => signOut().catch(() => {})}
+    />
+  );
+};
+
+// =============================================================================
 // ROOT — Switches between Auth and Main based on login state
 // =============================================================================
 const RootNavigator = () => {
@@ -247,6 +291,7 @@ const App = () => {
   return (
     <AppProvider>
       <PushTokenGate />
+      <LegalConsentGate />
       <View style={{ flex: 1, backgroundColor: '#A30046' }} onLayout={onLayoutRootView}>
         <NavigationContainer
           theme={{

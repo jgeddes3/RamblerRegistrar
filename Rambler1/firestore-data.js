@@ -580,6 +580,8 @@ export const fetchUserProfile = async (uid) => {
       is_honors: d.isHonors === true,
       is_athlete: d.isAthlete === true,
       selected_focus_id: d.selectedFocusId ?? null,
+      terms_accepted_version: d.termsAcceptedVersion ?? null,
+      privacy_accepted_version: d.privacyAcceptedVersion ?? null,
     };
 
     // Hydrate full program objects like the backend did (skip 'undecided' —
@@ -653,6 +655,20 @@ export const saveUserProfile = async (uid, profileData, _authToken) => {
       payload.selectedFocusId = data.selectedFocusId == null
         ? deleteField()
         : String(data.selectedFocusId).slice(0, 120);
+    }
+    // Legal consent stamps (rules: optStr <=20 each). Include ONLY when
+    // provided as non-empty strings so partial saves never touch a stored
+    // acceptance; legalAcceptedAt records WHEN the stamps were last written.
+    // These are how the consent gate (App.js LegalConsentGate) knows a user
+    // accepted the current Terms/Privacy versions — see legal.js.
+    if (typeof data.termsAcceptedVersion === 'string' && data.termsAcceptedVersion) {
+      payload.termsAcceptedVersion = data.termsAcceptedVersion.slice(0, 20);
+    }
+    if (typeof data.privacyAcceptedVersion === 'string' && data.privacyAcceptedVersion) {
+      payload.privacyAcceptedVersion = data.privacyAcceptedVersion.slice(0, 20);
+    }
+    if (payload.termsAcceptedVersion || payload.privacyAcceptedVersion) {
+      payload.legalAcceptedAt = serverTimestamp();
     }
     const ref = doc(db, 'users', userId);
     const existing = await getDoc(ref);

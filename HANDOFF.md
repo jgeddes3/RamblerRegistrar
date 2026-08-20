@@ -1,12 +1,23 @@
 # RamblerRegistrar — Session Handoff
 
-Last updated: 2026-07-06 (evening)
+Last updated: 2026-08-18
 
 > 📋 **See `archive/PROJECT_PLAN.md`** (gitignored) for the full security audit,
 > bug list, feature roadmap, and phased plan. Read it before major work.
 
 ## ⭐ USER TODO (next time at the machine)
 
+0. **Deploy the updated Firestore rules BEFORE testing the consent flow** —
+   `firebase deploy --only firestore:rules`. The consent feature (2026-08-18)
+   writes three new profile fields (`termsAcceptedVersion`,
+   `privacyAcceptedVersion`, `legalAcceptedAt`); until the rules deploy, the
+   LIVE validator rejects every profile write that includes them, so signup
+   profile saves fail silently and the consent gate re-asks on every launch.
+   **Also:** the Terms/Privacy links point at
+   `https://ramblerregistrar-9b066.web.app/{terms,privacy}/` (one constant in
+   `Rambler1/legal.js`) — the marketing site (RamblerRegistrarWeb) is not
+   deployed anywhere yet, so either deploy its `dist/` to Firebase Hosting on
+   this project or set the real domain in that constant. Links 404 until then.
 1. **Commit + push** — the working tree holds Phases 1→4-start (schedule builder, map,
    library/events, graduation outlook, fill warnings, priority flags, seat-alert
    poller + push infra, Firestore cost hardening, schedule generator). Huge verified
@@ -166,7 +177,40 @@ cd backend; node firestore-sync.js 1266 --reconcile
 
 ## Recent work history (newest first)
 
-- **2026-07-08 — B12 PHASE 2 + P1 TYPOGRAPHY SHIPPED (pause checkpoint before Phase 4.5).**
+- **2026-08-18 — LEGAL CONSENT: Terms + Privacy required for every account.**
+  The canonical documents are the marketing site's `/terms/` + `/privacy/`
+  pages (RamblerRegistrarWeb — DRAFT-flagged, hand-authored TSX; that repo's
+  `docs/legal/app-compliance-todo.md` is the compliance handoff). The app
+  deliberately carries NO copy of the document text (drift risk); it links out
+  and shows an accurate summary including the data-sharing/sale disclosure.
+  New: `Rambler1/legal.js` (URLs + `TERMS_VERSION`/`PRIVACY_VERSION` stamps +
+  `needsLegalConsent()` — bump a version to force re-consent app-wide),
+  `components/LegalConsentModal.js` (blocking sheet: summary, two required
+  checkboxes with links, accept persists / decline signs out, web-safe
+  confirm). AccountSetup now requires both checkboxes before the Next button
+  appears and stamps acceptance in the signup profile write. `LegalConsentGate`
+  (App.js) catches everyone else: any signed-in non-anonymous account whose
+  stored stamps don't match current versions — including all pre-existing
+  accounts (missing stamps = must consent; fetch-failed = gate stays hidden
+  until a successful profile load). Storage: `users/{uid}` gains
+  `termsAcceptedVersion`, `privacyAcceptedVersion`, `legalAcceptedAt`
+  (firestore.rules validator updated — DEPLOY RULES FIRST, see USER TODO #0).
+  MoreScreen gains a Legal card linking both documents. 183 tests green
+  (11 suites; new `__tests__/legal.test.js` covers the consent predicate).
+  Still open from the compliance handoff: the data-sale opt-out toggle
+  (`dataSaleOptOut`) and the home-address sale-scope decision.
+
+- **2026-08-17 — VIBECODE AUDIT + DE-SLOP PASS (see `VIBECODE_AUDIT.md`).**
+  Audited the UI against the "30 reasons your site looks vibecoded" checklist:
+  23 pass/N-A, 7 hits, 5 fixed this pass. Fixed: emoji UI glyphs → Ionicons
+  everywhere (incl. the ✨ generate button → wand); em dashes stripped from all
+  user-facing copy (tests updated in lockstep); pure-white screen backgrounds →
+  new `BG` token `#FAF9F7` in theme.js (cards stay white); new
+  `components/Skeleton.js` pulsing loaders on Home's two cards + Search results;
+  `COURSE_COLORS` re-built off Tailwind defaults into a CVD-validated
+  brand-anchored palette (Progress rings/badge + map HOME_BLUE re-anchored too).
+  Still open from the checklist: **privacy policy + TOS** (the existing Phase 5
+  legal item). 175 tests green (10 suites). Visual check on device pending.
   **Subject electives:** prose requirements ("Two PHIL 300-level Elective Courses") now
   modeled — new `program_subject_electives` table + requiredCourses docs
   (requirementType 'subject_elective'); requirement-progress satisfies them with any

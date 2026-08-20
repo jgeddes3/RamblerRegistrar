@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, Image, KeyboardAvoidingView, ScrollView, Platform, TouchableOpacity, StyleSheet, Switch } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from './AppContext';
 import { upgradeAnonymousAccount } from './auth';
 import { saveUserProfile, addUserCourse, saveQuizResults } from './firestore-data';
+import { openTerms, openPrivacy, TERMS_VERSION, PRIVACY_VERSION } from './legal';
 import SearchBar from './styleComponents/SearchBar';
 import BackgroundImage from './styleComponents/BackgroundImage';
 
@@ -17,9 +19,11 @@ const AccountSetup =() => {
   const [password, setPassword] = useState('');
   const [isHonors, setIsHonorsLocal] = useState(false);
   const [isAthlete, setIsAthleteLocal] = useState(false);
+  const [agreedTerms, setAgreedTerms] = useState(false);
+  const [agreedPrivacy, setAgreedPrivacy] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const { selectedProgram, selectedProgram2, selectedMinors, selectedCourses, setGraduationYear, setClassYear, setIsHonors, setIsAthlete, quizResults, setUser, setIsLoggedIn } = useAppContext();
+  const { selectedProgram, selectedProgram2, selectedMinors, selectedCourses, setGraduationYear, setClassYear, setIsHonors, setIsAthlete, quizResults, setUser, setIsLoggedIn, setLegalConsent } = useAppContext();
 
   const navigation = useNavigation();
   const currentYear = new Date().getFullYear();
@@ -33,6 +37,10 @@ const AccountSetup =() => {
       setErrorMessage('Password must be at least 6 characters');
       return;
     }
+    if (!agreedTerms || !agreedPrivacy) {
+      setErrorMessage('Please agree to the Terms of Service and Privacy Policy');
+      return;
+    }
     setErrorMessage('');
     setLoading(true);
     try {
@@ -42,9 +50,12 @@ const AccountSetup =() => {
       setIsHonors(isHonors);
       setIsAthlete(isAthlete);
 
-      // Save onboarding selections to Firestore
+      // Save onboarding selections to Firestore. The legal stamps record the
+      // consent the user just gave via the required checkboxes below — if this
+      // write fails, LegalConsentGate re-asks on the next launch (the gate
+      // treats a profile without stamps as un-consented).
       try {
-        await saveUserProfile(firebaseUser.uid, {
+        const saved = await saveUserProfile(firebaseUser.uid, {
           selectedProgramId: selectedProgram?.id || null,
           selectedProgram2Id: selectedProgram2?.id || null,
           selectedMinors: (selectedMinors || []).map(m => m.id),
@@ -52,7 +63,15 @@ const AccountSetup =() => {
           classYear: classYearLocal,
           isHonors: isHonors,
           isAthlete: isAthlete,
+          termsAcceptedVersion: TERMS_VERSION,
+          privacyAcceptedVersion: PRIVACY_VERSION,
         });
+        if (saved) {
+          setLegalConsent({
+            termsAcceptedVersion: TERMS_VERSION,
+            privacyAcceptedVersion: PRIVACY_VERSION,
+          });
+        }
 
         // Save quiz results to Firestore
         if (quizResults) {
@@ -169,7 +188,7 @@ const AccountSetup =() => {
                 thumbColor="#FFFFFF"
               />
             </View>
-            <Text style={s.toggleHint}>Honors and athletes get registration priority — this tunes course warnings</Text>
+            <Text style={s.toggleHint}>Honors and athletes get registration priority, which tunes course warnings</Text>
           </View>
           <View style={s.labelBadge}>
             <Text style={s.label}>Pick an email and password</Text>
@@ -177,6 +196,45 @@ const AccountSetup =() => {
           <SearchBar value={email} onChangeText={(text) => { setEmail(text); setErrorMessage(''); }} placeholder="Email" keyboardType="email-address" autoCapitalize="none" />
           <View style={{ height: 15 }} />
           <SearchBar value={password} onChangeText={(text) => { setPassword(text); setErrorMessage(''); }} placeholder="Password" secureTextEntry />
+          <View style={s.consentCard}>
+            <TouchableOpacity
+              style={s.consentRow}
+              onPress={() => setAgreedTerms(v => !v)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: agreedTerms }}
+              accessibilityLabel="Agree to the Terms of Service"
+            >
+              <Ionicons
+                name={agreedTerms ? 'checkbox' : 'square-outline'}
+                size={24}
+                color={agreedTerms ? '#A30046' : '#666'}
+                style={s.consentIcon}
+              />
+              <Text style={s.consentLabel}>
+                I have read and agree to the{' '}
+                <Text style={s.consentLink} onPress={openTerms}>Terms of Service</Text>
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.consentRow}
+              onPress={() => setAgreedPrivacy(v => !v)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: agreedPrivacy }}
+              accessibilityLabel="Agree to the Privacy Policy"
+            >
+              <Ionicons
+                name={agreedPrivacy ? 'checkbox' : 'square-outline'}
+                size={24}
+                color={agreedPrivacy ? '#A30046' : '#666'}
+                style={s.consentIcon}
+              />
+              <Text style={s.consentLabel}>
+                I have read and agree to the{' '}
+                <Text style={s.consentLink} onPress={openPrivacy}>Privacy Policy</Text>,
+                including the data sharing and sale it describes
+              </Text>
+            </TouchableOpacity>
+          </View>
           {errorMessage ? (
             <Text style={{ color: '#A30046', marginTop: 10, fontFamily: 'CormorantGaramond-Regular', fontSize: 16, textAlign: 'center' }}>
               {errorMessage}
@@ -184,7 +242,7 @@ const AccountSetup =() => {
           ) : null}
         </ScrollView>
         </KeyboardAvoidingView>
-        {year && classYearLocal && email && password ? (
+        {year && classYearLocal && email && password && agreedTerms && agreedPrivacy ? (
           <View style={s.stickyBottom}>
             <TouchableOpacity style={s.nextButton} onPress={handleNextButtonPress} disabled={loading}>
               <Text style={s.nextButtonText}>{loading ? '...' : 'Next'}</Text>
@@ -294,6 +352,35 @@ const s = StyleSheet.create({
   picker: {
     width: '100%',
     color: '#000000',
+  },
+  consentCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    width: 275,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    marginTop: 24,
+  },
+  consentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  consentIcon: {
+    marginRight: 8,
+    marginTop: 1,
+  },
+  consentLabel: {
+    flex: 1,
+    fontFamily: 'CormorantGaramond-Regular',
+    fontSize: 15,
+    color: '#333',
+    lineHeight: 20,
+  },
+  consentLink: {
+    color: '#A30046',
+    fontWeight: 'bold',
+    textDecorationLine: 'underline',
   },
   stickyBottom: {
     paddingTop: 6,

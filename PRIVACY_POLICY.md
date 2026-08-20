@@ -1,15 +1,18 @@
 # RamblerRegistrar Privacy Policy
 
-**Effective date:** July 9, 2026 (draft — not yet published)
+**Effective date:** August 20, 2026 (draft — not yet published)
 
 RamblerRegistrar is an independent, student-built class planning app for Loyola
 University Chicago students. It is not affiliated with, endorsed by, or operated
 by Loyola University Chicago.
 
 This policy explains what information the app collects, why, where it lives,
-and what your choices are. The short version: **we collect only what the app's
-features need, we never sell your data, and there are no ads or third-party
-analytics.**
+who we may share or sell it to, and what your choices are. The short version:
+**we collect what the app's features need; we may share and, in some cases,
+sell certain personal information (your name, your email address, and the
+personal data you enter in the app) to third parties; you can turn all selling
+and sharing off by emailing johngeddes@pm.me; and there are no ads or
+third-party analytics in the app.**
 
 ## What we collect
 
@@ -52,10 +55,11 @@ photos, advertising identifiers, or browsing analytics.
 - To notify you when a seat opens in a section you watch.
 - To fix problems you report.
 
-That's the whole list. We do not sell or rent your information, use it for
-advertising, or share it with other students. Your profile, grades, address,
-and plans are readable only by you (enforced by per-user database security
-rules).
+We also may share and, in some cases, sell certain personal information to
+third parties, as described in "Data sharing and sale" below. We do not use
+your information for advertising inside the app, and we never share it with
+other students: within the app, your profile, grades, address, and plans are
+readable only by you (enforced by per-user database security rules).
 
 ## Where your data lives
 
@@ -72,6 +76,21 @@ Two features send limited data to other services:
 - **Seat-alert delivery:** push notifications are delivered through Expo's
   notification service ([Expo privacy policy](https://expo.dev/privacy)).
 
+Third-party recipients of shared or sold data (see "Data sharing and sale"
+below) are a separate category in addition to the service providers above.
+
+## Data sharing and sale
+
+We may share and, in some cases, sell certain personal information to third
+parties. The categories we may share or sell are: your **name**, your **email
+address**, and the **personal data you input into the app** (such as your
+schedules, preferences, interests-quiz answers, and degree-progress entries).
+
+You can turn off all third-party selling and sharing by emailing
+**johngeddes@pm.me**. One request covers every third-party recipient. A
+one-switch opt-out in the app's Settings is a launch commitment; it is not
+built yet, so the email above is how you opt out today.
+
 ## Your choices and rights
 
 - **See or change your data:** your profile, courses, plans, schedules, and
@@ -79,6 +98,8 @@ Two features send limited data to other services:
 - **Remove your address:** replace or clear it in Profile at any time.
 - **Stop seat alerts:** unwatch sections, or disable notifications for the app
   in your device settings.
+- **Opt out of selling and sharing:** email us (address below) and we will stop
+  selling and sharing your personal information with third parties.
 - **Delete your account and data:** email us (address below) from your account
   email and we will delete your account and all associated data within 30 days.
   (In-app account deletion is planned.)
@@ -116,13 +137,21 @@ Questions, requests, or deletion: **johngeddes@pm.me**
 
 *Draft appendix for store submission (not part of the public policy):*
 
-**Google Play Data Safety mapping:** Collected — Email, Name (account
-management); User-entered address + coordinates (app functionality, optional);
-Academic info as "Other user-generated content" (app functionality); Push token
-as Device ID (app functionality). All encrypted in transit; deletion available
-on request; none shared with third parties for advertising; no data sold.
+> **DO NOT FILE AS-IS.** Now that the data sale is disclosed, both store
+> mappings below are stale and must be redone with counsel before submission:
+> Google Play Data Safety requires declaring the sale under "Data shared", and
+> selling name + email + user content to third parties for their own use very
+> likely counts as "Data Used to Track You" under Apple's definition.
 
-**Apple App Privacy mapping:** Contact Info (email, name) — linked to user;
-User Content (academic profile, plans, feedback) — linked to user; Identifiers
-(push token) — linked to user; Location — NOT collected (user-entered address
-is User Content, not device location). No tracking.
+**Google Play Data Safety mapping (STALE — pre-sale-disclosure draft):**
+Collected — Email, Name (account management); User-entered address +
+coordinates (app functionality, optional); Academic info as "Other
+user-generated content" (app functionality); Push token as Device ID (app
+functionality). All encrypted in transit; deletion available on request.
+"Data shared" / sale declarations MUST be added per the note above.
+
+**Apple App Privacy mapping (STALE — pre-sale-disclosure draft):** Contact
+Info (email, name) — linked to user; User Content (academic profile, plans,
+feedback) — linked to user; Identifiers (push token) — linked to user;
+Location — NOT collected (user-entered address is User Content, not device
+location). The "No tracking" claim MUST be re-evaluated per the note above.

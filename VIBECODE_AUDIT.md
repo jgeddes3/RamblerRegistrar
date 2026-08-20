@@ -41,8 +41,8 @@ database-persisted consent flow (see HANDOFF "Recent work").
 | 23 | Dot grids | PASS | None. |
 | 24 | Sparkle icons | **HIT → FIXED** | ✨ was the schedule-generator header button — the canonical AI-feature tell. Now `color-wand-outline`; the ⤴ export glyph became `share-outline` and + became the `add` icon. |
 | 25 | Animated arrows | PASS | None. (A static `→` inside gap-warning text is informational, kept.) |
-| 26 | No TOS | **HIT → FIXED (2026-08-18)** | The canonical Terms live on the marketing site (`/terms/`, RamblerRegistrarWeb — draft pending counsel). The app links to them (More → Legal, signup, consent gate) and every account must accept them: required checkbox at signup + a blocking version-stamped re-consent gate for existing accounts, persisted to `users/{uid}` (see `Rambler1/legal.js`). Launch TODO: deploy the site so the links resolve, finalize the drafts, bump versions. |
-| 27 | No privacy policy | **HIT → FIXED (2026-08-18)** | Same mechanism, same gate — acceptance of the Privacy Policy (including its data-sharing/sale disclosure) is separately checkboxed and separately version-stamped (`privacyAcceptedVersion`). Store submission still needs the policy at a public URL — covered by the same site deploy. |
+| 26 | No TOS | **HIT → FIXED (2026-08-20)** | Full Terms of Service embedded in-app (`Rambler1/terms-content.js`, converted from the marketing site's canonical `/terms/` page) and readable from Login, More, and signup. Every account must accept them: required checkbox at signup + the blocking version-stamped re-consent gate in App.js, persisted as `termsVersion`/`termsAcceptedAt` on `users/{uid}`. |
+| 27 | No privacy policy | **HIT → FIXED (pre-existing + corrected 2026-08-20)** | The app already shipped an embedded, consent-gated Privacy Policy (`privacy-policy-content.js`). This pass corrected its false "we never sell your data" claims to match the site's data-sharing/sale disclosure and bumped `POLICY_VERSION` so every account re-consents to the corrected text. |
 | 28 | Hover animations for everything | PASS | None (RN press feedback only). |
 | 29 | Neon colors | PASS | None. |
 | 30 | Basic pastel colors | PASS (borderline) | The Tailwind-100 tints (`#fef3c7`/`#d1fae5`/`#fee2e2`) are pastel but used strictly as status-badge backgrounds. Acceptable; optionally re-tint toward brand later. |
@@ -77,10 +77,12 @@ All 175 tests green (10 suites).
 
 ## Recommended follow-ups (not done this pass)
 
-1. ~~**Privacy policy + Terms of Service**~~ — DONE 2026-08-18 (linked canonical
-   site documents + mandatory consent stored in Firestore). Remaining launch
-   work: deploy the site so links resolve, counsel review of the drafts, and
-   the data-sale opt-out toggle from the compliance handoff.
+1. ~~**Privacy policy + Terms of Service**~~ — DONE 2026-08-20 (both documents
+   embedded in-app with mandatory version-stamped consent stored in Firestore;
+   policy text corrected to disclose the data sharing/sale). Remaining launch
+   work: deploy the marketing site, counsel review of the drafts, redo the
+   store Data-Safety/App-Privacy mappings (see PRIVACY_POLICY.md appendix
+   note), and the data-sale opt-out toggle from the compliance handoff.
 2. **Gray consolidation** — ~25 ad-hoc grays (#333/#555/#666/#888/#999/#ccc/#ddd…)
    across the app. Define a 5-step gray scale in theme.js and sweep. Not a video
    item, but the same genre of tell.

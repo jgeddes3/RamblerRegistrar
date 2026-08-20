@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { signIn } from './auth';
 import { useAppContext } from './AppContext';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
+import { TERMS_TITLE, TERMS_SECTIONS } from './terms-content';
 import BackgroundImage from './styleComponents/BackgroundImage';
 import LogoImage from './styleComponents/LogoImage1';
 import CustomButton from './styleComponents/customButton1';
@@ -15,6 +16,7 @@ const Login = ({ navigation }) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [policyVisible, setPolicyVisible] = useState(false);
+  const [termsVisible, setTermsVisible] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -88,27 +90,50 @@ const Login = ({ navigation }) => {
             Sign up
           </CustomButton>
         </View>
-        <TouchableOpacity
-          onPress={() => setPolicyVisible(true)}
-          accessibilityLabel="Read the Privacy Policy"
-        >
-          <Text
-            style={{
-              fontFamily: 'CormorantGaramond-Regular',
-              fontSize: 15,
-              color: 'black',
-              textDecorationLine: 'underline',
-              marginTop: 24,
-            }}
+        <View style={{ flexDirection: 'row', gap: 22, marginTop: 24 }}>
+          <TouchableOpacity
+            onPress={() => setTermsVisible(true)}
+            accessibilityLabel="Read the Terms of Service"
           >
-            Privacy Policy
-          </Text>
-        </TouchableOpacity>
+            <Text
+              style={{
+                fontFamily: 'CormorantGaramond-Regular',
+                fontSize: 15,
+                color: 'black',
+                textDecorationLine: 'underline',
+              }}
+            >
+              Terms of Service
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setPolicyVisible(true)}
+            accessibilityLabel="Read the Privacy Policy"
+          >
+            <Text
+              style={{
+                fontFamily: 'CormorantGaramond-Regular',
+                fontSize: 15,
+                color: 'black',
+                textDecorationLine: 'underline',
+              }}
+            >
+              Privacy Policy
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
       <PrivacyPolicyModal
         visible={policyVisible}
         mode="view"
         onClose={() => setPolicyVisible(false)}
+      />
+      <PrivacyPolicyModal
+        visible={termsVisible}
+        mode="view"
+        title={TERMS_TITLE}
+        sections={TERMS_SECTIONS}
+        onClose={() => setTermsVisible(false)}
       />
     </BackgroundImage>
   );

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import FeedbackModal from '../components/FeedbackModal';
 import PrivacyPolicyModal from '../components/PrivacyPolicyModal';
+import { TERMS_TITLE, TERMS_SECTIONS } from '../terms-content';
 import ProfileScreen from './ProfileScreen';
 
 const MAROON = '#A30046';
@@ -62,6 +63,7 @@ const MoreScreen = ({ navigation }) => {
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
   const [policyVisible, setPolicyVisible] = useState(false);
+  const [termsVisible, setTermsVisible] = useState(false);
   return (
   <ScrollView style={styles.container} contentContainerStyle={styles.content}>
     <Text style={styles.title}>More</Text>
@@ -119,6 +121,21 @@ const MoreScreen = ({ navigation }) => {
         <Ionicons name="chevron-forward" size={20} color="#C0C0C0" />
       </TouchableOpacity>
       <TouchableOpacity
+        style={[styles.row, styles.rowBorder]}
+        onPress={() => setTermsVisible(true)}
+        activeOpacity={0.6}
+        accessibilityLabel="Read the Terms of Service"
+      >
+        <View style={styles.iconWrap}>
+          <Ionicons name="document-text-outline" size={22} color={MAROON} />
+        </View>
+        <View style={styles.rowText}>
+          <Text style={styles.rowLabel}>Terms of Service</Text>
+          <Text style={styles.rowSublabel}>The agreement covering your use</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#C0C0C0" />
+      </TouchableOpacity>
+      <TouchableOpacity
         style={styles.row}
         onPress={() => setPolicyVisible(true)}
         activeOpacity={0.6}
@@ -138,6 +155,13 @@ const MoreScreen = ({ navigation }) => {
     <FeedbackModal visible={feedbackVisible} onClose={() => setFeedbackVisible(false)} context="More screen" />
     <ProfileScreen visible={profileVisible} onClose={() => setProfileVisible(false)} />
     <PrivacyPolicyModal visible={policyVisible} mode="view" onClose={() => setPolicyVisible(false)} />
+    <PrivacyPolicyModal
+      visible={termsVisible}
+      mode="view"
+      title={TERMS_TITLE}
+      sections={TERMS_SECTIONS}
+      onClose={() => setTermsVisible(false)}
+    />
   </ScrollView>
   );
 };

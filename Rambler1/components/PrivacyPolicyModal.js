@@ -1,4 +1,7 @@
-// components/PrivacyPolicyModal.js — full-screen privacy policy reader.
+// components/PrivacyPolicyModal.js — full-screen legal document reader.
+// Renders the Privacy Policy by default; pass `title`/`sections`/`agreeLabel`
+// (e.g. from terms-content.js) to show the Terms of Service with the same
+// reader and consent chrome.
 // Two modes:
 //   'view'    — just reading; Close affordance in the header (onClose).
 //   'consent' — blocking agreement gate; no close, sticky bottom bar with
@@ -12,7 +15,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { POLICY_TITLE, POLICY_SECTIONS } from '../privacy-policy-content';
 import { FONT, FONT_MED, FONT_SEMI, MAROON, PARCHMENT, INK, STONE, HAIRLINE, SURFACE } from '../theme';
 
-const PrivacyPolicyModal = ({ visible, mode = 'view', onClose, onAccept, onDecline }) => {
+const PrivacyPolicyModal = ({
+  visible,
+  mode = 'view',
+  onClose,
+  onAccept,
+  onDecline,
+  title = POLICY_TITLE,
+  sections = POLICY_SECTIONS,
+  agreeLabel = 'I agree to the Privacy Policy',
+}) => {
   const consent = mode === 'consent';
 
   return (
@@ -23,16 +35,16 @@ const PrivacyPolicyModal = ({ visible, mode = 'view', onClose, onAccept, onDecli
     >
       <View style={s.page}>
         <View style={s.header}>
-          <Text style={s.headerTitle}>{POLICY_TITLE}</Text>
+          <Text style={s.headerTitle}>{title}</Text>
           {!consent ? (
-            <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel="Close privacy policy">
+            <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel={`Close ${title}`}>
               <Ionicons name="close" size={26} color={MAROON} />
             </TouchableOpacity>
           ) : null}
         </View>
 
         <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
-          {POLICY_SECTIONS.map((section, i) => (
+          {sections.map((section, i) => (
             <View key={i} style={s.section}>
               {section.title ? <Text style={s.sectionTitle}>{section.title}</Text> : null}
               {section.paragraphs.map((p, j) => (
@@ -47,9 +59,9 @@ const PrivacyPolicyModal = ({ visible, mode = 'view', onClose, onAccept, onDecli
             <TouchableOpacity
               style={s.agreeBtn}
               onPress={onAccept}
-              accessibilityLabel="I agree to the Privacy Policy"
+              accessibilityLabel={agreeLabel}
             >
-              <Text style={s.agreeBtnText}>I agree to the Privacy Policy</Text>
+              <Text style={s.agreeBtnText}>{agreeLabel}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={s.declineBtn}

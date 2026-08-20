@@ -617,6 +617,8 @@ export const fetchUserProfile = async (uid) => {
       selected_focus_id: d.selectedFocusId ?? null,
       privacy_policy_version: d.privacyPolicyVersion ?? null,
       privacy_policy_accepted_at: d.privacyPolicyAcceptedAt ?? null,
+      terms_version: d.termsVersion ?? null,
+      terms_accepted_at: d.termsAcceptedAt ?? null,
     };
 
     // Hydrate full program objects like the backend did (skip 'undecided' —
@@ -697,6 +699,12 @@ export const saveUserProfile = async (uid, profileData, _authToken) => {
     if (typeof data.privacyPolicyVersion === 'string' && data.privacyPolicyVersion) {
       payload.privacyPolicyVersion = data.privacyPolicyVersion.slice(0, 20);
       payload.privacyPolicyAcceptedAt = serverTimestamp();
+    }
+    // termsVersion: the Terms of Service acceptance stamp — identical
+    // semantics to privacyPolicyVersion above.
+    if (typeof data.termsVersion === 'string' && data.termsVersion) {
+      payload.termsVersion = data.termsVersion.slice(0, 20);
+      payload.termsAcceptedAt = serverTimestamp();
     }
     const ref = doc(db, 'users', userId);
     const existing = await getDoc(ref);

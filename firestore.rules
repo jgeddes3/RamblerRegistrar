@@ -16,7 +16,8 @@ rules_version = '2';
 //     users/{uid}  { selectedProgramId?, selectedProgram2Id?, selectedMinors[],
 //                    graduationYear?, classYear?, expoPushToken?, isHonors?,
 //                    isAthlete?, selectedFocusId?, privacyPolicyVersion?,
-//                    privacyPolicyAcceptedAt?, createdAt?, updatedAt? }
+//                    privacyPolicyAcceptedAt?, termsVersion?, termsAcceptedAt?,
+//                    createdAt?, updatedAt? }
 //       courses/{courseCode}  { status?, grade?, semester?, courseCode? }
 //       locations/{label}     { label?, address?, latitude, longitude, isPrimary? }
 //       private/{doc}         { scores, code?, profileName?, answers?, schedulingPrefs?, createdAt? }
@@ -54,6 +55,7 @@ service cloud.firestore {
                                'graduationYear','classYear','expoPushToken',
                                'isHonors','isAthlete','selectedFocusId',
                                'privacyPolicyVersion','privacyPolicyAcceptedAt',
+                               'termsVersion','termsAcceptedAt',
                                'createdAt','updatedAt'])
         && (!('isHonors' in d) || d.isHonors is bool)
         && (!('isAthlete' in d) || d.isAthlete is bool)
@@ -66,6 +68,8 @@ service cloud.firestore {
         && optStr(d, 'selectedFocusId', 120)
         && optStr(d, 'privacyPolicyVersion', 20)
         && (!('privacyPolicyAcceptedAt' in d) || d.privacyPolicyAcceptedAt is timestamp)
+        && optStr(d, 'termsVersion', 20)
+        && (!('termsAcceptedAt' in d) || d.termsAcceptedAt is timestamp)
         && (!('createdAt' in d) || d.createdAt is timestamp)
         && (!('updatedAt' in d) || d.updatedAt is timestamp);
     }

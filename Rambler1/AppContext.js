@@ -26,6 +26,8 @@ export const AppProvider = ({ children }) => {
   //   undefined -> unknown (profile not restored yet / fetch failed — never
   //                gate on a read failure; offline users keep working)
   const [privacyPolicyVersion, setPrivacyPolicyVersion] = useState(undefined);
+  // Same tri-state, for the Terms of Service (termsVersion on users/{uid}).
+  const [termsVersion, setTermsVersion] = useState(undefined);
 
   // Listen to Firebase auth state
   useEffect(() => {
@@ -70,6 +72,7 @@ export const AppProvider = ({ children }) => {
           // failed) leaves the value undefined: unknown, not gated.
           if (profile) {
             setPrivacyPolicyVersion(profile.error ? null : (profile.privacy_policy_version ?? null));
+            setTermsVersion(profile.error ? null : (profile.terms_version ?? null));
           }
           if (profile && !profile.error) {
             // Restore program objects
@@ -170,6 +173,7 @@ export const AppProvider = ({ children }) => {
         setUserLocations([]);
         setSelectedFocus(null);
         setPrivacyPolicyVersion(undefined);
+        setTermsVersion(undefined);
         // Session ended (sign-out, token revocation, account deletion) — re-establish
         // anonymous auth so Firestore catalog reads (rules require ANY auth) keep
         // working during re-onboarding. isLoggedIn already treats anonymous users as
@@ -218,6 +222,8 @@ export const AppProvider = ({ children }) => {
         setSelectedFocus,
         privacyPolicyVersion,
         setPrivacyPolicyVersion,
+        termsVersion,
+        setTermsVersion,
       }}
     >
       {children}

@@ -7,6 +7,7 @@ import { useAppContext } from './AppContext';
 import { upgradeAnonymousAccount } from './auth';
 import { saveUserProfile, addUserCourse, saveQuizResults } from './firestore-data';
 import { POLICY_VERSION } from './privacy-policy-content';
+import { TERMS_VERSION, TERMS_TITLE, TERMS_SECTIONS } from './terms-content';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
 import SearchBar from './styleComponents/SearchBar';
 import BackgroundImage from './styleComponents/BackgroundImage';
@@ -24,7 +25,9 @@ const AccountSetup =() => {
   const [loading, setLoading] = useState(false);
   const [policyAccepted, setPolicyAccepted] = useState(false);
   const [policyVisible, setPolicyVisible] = useState(false);
-  const { selectedProgram, selectedProgram2, selectedMinors, selectedCourses, setGraduationYear, setClassYear, setIsHonors, setIsAthlete, quizResults, setUser, setIsLoggedIn, setPrivacyPolicyVersion } = useAppContext();
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsVisible, setTermsVisible] = useState(false);
+  const { selectedProgram, selectedProgram2, selectedMinors, selectedCourses, setGraduationYear, setClassYear, setIsHonors, setIsAthlete, quizResults, setUser, setIsLoggedIn, setPrivacyPolicyVersion, setTermsVersion } = useAppContext();
 
   const navigation = useNavigation();
   const currentYear = new Date().getFullYear();
@@ -58,6 +61,7 @@ const AccountSetup =() => {
           isHonors: isHonors,
           isAthlete: isAthlete,
           privacyPolicyVersion: POLICY_VERSION,
+          termsVersion: TERMS_VERSION,
         });
 
         // Save quiz results to Firestore
@@ -94,10 +98,11 @@ const AccountSetup =() => {
         isAnonymous: false,
       });
       setIsLoggedIn(true);
-      // The user accepted the policy in this flow — reflect it in context so
-      // the App.js consent gate doesn't re-prompt right after signup. If the
-      // profile write above failed, the gate re-prompts on next cold start.
+      // The user accepted both documents in this flow — reflect it in context
+      // so the App.js consent gate doesn't re-prompt right after signup. If
+      // the profile write above failed, the gate re-prompts on next cold start.
       setPrivacyPolicyVersion(POLICY_VERSION);
+      setTermsVersion(TERMS_VERSION);
     } catch (error) {
       const code = error.code;
       if (code === 'auth/email-already-in-use' || code === 'auth/credential-already-in-use') {
@@ -198,6 +203,21 @@ const AccountSetup =() => {
           <View style={s.stickyBottom}>
             <TouchableOpacity
               style={s.consentRow}
+              onPress={() => setTermsVisible(true)}
+              accessibilityLabel="Read and agree to the Terms of Service"
+            >
+              <Ionicons
+                name={termsAccepted ? 'checkbox' : 'square-outline'}
+                size={20}
+                color="#A30046"
+              />
+              <Text style={s.consentText}>
+                I have read and agree to the{' '}
+                <Text style={s.consentLink}>Terms of Service</Text>
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.consentRow}
               onPress={() => setPolicyVisible(true)}
               accessibilityLabel="Read and agree to the Privacy Policy"
             >
@@ -212,9 +232,9 @@ const AccountSetup =() => {
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[s.nextButton, !policyAccepted && s.nextButtonDisabled]}
+              style={[s.nextButton, !(policyAccepted && termsAccepted) && s.nextButtonDisabled]}
               onPress={handleNextButtonPress}
-              disabled={loading || !policyAccepted}
+              disabled={loading || !policyAccepted || !termsAccepted}
             >
               <Text style={s.nextButtonText}>{loading ? '...' : 'Next'}</Text>
             </TouchableOpacity>
@@ -225,6 +245,15 @@ const AccountSetup =() => {
           mode="consent"
           onAccept={() => { setPolicyAccepted(true); setPolicyVisible(false); }}
           onDecline={() => setPolicyVisible(false)}
+        />
+        <PrivacyPolicyModal
+          visible={termsVisible}
+          mode="consent"
+          title={TERMS_TITLE}
+          sections={TERMS_SECTIONS}
+          agreeLabel="I agree to the Terms of Service"
+          onAccept={() => { setTermsAccepted(true); setTermsVisible(false); }}
+          onDecline={() => setTermsVisible(false)}
         />
       </View>
     </BackgroundImage>

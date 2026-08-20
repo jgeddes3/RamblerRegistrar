@@ -14,6 +14,7 @@ import { setupNotificationHandler, registerAndSaveToken } from './push';
 import { AppProvider, useAppContext } from './AppContext';
 import { saveUserProfile } from './firestore-data';
 import { POLICY_VERSION } from './privacy-policy-content';
+import { TERMS_VERSION, TERMS_TITLE, TERMS_SECTIONS } from './terms-content';
 import showAlert from './alert';
 import TopBar from './components/TopBar';
 import MenuOverlay from './components/MenuOverlay';
@@ -214,24 +215,43 @@ const PushTokenGate = () => {
 };
 
 // =============================================================================
-// PRIVACY CONSENT GATE — One-time blocking gate for signed-in accounts that
-// have never recorded acceptance of the current policy (or accepted an older
-// version). Renders ABOVE MainTabs as a full-screen consent modal. Anonymous
-// browsers are never gated, and neither is a session whose profile could not
-// be read (privacyPolicyVersion === undefined) — never lock users out over a
-// transient read failure.
+// LEGAL CONSENT GATE — blocking gate for signed-in accounts that have not
+// recorded acceptance of the CURRENT Terms of Service and Privacy Policy
+// versions (terms-content.js / privacy-policy-content.js). Terms shows first,
+// then Privacy; each acceptance is stamped separately on users/{uid}
+// (termsVersion / privacyPolicyVersion). Covers accounts from before the
+// Terms requirement existed and every future version bump. Anonymous browsers
+// are never gated, and neither is a session whose profile could not be read
+// (version === undefined) — never lock users out over a transient read
+// failure.
 // =============================================================================
-const PrivacyConsentGate = () => {
-  const { user, privacyPolicyVersion, setPrivacyPolicyVersion } = useAppContext();
+const LegalConsentGate = () => {
+  const {
+    user,
+    privacyPolicyVersion, setPrivacyPolicyVersion,
+    termsVersion, setTermsVersion,
+  } = useAppContext();
   const [saving, setSaving] = useState(false);
 
-  const needsConsent =
-    !!user &&
-    !user.isAnonymous &&
-    privacyPolicyVersion !== undefined &&
-    privacyPolicyVersion !== POLICY_VERSION;
+  const realUser = !!user && !user.isAnonymous;
+  const needsTerms =
+    realUser && termsVersion !== undefined && termsVersion !== TERMS_VERSION;
+  const needsPrivacy =
+    realUser && privacyPolicyVersion !== undefined && privacyPolicyVersion !== POLICY_VERSION;
 
-  const handleAccept = async () => {
+  const acceptTerms = async () => {
+    if (saving) return;
+    setSaving(true);
+    const res = await saveUserProfile(user.uid, { termsVersion: TERMS_VERSION });
+    setSaving(false);
+    if (res) {
+      setTermsVersion(TERMS_VERSION);
+    } else {
+      showAlert('Could not save', 'Your acceptance did not reach the server. Check your connection and try again.');
+    }
+  };
+
+  const acceptPrivacy = async () => {
     if (saving) return;
     setSaving(true);
     const res = await saveUserProfile(user.uid, { privacyPolicyVersion: POLICY_VERSION });
@@ -243,20 +263,31 @@ const PrivacyConsentGate = () => {
     }
   };
 
-  const handleDecline = async () => {
+  const declineWith = (docName) => async () => {
     // signOut fires onAuthChange -> AppContext resets -> AuthStack replaces
     // MainTabs, which unmounts this gate.
     await signOut();
-    showAlert('Signed out', 'Using an account requires accepting the Privacy Policy. You can sign back in and accept any time.');
+    showAlert('Signed out', `Using an account requires accepting the ${docName}. You can sign back in and accept any time.`);
   };
 
   return (
-    <PrivacyPolicyModal
-      visible={needsConsent}
-      mode="consent"
-      onAccept={handleAccept}
-      onDecline={handleDecline}
-    />
+    <>
+      <PrivacyPolicyModal
+        visible={needsTerms}
+        mode="consent"
+        title={TERMS_TITLE}
+        sections={TERMS_SECTIONS}
+        agreeLabel="I agree to the Terms of Service"
+        onAccept={acceptTerms}
+        onDecline={declineWith('Terms of Service')}
+      />
+      <PrivacyPolicyModal
+        visible={!needsTerms && needsPrivacy}
+        mode="consent"
+        onAccept={acceptPrivacy}
+        onDecline={declineWith('Privacy Policy')}
+      />
+    </>
   );
 };
 
@@ -271,7 +302,7 @@ const RootNavigator = () => {
   return isLoggedIn ? (
     <>
       <MainTabs />
-      <PrivacyConsentGate />
+      <LegalConsentGate />
     </>
   ) : (
     <AuthStack />

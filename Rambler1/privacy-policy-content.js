@@ -54,7 +54,7 @@ export const POLICY_SECTIONS = [
     title: 'Data sharing and sale',
     paragraphs: [
       'We may share and, in some cases, sell certain personal information to third parties. The categories we may share or sell are: your name, your email address, and the personal data you input into the app (such as your schedules, preferences, interests-quiz answers, and degree-progress entries).',
-      'You can turn off all third-party selling and sharing by emailing johngeddes@pm.me. One request covers every third-party recipient. A one-switch opt-out in the app’s Settings is a launch commitment; it is not built yet, so the email above is how you opt out today.',
+      'You can turn off all third-party selling and sharing at any time with the “Do not sell or share my personal information” switch in Settings (Profile), or by emailing johngeddes@pm.me. Either route covers every third-party recipient.',
     ],
   },
   {
@@ -63,7 +63,7 @@ export const POLICY_SECTIONS = [
       'See or change your data: your profile, courses, plans, schedules, and address are all editable in the app.',
       'Remove your address: replace or clear it in Profile at any time.',
       'Stop seat alerts: unwatch sections, or disable notifications for the app in your device settings.',
-      'Opt out of selling and sharing: email us (address below) and we will stop selling and sharing your personal information with third parties.',
+      'Opt out of selling and sharing: turn on “Do not sell or share my personal information” in Settings (Profile), or email us (address below); either way we stop selling and sharing your personal information with third parties.',
       'Delete your account and data: email us (address below) from your account email and we will delete your account and all associated data within 30 days. (In-app account deletion is planned.)',
     ],
   },

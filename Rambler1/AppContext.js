@@ -28,6 +28,11 @@ export const AppProvider = ({ children }) => {
   const [privacyPolicyVersion, setPrivacyPolicyVersion] = useState(undefined);
   // Same tri-state, for the Terms of Service (termsVersion on users/{uid}).
   const [termsVersion, setTermsVersion] = useState(undefined);
+  // "Do not sell or share my personal information" (dataSaleOptOut on
+  // users/{uid}). Plain boolean — absent/false means data may be sold/shared
+  // per the Privacy Policy; true excludes the account from every export
+  // (enforced in backend/export-sale-data.js).
+  const [dataSaleOptOut, setDataSaleOptOut] = useState(false);
 
   // Listen to Firebase auth state
   useEffect(() => {
@@ -73,6 +78,7 @@ export const AppProvider = ({ children }) => {
           if (profile) {
             setPrivacyPolicyVersion(profile.error ? null : (profile.privacy_policy_version ?? null));
             setTermsVersion(profile.error ? null : (profile.terms_version ?? null));
+            setDataSaleOptOut(profile.error ? false : profile.data_sale_opt_out === true);
           }
           if (profile && !profile.error) {
             // Restore program objects
@@ -174,6 +180,7 @@ export const AppProvider = ({ children }) => {
         setSelectedFocus(null);
         setPrivacyPolicyVersion(undefined);
         setTermsVersion(undefined);
+        setDataSaleOptOut(false);
         // Session ended (sign-out, token revocation, account deletion) — re-establish
         // anonymous auth so Firestore catalog reads (rules require ANY auth) keep
         // working during re-onboarding. isLoggedIn already treats anonymous users as
@@ -224,6 +231,8 @@ export const AppProvider = ({ children }) => {
         setPrivacyPolicyVersion,
         termsVersion,
         setTermsVersion,
+        dataSaleOptOut,
+        setDataSaleOptOut,
       }}
     >
       {children}

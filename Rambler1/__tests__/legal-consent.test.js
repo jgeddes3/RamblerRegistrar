@@ -31,10 +31,13 @@ describe('document content', () => {
     }
   });
 
-  it('privacy policy discloses the data sharing/sale and the email opt-out', () => {
+  it('privacy policy discloses the data sharing/sale and both opt-out routes', () => {
     const text = allParagraphs(POLICY_SECTIONS).join(' ');
     expect(text).toMatch(/share and, in some cases, sell/);
     expect(text).toMatch(/johngeddes@pm\.me/);
+    // The in-app switch (ProfileScreen dataSaleOptOut) must stay described so
+    // the policy never drifts back to email-only while the switch ships.
+    expect(text).toMatch(/Do not sell or share my personal information/);
     // The pre-2026-08-20 false claim must never come back.
     expect(text).not.toMatch(/never sell your data/);
     expect(text).not.toMatch(/do not sell or rent/);

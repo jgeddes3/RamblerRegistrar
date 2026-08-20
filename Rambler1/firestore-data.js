@@ -619,6 +619,7 @@ export const fetchUserProfile = async (uid) => {
       privacy_policy_accepted_at: d.privacyPolicyAcceptedAt ?? null,
       terms_version: d.termsVersion ?? null,
       terms_accepted_at: d.termsAcceptedAt ?? null,
+      data_sale_opt_out: d.dataSaleOptOut === true,
     };
 
     // Hydrate full program objects like the backend did (skip 'undecided' —
@@ -705,6 +706,15 @@ export const saveUserProfile = async (uid, profileData, _authToken) => {
     if (typeof data.termsVersion === 'string' && data.termsVersion) {
       payload.termsVersion = data.termsVersion.slice(0, 20);
       payload.termsAcceptedAt = serverTimestamp();
+    }
+    // dataSaleOptOut: the "Do not sell or share my personal information"
+    // switch. `false` must be written explicitly (turning the opt-out OFF is
+    // itself a recorded choice), so include on any real boolean, and stamp
+    // when the choice was made server-side. Enforced at the export side by
+    // backend/export-sale-data.js — the only sanctioned export path.
+    if (typeof data.dataSaleOptOut === 'boolean') {
+      payload.dataSaleOptOut = data.dataSaleOptOut;
+      payload.dataSaleOptOutUpdatedAt = serverTimestamp();
     }
     const ref = doc(db, 'users', userId);
     const existing = await getDoc(ref);

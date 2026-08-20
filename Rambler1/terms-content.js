@@ -79,7 +79,7 @@ export const TERMS_SECTIONS = [
     title: 'Data sharing and sale',
     paragraphs: [
       'We may share and, in some cases, sell certain personal information to third parties. The categories we may share or sell are your name, your email address, and the personal data you input into the app (such as your schedules, preferences, quiz answers, and degree-progress entries).',
-      'Our Privacy Policy explains what data is shared or sold, to whom, and your rights, including how you can turn off all third-party selling and sharing by emailing johngeddes@pm.me. One request covers every third-party recipient. An in-app Settings switch that does the same thing is a launch commitment described in the Privacy Policy; it is not built yet. Please read the Privacy Policy before you use the Service.',
+      'Our Privacy Policy explains what data is shared or sold, to whom, and your rights, including how you can turn off all third-party selling and sharing with the “Do not sell or share my personal information” switch in the app’s Settings, or by emailing johngeddes@pm.me. Either route covers every third-party recipient. Please read the Privacy Policy before you use the Service.',
     ],
   },
   {

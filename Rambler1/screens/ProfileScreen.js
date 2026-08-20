@@ -16,6 +16,7 @@ const ProfileScreen = ({ visible, onClose }) => {
     classYear, quizResults, selectedFocus, setSelectedFocus,
     isHonors, setIsHonors, isAthlete, setIsAthlete,
     userLocations, setUserLocations,
+    dataSaleOptOut, setDataSaleOptOut,
   } = useAppContext();
 
   const isUndecided = !selectedProgram || selectedProgram.id === 'undecided';
@@ -230,6 +231,21 @@ const ProfileScreen = ({ visible, onClose }) => {
           isHonors: flag === 'isHonors' ? value === true : isHonors === true,
           isAthlete: flag === 'isAthlete' ? value === true : isAthlete === true,
         });
+      }
+    } catch (e) {}
+  };
+
+  const handleToggleDataSale = async (optedOut) => {
+    // Context immediately so the Switch reflects the choice, then persist the
+    // minimal payload — include-when-provided means this can't disturb
+    // programs/minors/flags under merge:true. Both true AND false are recorded
+    // choices (turning the opt-out off re-permits selling), and the write
+    // stamps dataSaleOptOutUpdatedAt server-side. The export side honors this
+    // flag in backend/export-sale-data.js.
+    setDataSaleOptOut(optedOut === true);
+    try {
+      if (user) {
+        await saveUserProfile(user.uid, { dataSaleOptOut: optedOut === true });
       }
     } catch (e) {}
   };
@@ -602,6 +618,30 @@ const ProfileScreen = ({ visible, onClose }) => {
                   accessibilityLabel="Student-athlete"
                   value={isAthlete === true}
                   onValueChange={(v) => handleTogglePriority('isAthlete', v)}
+                  trackColor={{ false: '#D8D8D8', true: '#A30046' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+            </View>
+
+            {/* Privacy — the data-sale opt-out the Privacy Policy and Terms
+                describe. ON = excluded from every third-party sale/share
+                export (enforced in backend/export-sale-data.js). */}
+            <View style={s.infoBlock}>
+              <Text style={s.prioritySectionTitle}>Privacy</Text>
+              <View style={s.priorityRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.priorityRowLabel}>Do not sell or share my personal information</Text>
+                  <Text style={s.priorityRowHint}>
+                    Stops all third-party selling and sharing of your name, email,
+                    and the data you enter in the app. One switch covers every
+                    recipient, as described in the Privacy Policy.
+                  </Text>
+                </View>
+                <Switch
+                  accessibilityLabel="Do not sell or share my personal information"
+                  value={dataSaleOptOut === true}
+                  onValueChange={(v) => handleToggleDataSale(v)}
                   trackColor={{ false: '#D8D8D8', true: '#A30046' }}
                   thumbColor="#FFFFFF"
                 />

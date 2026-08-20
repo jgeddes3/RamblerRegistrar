@@ -17,6 +17,7 @@ rules_version = '2';
 //                    graduationYear?, classYear?, expoPushToken?, isHonors?,
 //                    isAthlete?, selectedFocusId?, privacyPolicyVersion?,
 //                    privacyPolicyAcceptedAt?, termsVersion?, termsAcceptedAt?,
+//                    dataSaleOptOut?, dataSaleOptOutUpdatedAt?,
 //                    createdAt?, updatedAt? }
 //       courses/{courseCode}  { status?, grade?, semester?, courseCode? }
 //       locations/{label}     { label?, address?, latitude, longitude, isPrimary? }
@@ -56,6 +57,7 @@ service cloud.firestore {
                                'isHonors','isAthlete','selectedFocusId',
                                'privacyPolicyVersion','privacyPolicyAcceptedAt',
                                'termsVersion','termsAcceptedAt',
+                               'dataSaleOptOut','dataSaleOptOutUpdatedAt',
                                'createdAt','updatedAt'])
         && (!('isHonors' in d) || d.isHonors is bool)
         && (!('isAthlete' in d) || d.isAthlete is bool)
@@ -70,6 +72,8 @@ service cloud.firestore {
         && (!('privacyPolicyAcceptedAt' in d) || d.privacyPolicyAcceptedAt is timestamp)
         && optStr(d, 'termsVersion', 20)
         && (!('termsAcceptedAt' in d) || d.termsAcceptedAt is timestamp)
+        && (!('dataSaleOptOut' in d) || d.dataSaleOptOut is bool)
+        && (!('dataSaleOptOutUpdatedAt' in d) || d.dataSaleOptOutUpdatedAt is timestamp)
         && (!('createdAt' in d) || d.createdAt is timestamp)
         && (!('updatedAt' in d) || d.updatedAt is timestamp);
     }

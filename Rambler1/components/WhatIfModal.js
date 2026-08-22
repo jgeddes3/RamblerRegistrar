@@ -35,6 +35,13 @@ const MODES = [
 
 const WhatIfModal = ({
   visible, onClose,
+  // asScreen: render as plain page content instead of a native Modal.
+  // MajorsMinorsScreen mounts this permanently-visible inside a navigation
+  // screen; popping that screen while a native Modal is still presented (and
+  // often while a confirm alert is mid-dismiss) races the dismissal on iOS
+  // and can leave a dead overlay that eats every touch — the "can't close
+  // the page" freeze. A plain View has no native presentation to race.
+  asScreen = false,
   // From PlanningScreen so the baseline matches what the user sees there:
   baseRemainingCount, semestersLeft, plans,
 }) => {
@@ -173,8 +180,7 @@ const WhatIfModal = ({
     </TouchableOpacity>
   );
 
-  return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+  const content = (
       <View style={s.container}>
         <View style={s.header}>
           <Text style={s.title}>What If?</Text>
@@ -239,6 +245,12 @@ const WhatIfModal = ({
           </ScrollView>
         )}
       </View>
+  );
+
+  if (asScreen) return visible ? content : null;
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      {content}
     </Modal>
   );
 };

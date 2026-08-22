@@ -52,6 +52,12 @@ const MENU_ROWS = [
     icon: 'calendar-outline',
   },
   {
+    key: 'Phoenix',
+    label: 'Loyola Phoenix',
+    sublabel: 'Headlines from the student newspaper',
+    icon: 'newspaper-outline',
+  },
+  {
     key: 'PreferenceQuiz',
     label: 'Retake the Quiz',
     sublabel: 'Redo your interests & scheduling preferences',

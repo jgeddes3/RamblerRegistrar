@@ -43,6 +43,7 @@ import MajorsMinorsScreen from './screens/MajorsMinorsScreen';
 import MapScreen from './screens/MapScreen';
 import LibraryScreen from './screens/LibraryScreen';
 import EventsScreen from './screens/EventsScreen';
+import PhoenixScreen from './screens/PhoenixScreen';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -123,6 +124,7 @@ const MoreStack = () => (
     <Stack.Screen name="Map" component={MapScreen} options={{ title: 'Campus Map' }} />
     <Stack.Screen name="Library" component={LibraryScreen} options={{ title: 'Library Hours' }} />
     <Stack.Screen name="Events" component={EventsScreen} options={{ title: 'Campus Events' }} />
+    <Stack.Screen name="Phoenix" component={PhoenixScreen} options={{ title: 'Loyola Phoenix' }} />
     {/* Quiz retake (signed-in relaunch of the onboarding quiz; SchedulingPrefs
         detects the logged-in state and returns to MoreHome when done) */}
     <Stack.Screen name="PreferenceQuiz" component={PreferenceQuiz} options={{ headerShown: false }} />

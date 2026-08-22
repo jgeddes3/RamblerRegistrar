@@ -6,6 +6,7 @@ import { useAppContext } from '../AppContext';
 import { signOut } from '../auth';
 import { fetchPrograms, fetchCourses, addUserCourse, removeUserCourse, saveUserProfile, fetchEnrichedRecommendations, fetchQuizFocusAreas, setUserLocation } from '../firestore-data';
 import { geocodeAddress, suggestAddresses } from '../campus-api';
+import showAlert from '../alert';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
@@ -255,14 +256,23 @@ const ProfileScreen = ({ visible, onClose }) => {
     // saveUserProfile is include-when-provided, so this minimal payload can't
     // disturb programs/minors/flags under merge:true. null explicitly clears
     // the stored selection ("Change").
+    //
+    // The save must NOT fail silently: the optimistic UI showed the focus as
+    // chosen, so a swallowed failure looked saved but was gone on next launch
+    // ("sometimes it doesn't save your focus"). On failure, revert and say so.
+    const previous = selectedFocus;
     setSelectedFocus(areaOrNull);
+    if (!user) return;
+    let res = null;
     try {
-      if (user) {
-        await saveUserProfile(user.uid, {
-          selectedFocusId: areaOrNull ? String(areaOrNull.id) : null,
-        });
-      }
+      res = await saveUserProfile(user.uid, {
+        selectedFocusId: areaOrNull ? String(areaOrNull.id) : null,
+      });
     } catch (e) {}
+    if (!res) {
+      setSelectedFocus(previous);
+      showAlert('Save failed', "Your focus wasn't saved. Check your connection and try again.");
+    }
   };
 
   const handleToggleCourse = async (course) => {

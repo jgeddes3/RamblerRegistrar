@@ -176,6 +176,97 @@ export async function getEventsToday() {
 }
 
 // =============================================================================
+// LOYOLA PHOENIX — the student newspaper's WordPress RSS feed.
+// Same parser/fetcher split as above; regex-parsed (no XML DOM in RN).
+// =============================================================================
+
+const PHOENIX_FEED_URL = 'https://loyolaphoenix.com/feed/';
+const PHOENIX_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+let phoenixCache = null;
+let phoenixCacheTime = 0;
+
+// Minimal entity decode for feed text: numeric (decimal + hex) and the named
+// entities WordPress actually emits in titles.
+const NAMED_ENTITIES = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
+};
+
+function decodeXmlText(raw) {
+  return String(raw)
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
+    .replace(/&(amp|lt|gt|quot|apos|nbsp);/g, (_, name) => NAMED_ENTITIES[name]);
+}
+
+// One tag's inner text: prefers CDATA payload, else entity-decoded text.
+// Returns null when the tag is absent or empty. tag may contain a namespace
+// prefix (dc:creator).
+function tagText(itemXml, tag) {
+  const m = itemXml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`));
+  if (!m) return null;
+  const inner = m[1].trim();
+  const cdata = inner.match(/^<!\[CDATA\[([\s\S]*?)\]\]>$/);
+  const text = (cdata ? cdata[1] : decodeXmlText(inner)).trim();
+  return text || null;
+}
+
+/**
+ * Parse a WordPress RSS 2.0 feed (the Loyola Phoenix) into headline rows:
+ * [{ title, link, creator, categories, pubDate, publishedAt }].
+ * publishedAt is an ISO string, or null when pubDate is missing/unparseable.
+ * Items without both a title and a link are dropped. [] on any bad input.
+ */
+export function parsePhoenixFeed(xmlText) {
+  if (typeof xmlText !== 'string' || !xmlText) return [];
+  const items = xmlText.match(/<item>[\s\S]*?<\/item>/g) || [];
+  const out = [];
+  for (const itemXml of items) {
+    const title = tagText(itemXml, 'title');
+    const link = tagText(itemXml, 'link');
+    if (!title || !link) continue;
+    const pubDate = tagText(itemXml, 'pubDate');
+    const parsed = pubDate ? new Date(pubDate) : null;
+    const categories = [];
+    for (const c of itemXml.match(/<category[^>]*>[\s\S]*?<\/category>/g) || []) {
+      const text = tagText(c, 'category');
+      if (text) categories.push(text);
+    }
+    out.push({
+      title,
+      link,
+      creator: tagText(itemXml, 'dc:creator'),
+      categories,
+      pubDate,
+      publishedAt: parsed && !isNaN(parsed.getTime()) ? parsed.toISOString() : null,
+    });
+  }
+  return out;
+}
+
+/**
+ * Latest Loyola Phoenix headlines. Resolves to an array of parsed rows, or []
+ * on any failure (including web CORS — native works fine).
+ */
+export async function getPhoenixHeadlines() {
+  if (phoenixCache && Date.now() - phoenixCacheTime < PHOENIX_CACHE_TTL) {
+    return phoenixCache;
+  }
+  try {
+    const response = await fetch(PHOENIX_FEED_URL, { headers: { Accept: 'application/rss+xml, text/xml' } });
+    if (!response.ok) return [];
+    const rows = parsePhoenixFeed(await response.text());
+    if (rows.length > 0) {
+      phoenixCache = rows;
+      phoenixCacheTime = Date.now();
+    }
+    return rows;
+  } catch (err) {
+    return [];
+  }
+}
+
+// =============================================================================
 // GEOCODING (Nominatim / OpenStreetMap) — F-Q7 home-address input.
 // Keyless + CORS-open; fine at our volume (one call per address save, never
 // per-render). Bias results toward Chicago so bare street addresses resolve.
@@ -256,4 +347,6 @@ export function _resetCampusApiCaches() {
   weeklyCache = null;
   weeklyCacheTime = 0;
   eventsCache = {};
+  phoenixCache = null;
+  phoenixCacheTime = 0;
 }

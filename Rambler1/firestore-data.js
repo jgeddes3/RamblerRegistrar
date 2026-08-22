@@ -28,6 +28,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from './firebaseConfig';
 import * as progressLib from './progress';
+import { calculateWalkTime } from './walk-route';
 
 // =============================================================================
 // SHARED HELPERS / MAPPERS
@@ -229,47 +230,9 @@ async function findBuilding(name) {
 }
 
 // =============================================================================
-// WALK TIME (verbatim port of backend/walktime.js)
+// WALK TIME — the math lives in walk-route.js (pure module, shared with the
+// campus map's route builder); imported at the top of this file.
 // =============================================================================
-
-// Haversine formula: distance in meters between two GPS coordinates
-function haversineDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371000; // Earth's radius in meters
-  const toRad = (deg) => (deg * Math.PI) / 180;
-
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c;
-}
-
-// Calculate walk time between two places — returns { from, to, distance_m, walk_minutes }
-function calculateWalkTime(buildingA, buildingB) {
-  if (!buildingA || !buildingB) return null;
-
-  const straightLine = haversineDistance(
-    buildingA.latitude, buildingA.longitude,
-    buildingB.latitude, buildingB.longitude
-  );
-
-  // Walking factor: paths aren't straight lines, multiply by 1.3
-  const walkingDistance = straightLine * 1.3;
-
-  // Average walking speed: 80 meters per minute
-  const walkMinutes = Math.ceil(walkingDistance / 80);
-
-  return {
-    from: buildingA.name,
-    to: buildingB.name,
-    distance_m: Math.round(walkingDistance),
-    walk_minutes: walkMinutes,
-  };
-}
 
 // =============================================================================
 // CATALOG
@@ -717,9 +680,19 @@ export const saveUserProfile = async (uid, profileData, _authToken) => {
       payload.dataSaleOptOutUpdatedAt = serverTimestamp();
     }
     const ref = doc(db, 'users', userId);
-    const existing = await getDoc(ref);
-    if (!existing.exists()) {
-      payload.createdAt = serverTimestamp();
+    // The existence check only decides whether to stamp createdAt. It is a
+    // server read (RN has no persistent Firestore cache), so on a flaky
+    // network it can fail while the WRITE would still succeed — and it used
+    // to take the whole save down with it (lost focus/minor/flag saves).
+    // createdAt is optional in the rules and merge:true never disturbs a
+    // stored one, so on read failure just skip the stamp and save anyway.
+    try {
+      const existing = await getDoc(ref);
+      if (!existing.exists()) {
+        payload.createdAt = serverTimestamp();
+      }
+    } catch (e) {
+      // Unknown existence — omit createdAt, proceed with the write.
     }
     await setDoc(ref, payload, { merge: true });
     return { success: true };

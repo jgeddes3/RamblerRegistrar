@@ -14,16 +14,19 @@
 // Navigation: default-exports the screen only — NO back button here (the More
 // stack navigator owns headers/back).
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, ActivityIndicator, StyleSheet,
+  TextInput, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import MapView, { Marker, Callout } from 'react-native-maps';
+import MapView, { Marker, Callout, Polyline } from 'react-native-maps';
+import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../AppContext';
 import {
   fetchBuildings, fetchSchedule, getSectionsByClassNumbers,
   fetchUserPrimaryLocation,
 } from '../firestore-data';
+import { buildRouteLegs } from '../walk-route';
 import { PARCHMENT } from '../theme';
 
 const MAROON = '#A30046';
@@ -179,6 +182,55 @@ const MapScreen = () => {
     }
   }, []);
 
+  // ---------------------------------------------------------------- route
+  // Build a walking path between buildings without touching the map: pick
+  // stops from a searchable list; each leg + the total gets a walk time
+  // (walk-route.js, same math as the Schedule map's commute times).
+  const [routeOpen, setRouteOpen] = useState(false);
+  const [routeStops, setRouteStops] = useState([]);
+  const [routeSearch, setRouteSearch] = useState('');
+
+  const route = useMemo(() => buildRouteLegs(routeStops), [routeStops]);
+  const routeCoords = useMemo(
+    () => routeStops
+      .filter(hasCoords)
+      .map((b) => ({ latitude: Number(b.latitude), longitude: Number(b.longitude) })),
+    [routeStops]
+  );
+  const routeSuggestions = useMemo(() => {
+    const q = routeSearch.trim().toLowerCase();
+    if (!q) return [];
+    return buildings
+      .filter((b) => hasCoords(b) && String(b.name || '').toLowerCase().includes(q))
+      .slice(0, 5);
+  }, [routeSearch, buildings]);
+
+  const addRouteStop = useCallback((building) => {
+    setRouteSearch('');
+    setRouteStops((prev) => {
+      const next = [...prev, building];
+      const coords = next
+        .filter(hasCoords)
+        .map((b) => ({ latitude: Number(b.latitude), longitude: Number(b.longitude) }));
+      if (coords.length >= 2 && mapRef.current && mapRef.current.fitToCoordinates) {
+        mapRef.current.fitToCoordinates(coords, {
+          edgePadding: { top: 90, right: 60, bottom: 320, left: 60 },
+          animated: true,
+        });
+      }
+      return next;
+    });
+  }, []);
+
+  const removeRouteStop = useCallback((index) => {
+    setRouteStops((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const clearRoute = useCallback(() => {
+    setRouteStops([]);
+    setRouteSearch('');
+  }, []);
+
   const showHome = !!home;
   const showClasses = classCourses.size > 0;
 
@@ -234,6 +286,15 @@ const MapScreen = () => {
             description={home.address || undefined}
           />
         )}
+
+        {routeCoords.length >= 2 && (
+          <Polyline
+            coordinates={routeCoords}
+            strokeColor={HOME_BLUE}
+            strokeWidth={4}
+            lineDashPattern={[8, 6]}
+          />
+        )}
       </MapView>
 
       {/* Title overlay */}
@@ -256,12 +317,123 @@ const MapScreen = () => {
         ))}
       </View>
 
-      {/* Legend */}
-      <View style={s.legend} pointerEvents="none">
-        <LegendRow color={MAROON} label="Campus building" />
-        {showClasses && <LegendRow color={GOLD} label="Your classes" />}
-        {showHome && <LegendRow color={HOME_BLUE} label={home.label || 'Home'} />}
-      </View>
+      {/* Legend (hidden while the route panel is up — it sits underneath) */}
+      {!routeOpen && (
+        <View style={s.legend} pointerEvents="none">
+          <LegendRow color={MAROON} label="Campus building" />
+          {showClasses && <LegendRow color={GOLD} label="Your classes" />}
+          {showHome && <LegendRow color={HOME_BLUE} label={home.label || 'Home'} />}
+        </View>
+      )}
+
+      {/* Route button */}
+      {!routeOpen && (
+        <TouchableOpacity
+          style={s.routeBtn}
+          onPress={() => setRouteOpen(true)}
+          accessibilityLabel="Build a walking route between buildings"
+        >
+          <Ionicons name="walk-outline" size={18} color="#FFFFFF" />
+          <Text style={s.routeBtnText}>
+            {routeStops.length >= 2 ? `Route — ${route.totalMinutes} min` : 'Route'}
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Route panel */}
+      {routeOpen && (
+        <KeyboardAvoidingView
+          style={s.routePanelWrap}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          pointerEvents="box-none"
+        >
+          <View style={s.routePanel}>
+            <View style={s.routeHeader}>
+              <Text style={s.routeTitle}>Build a route</Text>
+              <View style={s.routeHeaderRight}>
+                {routeStops.length > 0 && (
+                  <TouchableOpacity onPress={clearRoute} accessibilityLabel="Clear route">
+                    <Text style={s.routeClearText}>Clear</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  onPress={() => setRouteOpen(false)}
+                  style={s.routeCloseBtn}
+                  accessibilityLabel="Close route builder"
+                >
+                  <Ionicons name="chevron-down" size={22} color="#555" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <TextInput
+              style={s.routeSearch}
+              placeholder={routeStops.length === 0 ? 'Add a starting building...' : 'Add the next stop...'}
+              placeholderTextColor="#999"
+              value={routeSearch}
+              onChangeText={setRouteSearch}
+              autoCorrect={false}
+            />
+            {routeSuggestions.length > 0 && (
+              <View style={s.routeSuggestList}>
+                {routeSuggestions.map((b) => (
+                  <TouchableOpacity
+                    key={`sug-${b.id}`}
+                    style={s.routeSuggestRow}
+                    onPress={() => addRouteStop(b)}
+                    accessibilityLabel={`Add ${b.name} to the route`}
+                  >
+                    <Ionicons name="add-circle-outline" size={16} color={MAROON} />
+                    <Text style={s.routeSuggestText} numberOfLines={1}>{b.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            <ScrollView style={s.routeStopsList} keyboardShouldPersistTaps="handled">
+              {routeStops.length === 0 ? (
+                <Text style={s.routeEmptyText}>
+                  Search above to add buildings — the walking path and times appear here.
+                </Text>
+              ) : (
+                routeStops.map((stop, i) => (
+                  <View key={`stop-${i}`}>
+                    {i > 0 && route.legs[i - 1] ? (
+                      <View style={s.routeLegRow}>
+                        <Ionicons name="walk-outline" size={13} color="#888" />
+                        <Text style={s.routeLegText}>
+                          {route.legs[i - 1].walk_minutes} min — {route.legs[i - 1].distance_m} m
+                        </Text>
+                      </View>
+                    ) : null}
+                    <View style={s.routeStopRow}>
+                      <View style={s.routeStopBadge}>
+                        <Text style={s.routeStopBadgeText}>{i + 1}</Text>
+                      </View>
+                      <Text style={s.routeStopName} numberOfLines={1}>{stop.name}</Text>
+                      <TouchableOpacity
+                        onPress={() => removeRouteStop(i)}
+                        accessibilityLabel={`Remove ${stop.name} from the route`}
+                      >
+                        <Ionicons name="close-circle" size={20} color="#C0C0C0" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+
+            {route.legs.length > 0 && (
+              <View style={s.routeTotalRow}>
+                <Ionicons name="time-outline" size={15} color={MAROON} />
+                <Text style={s.routeTotalText}>
+                  Total: {route.totalMinutes} min walk — {route.totalDistanceM} m
+                </Text>
+              </View>
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      )}
 
       {loading && (
         <View style={s.loadingPill} pointerEvents="none">
@@ -328,6 +500,68 @@ const s = StyleSheet.create({
   calloutTitle: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 2 },
   calloutSub: { fontSize: 12, color: MAROON, marginBottom: 2 },
   calloutCourse: { fontSize: 12, color: '#555' },
+
+  // Route builder
+  routeBtn: {
+    position: 'absolute', bottom: 24, right: 12, flexDirection: 'row',
+    alignItems: 'center', gap: 6, backgroundColor: MAROON,
+    borderRadius: 20, paddingVertical: 9, paddingHorizontal: 15,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 }, elevation: 3,
+  },
+  routeBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
+  routePanelWrap: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+  },
+  routePanel: {
+    backgroundColor: '#FFFFFF', borderTopLeftRadius: 18, borderTopRightRadius: 18,
+    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 20, maxHeight: 380,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8,
+    shadowOffset: { width: 0, height: -2 }, elevation: 6,
+  },
+  routeHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  routeTitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 22, color: MAROON },
+  routeHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  routeClearText: { fontSize: 14, fontWeight: '600', color: MAROON },
+  routeCloseBtn: { padding: 2 },
+  routeSearch: {
+    backgroundColor: '#F5F5F5', borderRadius: 8, paddingHorizontal: 12,
+    height: 40, fontSize: 15, color: '#333',
+  },
+  routeSuggestList: {
+    borderWidth: 1, borderColor: '#EEE', borderTopWidth: 0,
+    borderBottomLeftRadius: 8, borderBottomRightRadius: 8, overflow: 'hidden',
+  },
+  routeSuggestRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 9, paddingHorizontal: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EEE',
+  },
+  routeSuggestText: { flex: 1, fontSize: 14, color: '#333' },
+  routeStopsList: { marginTop: 8, maxHeight: 170 },
+  routeEmptyText: { fontSize: 13, color: '#999', paddingVertical: 10 },
+  routeStopRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6,
+  },
+  routeStopBadge: {
+    width: 22, height: 22, borderRadius: 11, backgroundColor: MAROON,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  routeStopBadgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  routeStopName: { flex: 1, fontSize: 15, color: '#333' },
+  routeLegRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingLeft: 32, paddingVertical: 1,
+  },
+  routeLegText: { fontSize: 12, color: '#888' },
+  routeTotalRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8,
+    borderTopWidth: 1, borderTopColor: '#F0F0F0', paddingTop: 10,
+  },
+  routeTotalText: { fontSize: 15, fontWeight: '600', color: MAROON },
 });
 
 export default MapScreen;

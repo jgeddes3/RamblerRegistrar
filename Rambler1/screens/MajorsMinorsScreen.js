@@ -58,6 +58,7 @@ const MajorsMinorsScreen = () => {
     <View style={{ flex: 1, backgroundColor: PARCHMENT }}>
       <WhatIfModal
         visible
+        asScreen
         onClose={() => navigation.goBack()}
         baseRemainingCount={baseRemaining}
         semestersLeft={semesters.length}

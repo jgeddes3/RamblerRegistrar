@@ -22,6 +22,11 @@
  *     'off-track' — pace > 5, OR (semestersLeft === 0 && remainingUnits > 0).
  *     'at-risk'   — 4 < pace <= 5.
  *     'on-track'  — pace <= 4.
+ * - unitsOverPace = max(0, remainingUnits - 4 * semestersLeft): course units
+ *   beyond a sustainable 4-per-semester load — the size of the student's gap.
+ * - fifthYear (at-risk/off-track only, else null): the same pacing recomputed
+ *   with 2 extra semesters (graduating one Spring later). wouldBeOnTrack tells
+ *   the UI whether that extra year clears the risk.
  *
  * This is a heuristic only — see OUTLOOK_DISCLAIMER.
  */
@@ -111,6 +116,8 @@ export function computeGraduationOutlook({ degreeProgress, additionalDegreeProgr
       semestersLeft,
       remainingUnits: null,
       pace: null,
+      unitsOverPace: null,
+      fifthYear: null,
       message: !degreeProgress
         ? 'Select your program to see your graduation outlook.'
         : 'Set your graduation year to see your graduation outlook.',
@@ -135,6 +142,25 @@ export function computeGraduationOutlook({ degreeProgress, additionalDegreeProgr
     status = 'at-risk';
   } else {
     status = 'on-track';
+  }
+
+  // The gap, in course units, past a sustainable 4-per-semester load. 0 when
+  // on-track; with 0 semesters left every remaining unit is over pace.
+  const ON_TRACK_PACE = 4;
+  const unitsOverPace = Math.max(0, remainingUnits - ON_TRACK_PACE * semestersLeft);
+
+  // Fifth-year projection: same load spread over 2 extra semesters (one more
+  // Spring). Only computed when there is a risk for it to relieve.
+  let fifthYear = null;
+  if (status !== 'on-track') {
+    const fifthYearSemesters = semestersLeft + 2;
+    const fifthYearRawPace = remainingUnits / fifthYearSemesters;
+    fifthYear = {
+      gradLabel: `Spring ${gradYear + 1}`,
+      semestersLeft: fifthYearSemesters,
+      pace: Math.round(fifthYearRawPace * 10) / 10,
+      wouldBeOnTrack: fifthYearRawPace <= ON_TRACK_PACE,
+    };
   }
 
   // B12 honesty: programs whose requirements aren't loaded contribute 0 to
@@ -172,9 +198,20 @@ export function computeGraduationOutlook({ degreeProgress, additionalDegreeProgr
       : `On pace to graduate ${gradLabel}.`;
   }
 
+  if (status === 'at-risk' || status === 'off-track') {
+    message +=
+      ` You're ${unitsOverPace} ${plural(unitsOverPace, 'course unit')} beyond an on-track pace ` +
+      `of 4 per semester — without more time, that means overload semesters or summer terms.`;
+    if (fifthYear.wouldBeOnTrack) {
+      message +=
+        ` Planning a fifth year (graduating ${fifthYear.gradLabel}) would bring you to ` +
+        `about ${fifthYear.pace} courses/semester — no longer at risk.`;
+    }
+  }
+
   if (unknownPrograms.length > 0) {
     message += ` Requirements for ${unknownPrograms.join(', ')} aren't loaded yet and aren't counted.`;
   }
 
-  return { status, semestersLeft, remainingUnits, pace, message, gradLabel, unknownPrograms };
+  return { status, semestersLeft, remainingUnits, pace, unitsOverPace, fifthYear, message, gradLabel, unknownPrograms };
 }

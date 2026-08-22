@@ -129,7 +129,9 @@ describe('computeGraduationOutlook', () => {
     expect(result.semestersLeft).toBe(1);
     expect(result.pace).toBe(9);
     expect(result.message).toBe(
-      "9 requirements left with 1 semester to go. That's about 9 courses/semester. Talk to your advisor."
+      "9 requirements left with 1 semester to go. That's about 9 courses/semester. Talk to your advisor. " +
+      "You're 5 course units beyond an on-track pace of 4 per semester — without more time, that means overload semesters or summer terms. " +
+      "Planning a fifth year (graduating Spring 2028) would bring you to about 3 courses/semester — no longer at risk."
     );
   });
 
@@ -323,5 +325,112 @@ describe('message fixes', () => {
     });
     expect(out.unknownPrograms).toEqual([]);
     expect(out.message).not.toContain("aren't loaded");
+  });
+});
+
+// --------------------------------------------------------------------------
+// Credits at risk + fifth-year projection (2026-08-21)
+// --------------------------------------------------------------------------
+
+describe('unitsOverPace and fifthYear', () => {
+  // Oct 2026, grad 2027 -> 2 semesters; 9 remaining -> pace 4.5, at-risk.
+  const atRiskArgs = {
+    degreeProgress: { remainingCount: 9 },
+    coreProgress: null,
+    graduationYear: 2027,
+    now: new Date(2026, 9, 10),
+  };
+
+  test('at-risk: unitsOverPace counts units beyond a 4-per-semester load', () => {
+    const out = computeGraduationOutlook(atRiskArgs);
+    expect(out.status).toBe('at-risk');
+    expect(out.unitsOverPace).toBe(1); // 9 - 4*2
+  });
+
+  test('on-track: unitsOverPace is 0 and fifthYear is null', () => {
+    const out = computeGraduationOutlook({
+      degreeProgress: { remainingCount: 6 },
+      graduationYear: 2027,
+      now: new Date(2025, 8, 1), // 4 semesters -> pace 1.5
+    });
+    expect(out.status).toBe('on-track');
+    expect(out.unitsOverPace).toBe(0);
+    expect(out.fifthYear).toBeNull();
+  });
+
+  test('unknown: unitsOverPace and fifthYear are null', () => {
+    const out = computeGraduationOutlook({});
+    expect(out.unitsOverPace).toBeNull();
+    expect(out.fifthYear).toBeNull();
+  });
+
+  test('at-risk: fifthYear projects 2 extra semesters and flags recovery', () => {
+    const out = computeGraduationOutlook(atRiskArgs);
+    expect(out.fifthYear).toEqual({
+      gradLabel: 'Spring 2028',
+      semestersLeft: 4,
+      pace: 2.3, // 9 / 4 = 2.25 -> 2.3
+      wouldBeOnTrack: true,
+    });
+  });
+
+  test('at-risk message: singular unit over pace, fifth-year relief sentence', () => {
+    const out = computeGraduationOutlook(atRiskArgs);
+    expect(out.message).toContain(
+      "You're 1 course unit beyond an on-track pace of 4 per semester"
+    );
+    expect(out.message).toContain('overload semesters or summer terms');
+    expect(out.message).toContain(
+      'Planning a fifth year (graduating Spring 2028)'
+    );
+    expect(out.message).toContain('no longer at risk');
+  });
+
+  test('off-track with 0 semesters left: all remaining units are over pace', () => {
+    // June 2027, grad 2027 -> 0 semesters, 3 remaining.
+    const out = computeGraduationOutlook({
+      degreeProgress: { remainingCount: 3 },
+      graduationYear: 2027,
+      now: new Date(2027, 5, 15),
+    });
+    expect(out.status).toBe('off-track');
+    expect(out.unitsOverPace).toBe(3);
+    // Fifth year: 2 semesters for 3 units -> pace 1.5 -> recoverable.
+    expect(out.fifthYear.wouldBeOnTrack).toBe(true);
+    expect(out.message).toContain('no longer at risk');
+  });
+
+  test('fifth year that still does not fix it gets no relief sentence', () => {
+    // June 2027, grad 2027 -> 0 semesters, 30 remaining. Fifth year: 2
+    // semesters -> 15/semester, still off-track.
+    const out = computeGraduationOutlook({
+      degreeProgress: { remainingCount: 30 },
+      graduationYear: 2027,
+      now: new Date(2027, 5, 15),
+    });
+    expect(out.status).toBe('off-track');
+    expect(out.fifthYear.wouldBeOnTrack).toBe(false);
+    expect(out.message).not.toContain('fifth year');
+    expect(out.message).not.toContain('no longer at risk');
+    // The over-pace count still appears so the student knows the size of the gap.
+    expect(out.message).toContain('30 course units beyond an on-track pace');
+  });
+
+  test('unknown-programs note still lands after the new sentences', () => {
+    const out = computeGraduationOutlook({
+      degreeProgress: { remainingCount: 9, program: { name: 'Computer Science' } },
+      additionalDegreeProgress: [
+        { remainingCount: 0, requirementsUnknown: true, program: { name: 'Philosophy' } },
+      ],
+      coreProgress: null,
+      graduationYear: 2027,
+      now: new Date(2026, 9, 10),
+    });
+    expect(out.status).toBe('at-risk');
+    expect(out.message).toContain("Requirements for Philosophy aren't loaded yet");
+    // Note comes last, after the fifth-year sentence.
+    expect(out.message.indexOf('fifth year')).toBeLessThan(
+      out.message.indexOf("aren't loaded")
+    );
   });
 });

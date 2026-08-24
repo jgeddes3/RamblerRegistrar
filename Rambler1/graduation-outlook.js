@@ -201,11 +201,11 @@ export function computeGraduationOutlook({ degreeProgress, additionalDegreeProgr
   if (status === 'at-risk' || status === 'off-track') {
     message +=
       ` You're ${unitsOverPace} ${plural(unitsOverPace, 'course unit')} beyond an on-track pace ` +
-      `of 4 per semester — without more time, that means overload semesters or summer terms.`;
+      `of 4 per semester. Without more time, that means overload semesters or summer terms.`;
     if (fifthYear.wouldBeOnTrack) {
       message +=
         ` Planning a fifth year (graduating ${fifthYear.gradLabel}) would bring you to ` +
-        `about ${fifthYear.pace} courses/semester — no longer at risk.`;
+        `about ${fifthYear.pace} courses/semester, no longer at risk.`;
     }
   }
 

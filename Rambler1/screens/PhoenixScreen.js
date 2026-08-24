@@ -1,15 +1,17 @@
 // screens/PhoenixScreen.js — Loyola Phoenix headlines (the student newspaper,
 // via campus-api's RSS fetcher). Recent stories as cards: maroon date badge,
-// headline, section/author. Tapping opens the article in the browser.
+// headline, section/author. Tapping opens the in-app preview (first paragraph
+// plus a read-the-full-article button that leaves for the browser).
 // No back button / no giant header here: the More stack header owns the title.
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl,
-  ActivityIndicator, StyleSheet, Linking,
+  ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getPhoenixHeadlines } from '../campus-api';
+import PhoenixPreviewModal from '../components/PhoenixPreviewModal';
 
 const MAROON = '#A30046';
 
@@ -34,7 +36,7 @@ function metaText(item) {
   const parts = [];
   if (item.categories && item.categories.length > 0) parts.push(item.categories[0]);
   if (item.creator) parts.push(item.creator);
-  return parts.join(' — ');
+  return parts.join(' · ');
 }
 
 // ------------------------------------------------------------------- pieces
@@ -48,7 +50,7 @@ const HeadlineCard = ({ item, onPress }) => {
       onPress={onPress}
       activeOpacity={0.7}
       accessibilityRole="button"
-      accessibilityLabel={`Read ${item.title} in the browser`}
+      accessibilityLabel={`Preview ${item.title}`}
     >
       <View style={s.badge}>
         <Text style={s.badgeMonth}>{month}</Text>
@@ -74,6 +76,7 @@ const PhoenixScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [items, setItems] = useState(null); // null = not loaded / failed, [] = empty
+  const [preview, setPreview] = useState(null); // story shown in the preview modal
 
   const load = useCallback(async () => {
     // campus-api never throws (contract: [] on failure), but stay defensive.
@@ -99,11 +102,6 @@ const PhoenixScreen = () => {
     setRefreshing(false);
   }, [load]);
 
-  const openArticle = useCallback((item) => {
-    if (!item?.link) return;
-    Linking.openURL(item.link).catch(() => {});
-  }, []);
-
   if (loading) {
     return (
       <View style={s.centerWrap}>
@@ -114,11 +112,12 @@ const PhoenixScreen = () => {
   }
 
   return (
+    <>
     <FlatList
       style={s.container}
       data={items || []}
       keyExtractor={(item, index) => item.link ?? String(index)}
-      renderItem={({ item }) => <HeadlineCard item={item} onPress={() => openArticle(item)} />}
+      renderItem={({ item }) => <HeadlineCard item={item} onPress={() => setPreview(item)} />}
       contentContainerStyle={items ? s.content : s.emptyContainer}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={MAROON} colors={[MAROON]} />
@@ -134,6 +133,12 @@ const PhoenixScreen = () => {
         </View>
       }
     />
+    <PhoenixPreviewModal
+      item={preview}
+      visible={preview != null}
+      onClose={() => setPreview(null)}
+    />
+    </>
   );
 };
 

@@ -371,7 +371,7 @@ const ProgressScreen = () => {
         <View style={s.addedClassesCard}>
           <Text style={s.addedClassesTitle}>Added Classes</Text>
           <Text style={s.addedClassesDetail}>
-            Your major ({majorCreditsRequired}cr) + core ({coreCreditsRequired}cr) = {accountedFor} credits — {addedCredits} more than the standard 120. No electives needed.
+            Your major ({majorCreditsRequired}cr) + core ({coreCreditsRequired}cr) = {accountedFor} credits, {addedCredits} more than the standard 120. No electives needed.
           </Text>
         </View>
       ) : electiveCreditsNeeded > 0 ? (
@@ -407,7 +407,7 @@ const ProgressScreen = () => {
             The required-course list for this major isn't loaded into
             RamblerRegistrar yet, so progress can't be tracked here. The
             official requirements are in the LUC academic catalog
-            (catalog.luc.edu) — we're working on adding them.
+            (catalog.luc.edu). We're working on adding them.
           </Text>
         ) : (
         <ProgressBar
@@ -432,7 +432,7 @@ const ProgressScreen = () => {
         {upNext.length > 0 && (
           <View style={s.section}>
             <Text style={s.sectionHeader}>Up Next</Text>
-            <Text style={s.sectionSub}>Prerequisites met — ready to take</Text>
+            <Text style={s.sectionSub}>Prerequisites met, ready to take</Text>
             {upNext.map((c) => (
               <CourseRow key={c.code || c.id} icon="○" iconColor="#A30046" code={c.code} name={c.name} onPress={() => openCourseModal(c)} />
             ))}
@@ -666,7 +666,7 @@ const ProgressScreen = () => {
               <Text style={s.subheading}>Your major requires more than 120 credits</Text>
               <View style={s.addedClassesCard}>
                 <Text style={s.addedClassesDetail}>
-                  Your major requires {majorCreditsRequired} credits and the university core requires {coreCreditsRequired} credits, totaling {accountedFor} credits — {addedCredits} beyond the standard 120. No elective space is needed.
+                  Your major requires {majorCreditsRequired} credits and the university core requires {coreCreditsRequired} credits, totaling {accountedFor} credits, {addedCredits} beyond the standard 120. No elective space is needed.
                 </Text>
               </View>
               {electiveCourses.length > 0 && (
@@ -736,7 +736,7 @@ const ProgressScreen = () => {
                 The required-course list for this program isn't loaded into
                 RamblerRegistrar yet, so progress can't be tracked here. The
                 official requirements are in the LUC academic catalog
-                (catalog.luc.edu) — we're working on adding them.
+                (catalog.luc.edu). We're working on adding them.
               </Text>
             ) : (
               <>
@@ -750,7 +750,7 @@ const ProgressScreen = () => {
                 />
                 <Text style={s.sectionSub}>
                   Covers the specifically-listed requirements. Open electives in the
-                  catalog (e.g. "any two 300-level courses") may add more — confirm
+                  catalog (e.g. "any two 300-level courses") may add more. Confirm
                   with the official catalog.
                 </Text>
                 {prog.completed && prog.completed.length > 0 && (

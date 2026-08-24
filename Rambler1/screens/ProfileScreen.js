@@ -345,7 +345,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                     <Text style={s.recsSectionTitle}>Recommended For You</Text>
                     {quizResults && (
                       <Text style={s.recsSectionSub}>
-                        Based on your {quizResults.code} — {quizResults.profileName} profile
+                        Based on your {quizResults.code} · {quizResults.profileName} profile
                       </Text>
                     )}
                     {recsLoading ? (
@@ -367,7 +367,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                           </View>
                           <View style={s.recItemRight}>
                             <Text style={s.recItemName}>{rec.program_name}</Text>
-                            <Text style={s.recItemDegree}>{rec.degree} — {rec.school}</Text>
+                            <Text style={s.recItemDegree}>{rec.degree} · {rec.school}</Text>
                             {rec.rationale ? (
                               <Text style={s.recItemRationale}>{rec.rationale}</Text>
                             ) : null}
@@ -560,7 +560,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               <View style={s.navRowIconWrap}>
                 <Ionicons name="compass-outline" size={20} color="#A30046" />
               </View>
-              <Text style={s.navRowText}>Change major, add a major, or add a minor — see the time cost</Text>
+              <Text style={s.navRowText}>Change major, add a major, or add a minor, and see the time cost</Text>
               <Ionicons name="chevron-forward" size={18} color="#C0C0C0" />
             </TouchableOpacity>
 

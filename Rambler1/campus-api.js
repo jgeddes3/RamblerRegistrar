@@ -211,6 +211,33 @@ function tagText(itemXml, tag) {
   return text || null;
 }
 
+// HTML fragment -> readable plain text: tags stripped, entities decoded
+// (WordPress pre-encodes them even inside CDATA), whitespace collapsed.
+function htmlToText(html) {
+  return decodeXmlText(String(html).replace(/<[^>]+>/g, ' '))
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// The story's opening paragraph for the in-app preview: first non-empty <p>
+// of content:encoded, else the <description> excerpt (whose trailing
+// WordPress "[…]" marker becomes a plain ellipsis). Null when neither exists.
+function firstParagraphOf(itemXml) {
+  const content = tagText(itemXml, 'content:encoded');
+  if (content) {
+    for (const p of content.match(/<p[^>]*>[\s\S]*?<\/p>/g) || []) {
+      const text = htmlToText(p.replace(/<\/?p[^>]*>/g, ' '));
+      if (text) return text;
+    }
+  }
+  const description = tagText(itemXml, 'description');
+  if (!description) return null;
+  const text = htmlToText(description);
+  if (!text) return null;
+  const trimmed = text.replace(/\s*\[(?:…|&#8230;|&hellip;)\]\s*$/, '');
+  return trimmed === text ? text : `${trimmed}…`;
+}
+
 /**
  * Parse a WordPress RSS 2.0 feed (the Loyola Phoenix) into headline rows:
  * [{ title, link, creator, categories, pubDate, publishedAt }].
@@ -239,6 +266,7 @@ export function parsePhoenixFeed(xmlText) {
       categories,
       pubDate,
       publishedAt: parsed && !isNaN(parsed.getTime()) ? parsed.toISOString() : null,
+      firstParagraph: firstParagraphOf(itemXml),
     });
   }
   return out;

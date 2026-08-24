@@ -114,13 +114,13 @@ const TodayCard = ({ loc, expanded, onToggle }) => {
                 <Text style={s.bookButtonText}>Book a study room</Text>
               </TouchableOpacity>
               <Text style={s.detailHint}>
-                Opens LibCal — sign in with your Loyola account.
+                Opens LibCal. Sign in with your Loyola account.
               </Text>
             </>
           ) : (
             <Text style={s.detailHint}>
               Study rooms are bookable at the Information Commons, Cudahy,
-              Lewis, and Schreiber — see the section below.
+              Lewis, and Schreiber. See the section below.
             </Text>
           )}
         </View>
@@ -252,7 +252,7 @@ const LibraryScreen = () => {
             </TouchableOpacity>
           ))}
           <Text style={s.bookHint}>
-            Opens LibCal — sign in with your Loyola account to reserve.
+            Opens LibCal. Sign in with your Loyola account to reserve.
           </Text>
 
           {weeklyLocations.length > 0 && (

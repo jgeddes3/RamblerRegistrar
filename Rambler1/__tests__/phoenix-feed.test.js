@@ -2,7 +2,7 @@ import { parsePhoenixFeed } from '../campus-api';
 
 // Realistic slice of the Loyola Phoenix WordPress RSS 2.0 feed.
 const FEED = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/">
 <channel>
   <title>The Loyola Phoenix</title>
   <link>https://loyolaphoenix.com</link>
@@ -14,12 +14,18 @@ const FEED = `<?xml version="1.0" encoding="UTF-8"?>
     <category><![CDATA[Sports]]></category>
     <category><![CDATA[Rowing]]></category>
     <description><![CDATA[The team took first place.]]></description>
+    <content:encoded><![CDATA[
+      <p>The rowing team took <a href="https://example.com">first place</a> Saturday
+      at the Lake Michigan Regatta, beating six rival programs&#8217; boats.</p>
+      <p>Coach Smith credited the early-morning practices.</p>
+    ]]></content:encoded>
   </item>
   <item>
     <title>Tuition &amp; Fees Rise 4% &#8212; Students React</title>
     <link>https://loyolaphoenix.com/2026/08/tuition-fees-rise/</link>
     <pubDate>Mon, 17 Aug 2026 09:00:00 +0000</pubDate>
     <category>News</category>
+    <description><![CDATA[Tuition will rise 4% next year, the university announced Monday [&#8230;]]]></description>
   </item>
 </channel>
 </rss>`;
@@ -68,6 +74,30 @@ describe('parsePhoenixFeed', () => {
     const items = parsePhoenixFeed(feed);
     expect(items).toHaveLength(1);
     expect(items[0].publishedAt).toBeNull();
+  });
+
+  test('firstParagraph: first <p> of content:encoded, tags stripped, entities decoded', () => {
+    const items = parsePhoenixFeed(FEED);
+    expect(items[0].firstParagraph).toBe(
+      'The rowing team took first place Saturday at the Lake Michigan Regatta, ' +
+      'beating six rival programs’ boats.'
+    );
+  });
+
+  test('firstParagraph falls back to description, WordPress […] marker becomes an ellipsis', () => {
+    const items = parsePhoenixFeed(FEED);
+    expect(items[1].firstParagraph).toBe(
+      'Tuition will rise 4% next year, the university announced Monday…'
+    );
+  });
+
+  test('firstParagraph is null when the item has neither content nor description', () => {
+    const feed = `<rss><channel><item>
+      <title>Bare</title>
+      <link>https://loyolaphoenix.com/bare/</link>
+    </item></channel></rss>`;
+    const items = parsePhoenixFeed(feed);
+    expect(items[0].firstParagraph).toBeNull();
   });
 
   test('empty, null, or garbage input resolves to []', () => {

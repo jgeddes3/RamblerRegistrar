@@ -16,7 +16,8 @@ import {
   fetchUserPrimaryLocation,
 } from './firestore-data';
 import { parseMeetingPatterns, courseColor } from './schedule-utils';
-import { getLibraryHours, getEventsToday } from './campus-api';
+import { getLibraryHours, getEventsToday, getPhoenixHeadlines } from './campus-api';
+import PhoenixPreviewModal from './components/PhoenixPreviewModal';
 import { nearestStation, getTrainArrivals, groupArrivalsBothWays } from './cta';
 import { walkMinutesFromMeters } from './commute-utils';
 import { computeGraduationOutlook } from './graduation-outlook';
@@ -106,6 +107,24 @@ export function eventsForToday(events, now) {
     .slice(0, 3);
 }
 
+// Today's slice of the Phoenix feed: stories whose publishedAt falls on
+// `now`'s local date, feed order (newest first), capped at 3 for the card.
+// The card only renders on days the paper actually published.
+export function phoenixForToday(items, now) {
+  return (items || [])
+    .filter((item) => {
+      if (!item || !item.publishedAt) return false;
+      const d = new Date(item.publishedAt);
+      if (Number.isNaN(d.getTime())) return false;
+      return (
+        d.getFullYear() === now.getFullYear() &&
+        d.getMonth() === now.getMonth() &&
+        d.getDate() === now.getDate()
+      );
+    })
+    .slice(0, 3);
+}
+
 // Event row time slot: "7:00 PM" / "All day".
 function eventTimeLabel(ev) {
   if (ev.allDay) return 'All day';
@@ -166,6 +185,11 @@ const Home = () => {
   // Campus-events state: [] = section hidden (loading, no events today, or the
   // web/CORS case where getEventsToday() resolves []).
   const [todayEvents, setTodayEvents] = useState([]);
+
+  // Phoenix state: [] = section hidden (loading, nothing published today, or
+  // fetch failure). phoenixPreview holds the story open in the preview modal.
+  const [phoenixToday, setPhoenixToday] = useState([]);
+  const [phoenixPreview, setPhoenixPreview] = useState(null);
 
   // Graduation-outlook state: null = hidden (loading, unknown, or failed),
   // otherwise the computeGraduationOutlook() result. Failures never surface
@@ -270,6 +294,11 @@ const Home = () => {
     if (isActive()) setTodayEvents(eventsForToday(events, new Date()));
   }, []);
 
+  const loadPhoenix = useCallback(async (isActive) => {
+    const items = await getPhoenixHeadlines(); // campus-api: [] on failure
+    if (isActive()) setPhoenixToday(phoenixForToday(items, new Date()));
+  }, []);
+
   const loadTrain = useCallback(async (isActive) => {
     if (!signedIn) {
       trainStationRef.current = null;
@@ -324,11 +353,12 @@ const Home = () => {
       loadToday(isActive);
       loadLibrary(isActive);
       loadEvents(isActive);
+      loadPhoenix(isActive);
       loadOutlook(isActive);
       loadTrain(isActive);
       const arrivalsTimer = setInterval(() => refreshArrivals(isActive), 60000);
       return () => { active = false; clearInterval(arrivalsTimer); };
-    }, [loadToday, loadLibrary, loadEvents, loadOutlook, loadTrain, refreshArrivals])
+    }, [loadToday, loadLibrary, loadEvents, loadPhoenix, loadOutlook, loadTrain, refreshArrivals])
   );
 
   const navigation = useNavigation();
@@ -386,7 +416,7 @@ const Home = () => {
             <View style={s.cardCenter}>
               <Text style={s.cardEmptyText}>No term in session</Text>
               <Text style={s.cardHintText}>
-                Enjoy summer break — your schedule returns in the fall.
+                Enjoy summer break. Your schedule returns in the fall.
               </Text>
             </View>
           ) : schedState === 'none' ? (
@@ -517,6 +547,40 @@ const Home = () => {
           </>
         ) : null}
 
+        {/* ----------------------------- From the Phoenix -------------------- */}
+        {phoenixToday.length > 0 ? (
+          <>
+            <Text style={s.eyebrow}>From the Phoenix</Text>
+            <View style={s.card}>
+              {phoenixToday.map((story, i) => (
+                <TouchableOpacity
+                  key={story.link}
+                  style={[s.phoenixRow, s.rowBorder]}
+                  onPress={() => setPhoenixPreview(story)}
+                  activeOpacity={0.6}
+                  accessibilityLabel={`Preview ${story.title}`}
+                >
+                  <Ionicons name="newspaper-outline" size={15} color={MAROON} style={s.phoenixIcon} />
+                  <View style={s.phoenixMain}>
+                    <Text style={s.phoenixTitle} numberOfLines={2}>{story.title}</Text>
+                    {story.categories && story.categories.length > 0 ? (
+                      <Text style={s.phoenixMeta} numberOfLines={1}>{story.categories[0]}</Text>
+                    ) : null}
+                  </View>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={s.eventSeeAll}
+                onPress={() => navigation.navigate('More', { screen: 'Phoenix' })}
+                accessibilityLabel="All Loyola Phoenix headlines"
+              >
+                <Text style={s.eventSeeAllText}>All headlines</Text>
+                <Ionicons name="chevron-forward" size={13} color={MAROON} />
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : null}
+
         {/* ----------------------------- Graduation Outlook ------------------ */}
         {outlook ? (
           <>
@@ -551,7 +615,7 @@ const Home = () => {
               ) : null}
               {/* The heuristic must never be surfaced without its disclaimer. */}
               <Text style={s.outlookDisclaimer} numberOfLines={2}>
-                Estimate only — confirm with your advisor and the LOCUS degree audit.
+                Estimate only. Confirm with your advisor and the LOCUS degree audit.
               </Text>
             </View>
           </>
@@ -592,6 +656,12 @@ const Home = () => {
           </Text>
         ) : null}
       </ScrollView>
+
+      <PhoenixPreviewModal
+        item={phoenixPreview}
+        visible={phoenixPreview != null}
+        onClose={() => setPhoenixPreview(null)}
+      />
     </View>
   );
 };
@@ -826,6 +896,31 @@ const s = StyleSheet.create({
     fontFamily: FONT_MED,
     fontSize: 15,
     color: MAROON,
+  },
+
+  // From the Phoenix — serif headline rows, section tag, same see-all footer
+  phoenixRow: {
+    flexDirection: 'row',
+    paddingVertical: 10,
+  },
+  phoenixIcon: {
+    marginTop: 3,
+    marginRight: 10,
+  },
+  phoenixMain: {
+    flex: 1,
+  },
+  phoenixTitle: {
+    fontFamily: FONT_MED,
+    fontSize: 16,
+    lineHeight: 21,
+    color: INK,
+  },
+  phoenixMeta: {
+    fontFamily: FONT,
+    fontSize: 13,
+    color: STONE,
+    marginTop: 1,
   },
 
   // Graduation outlook card

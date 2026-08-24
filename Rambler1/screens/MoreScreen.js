@@ -107,7 +107,7 @@ const MoreScreen = ({ navigation }) => {
         </View>
         <View style={styles.rowText}>
           <Text style={styles.rowLabel}>Send Feedback</Text>
-          <Text style={styles.rowSublabel}>Bugs, wrong data, ideas — straight to us</Text>
+          <Text style={styles.rowSublabel}>Bugs, wrong data, ideas: straight to us</Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color="#C0C0C0" />
       </TouchableOpacity>

@@ -744,7 +744,7 @@ const ScheduleScreen = () => {
         </View>
       ) : sections.length === 0 ? (
         <View style={s.centerWrap}>
-          <Text style={s.emptyTitle}>No classes yet — tap + to add</Text>
+          <Text style={s.emptyTitle}>No classes yet. Tap + to add</Text>
           <Text style={s.emptyHint}>Search any course and pick a section.</Text>
         </View>
       ) : (

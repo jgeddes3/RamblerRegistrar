@@ -85,7 +85,7 @@ const CourseSelect =() => {
       onLongPress={() => setDetailCourse(item)}
       selected={selectedCourses.some((c) => c.id === item.id)}
     >
-      {item.code} — {item.name}
+      {item.code} · {item.name}
     </CustomLongButton1>
   );
 

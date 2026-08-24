@@ -15,13 +15,14 @@ jest.mock('../AppContext', () => ({
 jest.mock('../campus-api', () => ({
   getLibraryHours: jest.fn(),
   getEventsToday: jest.fn(),
+  getPhoenixHeadlines: jest.fn(),
 }));
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: jest.fn(),
   useNavigation: () => ({ navigate: jest.fn() }),
 }));
 
-import { buildTodayRows, eventsForToday } from '../Home';
+import { buildTodayRows, eventsForToday, phoenixForToday } from '../Home';
 
 // ------------------------------------------------------------ buildTodayRows
 
@@ -122,5 +123,49 @@ describe('eventsForToday', () => {
   test('empty and missing input return an empty array', () => {
     expect(eventsForToday([], NOW)).toEqual([]);
     expect(eventsForToday(null, NOW)).toEqual([]);
+  });
+});
+
+// ------------------------------------------------------------ phoenixForToday
+
+describe('phoenixForToday', () => {
+  // Local-time "now": Aug 18, 2026, 5:00 PM.
+  const PNOW = new Date(2026, 7, 18, 17, 0, 0);
+  const story = (title, publishedAt) => ({
+    title,
+    link: `https://loyolaphoenix.com/${title}/`,
+    publishedAt,
+  });
+
+  test("keeps only stories published on now's local date, feed order, capped at 3", () => {
+    const todayNoon = new Date(2026, 7, 18, 12, 0, 0).toISOString();
+    const todayMorning = new Date(2026, 7, 18, 8, 0, 0).toISOString();
+    const yesterday = new Date(2026, 7, 17, 23, 59, 0).toISOString();
+    const items = [
+      story('a', todayNoon),
+      story('b', yesterday),
+      story('c', todayMorning),
+      story('d', todayNoon),
+      story('e', todayMorning),
+    ];
+    const out = phoenixForToday(items, PNOW);
+    expect(out.map((i) => i.title)).toEqual(['a', 'c', 'd']);
+  });
+
+  test('stories with missing or invalid publishedAt are excluded', () => {
+    const items = [
+      story('good', new Date(2026, 7, 18, 9, 0, 0).toISOString()),
+      story('null-date', null),
+      { title: 'no-date', link: 'https://loyolaphoenix.com/no-date/' },
+      story('bad-date', 'not a date'),
+    ];
+    const out = phoenixForToday(items, PNOW);
+    expect(out.map((i) => i.title)).toEqual(['good']);
+  });
+
+  test('empty or missing list yields []', () => {
+    expect(phoenixForToday([], PNOW)).toEqual([]);
+    expect(phoenixForToday(null, PNOW)).toEqual([]);
+    expect(phoenixForToday(undefined, PNOW)).toEqual([]);
   });
 });

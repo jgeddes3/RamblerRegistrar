@@ -21,7 +21,7 @@ const BookARideScreen = () => (
       </View>
       <Text style={s.cardBody}>
         Free evening rides for Loyola students around the Lake Shore Campus and
-        Rogers Park — to the library, the grocery store, or home after a late
+        Rogers Park: to the library, the grocery store, or home after a late
         class.
       </Text>
       <View style={s.factRow}>
@@ -51,7 +51,7 @@ const BookARideScreen = () => (
         </TouchableOpacity>
       </View>
       <Text style={s.hint}>
-        Booking opens TripShot — sign in with your Loyola account. The TripShot
+        Booking opens TripShot. Sign in with your Loyola account; the TripShot
         app also shows your driver's live location.
       </Text>
     </View>
@@ -64,7 +64,7 @@ const BookARideScreen = () => (
         <Text style={s.cardTitle}>Intercampus Shuttle</Text>
       </View>
       <Text style={s.cardBody}>
-        A continuous loop between Lake Shore and Water Tower — free with your
+        A continuous loop between Lake Shore and Water Tower, free with your
         Campus Card. No booking needed; just be at the stop.
       </Text>
       <View style={s.factRow}>

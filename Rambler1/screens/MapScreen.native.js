@@ -335,7 +335,7 @@ const MapScreen = () => {
         >
           <Ionicons name="walk-outline" size={18} color="#FFFFFF" />
           <Text style={s.routeBtnText}>
-            {routeStops.length >= 2 ? `Route — ${route.totalMinutes} min` : 'Route'}
+            {routeStops.length >= 2 ? `Route · ${route.totalMinutes} min` : 'Route'}
           </Text>
         </TouchableOpacity>
       )}
@@ -393,7 +393,7 @@ const MapScreen = () => {
             <ScrollView style={s.routeStopsList} keyboardShouldPersistTaps="handled">
               {routeStops.length === 0 ? (
                 <Text style={s.routeEmptyText}>
-                  Search above to add buildings — the walking path and times appear here.
+                  Search above to add buildings. The walking path and times appear here.
                 </Text>
               ) : (
                 routeStops.map((stop, i) => (
@@ -402,7 +402,7 @@ const MapScreen = () => {
                       <View style={s.routeLegRow}>
                         <Ionicons name="walk-outline" size={13} color="#888" />
                         <Text style={s.routeLegText}>
-                          {route.legs[i - 1].walk_minutes} min — {route.legs[i - 1].distance_m} m
+                          {route.legs[i - 1].walk_minutes} min · {route.legs[i - 1].distance_m} m
                         </Text>
                       </View>
                     ) : null}
@@ -427,7 +427,7 @@ const MapScreen = () => {
               <View style={s.routeTotalRow}>
                 <Ionicons name="time-outline" size={15} color={MAROON} />
                 <Text style={s.routeTotalText}>
-                  Total: {route.totalMinutes} min walk — {route.totalDistanceM} m
+                  Total: {route.totalMinutes} min walk · {route.totalDistanceM} m
                 </Text>
               </View>
             )}

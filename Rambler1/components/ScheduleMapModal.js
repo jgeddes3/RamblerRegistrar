@@ -222,8 +222,8 @@ const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
                 <View style={s.impossibleRow}>
                   <Ionicons name="close-circle" size={15} color="#b91c1c" style={{ marginTop: 2 }} />
                   <Text style={s.impossibleNote}>
-                    An impossible transfer means these classes can't both be attended —
-                    swap one section before registration.
+                    An impossible transfer means these classes can't both be attended.
+                    Swap one section before registration.
                   </Text>
                 </View>
               ) : null}
@@ -260,7 +260,7 @@ const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
                     </TouchableOpacity>
                   </View>
                   <Text style={s.rideHint}>
-                    Booking opens TripShot — sign in with your Loyola account.
+                    Booking opens TripShot. Sign in with your Loyola account.
                   </Text>
                 </View>
               ) : null}

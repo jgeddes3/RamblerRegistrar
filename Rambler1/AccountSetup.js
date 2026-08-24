@@ -184,7 +184,7 @@ const AccountSetup =() => {
                 thumbColor="#FFFFFF"
               />
             </View>
-            <Text style={s.toggleHint}>Honors and athletes get registration priority — this tunes course warnings</Text>
+            <Text style={s.toggleHint}>Honors and athletes get registration priority. This tunes course warnings</Text>
           </View>
           <View style={s.labelBadge}>
             <Text style={s.label}>Pick an email and password</Text>

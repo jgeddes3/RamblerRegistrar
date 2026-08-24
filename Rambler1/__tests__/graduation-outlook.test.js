@@ -130,8 +130,8 @@ describe('computeGraduationOutlook', () => {
     expect(result.pace).toBe(9);
     expect(result.message).toBe(
       "9 requirements left with 1 semester to go. That's about 9 courses/semester. Talk to your advisor. " +
-      "You're 5 course units beyond an on-track pace of 4 per semester — without more time, that means overload semesters or summer terms. " +
-      "Planning a fifth year (graduating Spring 2028) would bring you to about 3 courses/semester — no longer at risk."
+      "You're 5 course units beyond an on-track pace of 4 per semester. Without more time, that means overload semesters or summer terms. " +
+      "Planning a fifth year (graduating Spring 2028) would bring you to about 3 courses/semester, no longer at risk."
     );
   });
 

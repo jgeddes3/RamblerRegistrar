@@ -109,7 +109,7 @@ const FastestFillingScreen = () => {
                 <Ionicons name="flash-outline" size={16} color="#92400E" />
                 <Text style={s.noteText}>
                   Day-1/2 courses were full before sophomore registration
-                  opened last term — have backups ready for anything here.
+                  opened last term. Have backups ready for anything here.
                 </Text>
               </View>
             ) : null}

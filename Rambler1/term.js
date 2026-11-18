@@ -51,6 +51,15 @@ export function pickAvailableTerm(preferredCode, availableCodes) {
   return earlier.length ? earlier[earlier.length - 1] : usable[0];
 }
 
+// Terms the Schedule tab lets the user open: the one in session (the classes
+// they are taking now) and the one they are registering for, oldest first.
+// One entry when those are the same term, or when nothing is in session.
+export function scheduleTermOptions(registrationTerm, now = new Date()) {
+  const inSession = inSessionTermFor(now);
+  if (!inSession || inSession.code === registrationTerm.code) return [registrationTerm];
+  return [inSession, registrationTerm].sort((a, b) => a.code.localeCompare(b.code));
+}
+
 // ---- shared registration-term state ----------------------------------------
 let _term = registrationTermFor();
 let _resolved = false;

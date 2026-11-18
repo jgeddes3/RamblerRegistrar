@@ -30,7 +30,7 @@ import GenerateScheduleModal from '../components/GenerateScheduleModal';
 import ScheduleMapModal from '../components/ScheduleMapModal';
 import CourseDetailModal from '../CourseDetailModal';
 import showAlert from '../alert';
-import { useRegistrationTerm, resolveRegistrationTerm } from '../term';
+import { useRegistrationTerm, resolveRegistrationTerm, scheduleTermOptions } from '../term';
 import { afterModalDismiss } from '../modal-sequencing';
 import { writeCacheFile } from '../ics-export';
 
@@ -206,7 +206,13 @@ const ScheduleScreen = () => {
   } = useAppContext();
   const uid = user?.uid;
   const signedIn = !!user && !user.isAnonymous;
-  const TERM = useRegistrationTerm();
+  // The tab opens on the term being registered for, and can be switched to
+  // the term in session (the classes being taken now) when that is a
+  // different term. viewTermCode null = follow the registration term.
+  const registrationTerm = useRegistrationTerm();
+  const [viewTermCode, setViewTermCode] = useState(null);
+  const termOptions = useMemo(() => scheduleTermOptions(registrationTerm), [registrationTerm]);
+  const TERM = termOptions.find((t) => t.code === viewTermCode) || registrationTerm;
 
   const [loading, setLoading] = useState(true);
   const [sections, setSections] = useState([]);        // legacy section rows on the schedule
@@ -690,7 +696,27 @@ const ScheduleScreen = () => {
       <View style={s.header}>
         <View style={{ flex: 1 }}>
           <Text style={s.title}>My Schedule</Text>
-          <Text style={s.subtitle}>{TERM.label}</Text>
+          {termOptions.length > 1 ? (
+            <View style={s.termRow}>
+              {termOptions.map((t) => {
+                const active = t.code === TERM.code;
+                return (
+                  <TouchableOpacity
+                    key={t.code}
+                    style={[s.termChip, active && s.termChipActive]}
+                    onPress={() => setViewTermCode(t.code)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={`Show ${t.label} schedule`}
+                  >
+                    <Text style={[s.termChipText, active && s.termChipTextActive]}>{t.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={s.subtitle}>{TERM.label}</Text>
+          )}
         </View>
         <TouchableOpacity style={s.headerBtn} onPress={exportIcs} accessibilityLabel="Export schedule">
           <Ionicons name="share-outline" size={19} color="#A30046" />
@@ -1065,6 +1091,15 @@ const s = StyleSheet.create({
   },
   title: { fontFamily: 'CormorantGaramond-Regular', fontSize: 28, color: '#A30046' },
   subtitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: '#999', marginTop: -2 },
+  // Term switcher (shown in place of the subtitle when two terms are open)
+  termRow: { flexDirection: 'row', gap: 6, marginTop: 2 },
+  termChip: {
+    paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12,
+    borderWidth: 1, borderColor: '#D8D8D8', backgroundColor: '#FFFFFF',
+  },
+  termChipActive: { borderColor: '#A30046', backgroundColor: '#A30046' },
+  termChipText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#666' },
+  termChipTextActive: { color: '#FFFFFF' },
   headerBtn: {
     width: 38, height: 38, borderRadius: 19, marginLeft: 10,
     alignItems: 'center', justifyContent: 'center',

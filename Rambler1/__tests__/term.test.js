@@ -101,3 +101,25 @@ describe('resolveRegistrationTerm', () => {
     expect(loader).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('scheduleTermOptions', () => {
+  const { scheduleTermOptions } = require('../term');
+  const SPRING_27 = { code: '1272', label: 'Spring 2027' };
+  const FALL_26 = { code: '1266', label: 'Fall 2026' };
+
+  test('while registering for next term, offers the term in session and the registration term, oldest first', () => {
+    expect(scheduleTermOptions(SPRING_27, new Date(2026, 10, 18))).toEqual([FALL_26, SPRING_27]);
+  });
+
+  test('offers one term when the term in session IS the registration term', () => {
+    // Nov 2026, but only Fall 2026 is published so the app fell back to it.
+    expect(scheduleTermOptions(FALL_26, new Date(2026, 10, 18))).toEqual([FALL_26]);
+    // Feb 2027: Spring 2027 is both in session and being registered for.
+    expect(scheduleTermOptions(SPRING_27, new Date(2027, 1, 10))).toEqual([SPRING_27]);
+  });
+
+  test('offers only the registration term over the summer break', () => {
+    const FALL_27 = { code: '1276', label: 'Fall 2027' };
+    expect(scheduleTermOptions(FALL_27, new Date(2027, 5, 20))).toEqual([FALL_27]);
+  });
+});

@@ -13,6 +13,7 @@ import * as Sharing from 'expo-sharing';
 import { useAppContext } from '../AppContext';
 import {
   fetchSchedule, saveSchedule, getSectionsByClassNumbers,
+  addSectionToSchedule, removeSectionFromSchedule,
   searchCourses, getCourseSections, fetchBuildings,
   fetchDegreeProgress, fetchUserCoreProgress,
   fetchWatches, addWatch, removeWatch,
@@ -219,10 +220,22 @@ const ScheduleScreen = () => {
   const [loading, setLoading] = useState(true);
   const [sections, setSections] = useState([]);        // legacy section rows on the schedule
   const [scheduleIds, setScheduleIds] = useState([]);  // class_number strings
-  // The latest ids, for a toast's Undo that runs seconds after the change.
-  const scheduleIdsRef = useRef(scheduleIds);
-  scheduleIdsRef.current = scheduleIds;
   const toast = useToast();
+  // A toast's Undo runs seconds later, maybe after the term chip was switched.
+  // It works on the term the change was made in (the term-scoped helpers
+  // read and write that term's schedule, queued behind any other schedule
+  // write) and reloads only if that term is still the one on screen.
+  const termCodeRef = useRef(TERM.code);
+  termCodeRef.current = TERM.code;
+  const loadScheduleRef = useRef(null);
+  const undoFor = (termCode, revert) => async () => {
+    const res = await revert();
+    if (!res) {
+      showAlert("Couldn't undo", 'Check your connection, then make the change again.');
+      return;
+    }
+    if (termCodeRef.current === termCode && loadScheduleRef.current) loadScheduleRef.current();
+  };
   const [buildings, setBuildings] = useState([]);
   const [saving, setSaving] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false); // read error ≠ empty schedule
@@ -288,6 +301,7 @@ const ScheduleScreen = () => {
     }
     setLoading(false);
   }, [uid, signedIn, TERM.code]);
+  loadScheduleRef.current = loadSchedule; // the current term's, for Undo
 
   // Load this term's seat watches + resolve them to section rows for the
   // 'Watching' list. fetchWatches/getSectionsByClassNumbers return [] on
@@ -581,8 +595,7 @@ const ScheduleScreen = () => {
         toast.show({
           message: `${courseCodeOf(section)} Sec ${section.section_number} added.`,
           actionLabel: 'Undo',
-          // Against the schedule as it is then, so later changes survive.
-          onAction: () => persistIds(scheduleIdsRef.current.filter((id) => id !== classNum)),
+          onAction: undoFor(TERM.code, () => removeSectionFromSchedule(uid, TERM.code, classNum)),
         });
       }
     };
@@ -627,10 +640,7 @@ const ScheduleScreen = () => {
             toast.show({
               message: `${code} removed.`,
               actionLabel: 'Undo',
-              onAction: () => {
-                const now = scheduleIdsRef.current;
-                if (!now.includes(classNum)) persistIds([...now, classNum]);
-              },
+              onAction: undoFor(TERM.code, () => addSectionToSchedule(uid, TERM.code, classNum)),
             });
           },
         },

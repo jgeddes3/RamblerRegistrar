@@ -917,6 +917,7 @@ const s = StyleSheet.create({
     color: STONE,
     textAlign: 'center',
     marginTop: 4,
+    fontStyle: 'italic',
   },
 
   // Empty

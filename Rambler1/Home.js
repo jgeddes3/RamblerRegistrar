@@ -851,11 +851,13 @@ const s = StyleSheet.create({
     flexShrink: 0,
     fontSize: 13,
     color: '#B3ABA1',
+    fontStyle: 'italic',
   },
   trainHint: {
     fontSize: 13,
     color: '#B3ABA1',
     paddingVertical: 10,
+    fontStyle: 'italic',
   },
 
   // Happening on campus — sans time slot, serif title/location, see-all footer
@@ -949,6 +951,7 @@ const s = StyleSheet.create({
     color: '#B3ABA1',
     marginTop: 6,
     marginLeft: 23,
+    fontStyle: 'italic',
   },
 
   // Library hours rows

@@ -369,6 +369,9 @@ const PreferenceQuiz = () => {
   // closing the app mid-quiz doesn't lose them, and offer Skip for now.
   const onboarding = !isLoggedIn;
   const restoredRef = useRef(!onboarding); // retakes have nothing to restore
+  // The render the restore itself causes must not write: on resume this
+  // screen may be mounted under the one the user is on.
+  const skipSaveRef = useRef(false);
 
   useEffect(() => {
     if (!onboarding) return undefined;
@@ -377,6 +380,7 @@ const PreferenceQuiz = () => {
       if (!alive) return;
       const p = draft && draft.quizProgress;
       if (p && p.answers) {
+        skipSaveRef.current = true;
         setSelectedAnswers(p.answers);
         if (Number.isInteger(p.current)) setCurrentQuestion(Math.min(p.current, QUESTIONS.length - 1));
       }
@@ -387,6 +391,7 @@ const PreferenceQuiz = () => {
 
   useEffect(() => {
     if (!onboarding || !restoredRef.current) return;
+    if (skipSaveRef.current) { skipSaveRef.current = false; return; }
     saveDraft(AsyncStorage, { step: 'PreferenceQuiz', quizProgress: { answers: selectedAnswers, current: currentQuestion } });
   }, [onboarding, selectedAnswers, currentQuestion]);
 

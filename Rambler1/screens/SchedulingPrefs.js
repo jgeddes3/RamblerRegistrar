@@ -74,6 +74,7 @@ const SchedulingPrefs = () => {
   // In sign-up (not a retake from More): a saved draft and Skip for now.
   const onboarding = !isLoggedIn;
   const restoredRef = useRef(!onboarding);
+  const skipSaveRef = useRef(false); // the restore's own render must not write (see the quiz)
 
   useEffect(() => {
     if (!onboarding) return undefined;
@@ -82,6 +83,7 @@ const SchedulingPrefs = () => {
       if (!alive) return;
       const p = draft && draft.prefsProgress;
       if (p && p.answers) {
+        skipSaveRef.current = true;
         setAnswers(p.answers);
         if (Number.isInteger(p.current)) setCurrentQ(Math.min(p.current, QUESTIONS.length - 1));
       }
@@ -92,6 +94,7 @@ const SchedulingPrefs = () => {
 
   useEffect(() => {
     if (!onboarding || !restoredRef.current) return;
+    if (skipSaveRef.current) { skipSaveRef.current = false; return; }
     saveDraft(AsyncStorage, { step: 'SchedulingPrefs', prefsProgress: { answers, current: currentQ } });
   }, [onboarding, answers, currentQ]);
 

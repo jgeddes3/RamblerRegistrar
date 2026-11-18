@@ -58,7 +58,10 @@ const seatsText = (p) => {
 // caption) and a one-sentence description for screen readers, which can't
 // read bars. null when there is no trend to draw.
 export function trendSummary(history) {
-  const points = (Array.isArray(history) ? history : []).filter((p) => p && Number.isFinite(Number(p.total)));
+  // The same window the bars draw (buildTrendBars keeps the last 30).
+  const points = (Array.isArray(history) ? history : [])
+    .filter((p) => p && Number.isFinite(Number(p.total)))
+    .slice(-30);
   if (points.length < 2) return null;
   const first = points[0];
   const last = points[points.length - 1];

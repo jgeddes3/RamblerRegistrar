@@ -33,15 +33,18 @@ const Login = ({ navigation }) => {
     return () => { alive = false; };
   }, []);
 
-  const continueSignup = () => {
-    if (!draft) return;
+  const continueSignup = async () => {
+    // Read it again: going Back to Login after an earlier Continue, the draft
+    // has moved on since this screen first loaded it.
+    const latest = (await loadDraft(AsyncStorage)) || draft;
+    if (!latest || !resumeRoutes(latest.step)) return;
     const restore = [
       ['selectedProgram', setSelectedProgram], ['selectedProgram2', setSelectedProgram2],
       ['selectedMinors', setSelectedMinors], ['selectedCourses', setSelectedCourses],
       ['quizResults', setQuizResults],
     ];
-    for (const [key, set] of restore) if (key in draft && set) set(draft[key]);
-    const routes = resumeRoutes(draft.step);
+    for (const [key, set] of restore) if (key in latest && set) set(latest[key]);
+    const routes = resumeRoutes(latest.step, { quizTaken: !!(latest.quizResults && latest.quizResults.code) });
     navigation.reset({ index: routes.length - 1, routes });
   };
 

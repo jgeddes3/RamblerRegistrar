@@ -609,6 +609,7 @@ const SearchScreen = () => {
     setQuery(text);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!text.trim()) {
+      searchGenRef.current += 1; // a search in flight must not fill the emptied box
       setResults([]);
       setLoading(false);
       setSearchFailed(false);

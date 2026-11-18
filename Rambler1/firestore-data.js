@@ -784,7 +784,22 @@ export const fetchSchedule = async (uid, termCode) => {
 // validator allows (name/termCode/sectionIds/createdAt/updatedAt). Rules
 // reject null values — `name` is OMITTED when falsy, never sent as null;
 // createdAt is only written on create (mirrors saveUserProfile).
-export const saveSchedule = async (uid, termCode, sectionIds, name) => {
+// Schedule writes run one at a time. add/remove read the schedule and write
+// it back; two of them at once (a "+" on a lecture then its lab, an Undo
+// racing an add) would each write their own copy and one change would be
+// lost. Every schedule write below waits for the one before it.
+let scheduleChain = Promise.resolve();
+const inScheduleQueue = (fn) => {
+  const run = scheduleChain.then(fn, fn);
+  scheduleChain = run.then(() => {}, () => {});
+  return run;
+};
+
+export const saveSchedule = (uid, termCode, sectionIds, name) =>
+  inScheduleQueue(() => writeSchedule(uid, termCode, sectionIds, name));
+
+// The write itself, for callers already inside the queue.
+const writeSchedule = async (uid, termCode, sectionIds, name) => {
   try {
     const userId = resolveUid(uid);
     if (!userId || !termCode || !Array.isArray(sectionIds)) return null;
@@ -824,7 +839,7 @@ export const deleteSchedule = async (uid, termCode) => {
 
 // Add one section to the term's saved schedule (used by CourseDetailModal's
 // quick-add, F-P3). Returns { added } | { already } | { full } | null (error).
-export const addSectionToSchedule = async (uid, termCode, classNumber) => {
+export const addSectionToSchedule = (uid, termCode, classNumber) => inScheduleQueue(async () => {
   try {
     const userId = resolveUid(uid);
     if (!userId || !termCode || classNumber == null) return null;
@@ -833,16 +848,16 @@ export const addSectionToSchedule = async (uid, termCode, classNumber) => {
     const num = String(classNumber);
     if (ids.includes(num)) return { already: true };
     if (ids.length >= 40) return { full: true };
-    const res = await saveSchedule(userId, termCode, [...ids, num], current.name);
+    const res = await writeSchedule(userId, termCode, [...ids, num], current.name);
     return res ? { added: true } : null;
   } catch (error) {
     logError('addSectionToSchedule', error);
     return null;
   }
-};
+});
 
 // The inverse, for a toast's Undo: { removed } | { absent } | null (failed).
-export const removeSectionFromSchedule = async (uid, termCode, classNumber) => {
+export const removeSectionFromSchedule = (uid, termCode, classNumber) => inScheduleQueue(async () => {
   try {
     const userId = resolveUid(uid);
     if (!userId || !termCode || classNumber == null) return null;
@@ -850,13 +865,13 @@ export const removeSectionFromSchedule = async (uid, termCode, classNumber) => {
     const ids = current.section_ids.map(String);
     const num = String(classNumber);
     if (!ids.includes(num)) return { absent: true };
-    const res = await saveSchedule(userId, termCode, ids.filter((id) => id !== num), current.name);
+    const res = await writeSchedule(userId, termCode, ids.filter((id) => id !== num), current.name);
     return res ? { removed: true } : null;
   } catch (error) {
     logError('removeSectionFromSchedule', error);
     return null;
   }
-};
+});
 
 // =============================================================================
 // WHAT-IF EXPLORER (lean program-requirement reads)

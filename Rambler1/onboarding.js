@@ -16,11 +16,16 @@ export function stepNumber(route) {
 }
 
 // The stack to rebuild when resuming at `step`: Login, then every step up to
-// it, so Back walks the flow as if it had never been closed.
-export function resumeRoutes(step) {
-  const i = ONBOARDING_STEPS.indexOf(step);
+// it, so Back walks the flow as if it had never been closed. A skipped quiz
+// has no results to show, so QuizResults is left out (and resuming "at" it
+// means going back to the quiz).
+export function resumeRoutes(step, { quizTaken = true } = {}) {
+  let target = step;
+  if (!quizTaken && target === 'QuizResults') target = 'PreferenceQuiz';
+  const i = ONBOARDING_STEPS.indexOf(target);
   if (i < 0) return null;
-  return [{ name: 'Login' }, ...ONBOARDING_STEPS.slice(0, i + 1).map((name) => ({ name }))];
+  const names = ONBOARDING_STEPS.slice(0, i + 1).filter((name) => quizTaken || name !== 'QuizResults');
+  return [{ name: 'Login' }, ...names.map((name) => ({ name }))];
 }
 
 // ---- the draft --------------------------------------------------------------
@@ -43,15 +48,29 @@ export async function loadDraft(storage) {
   }
 }
 
-export async function saveDraft(storage, patch) {
-  try {
-    const current = (await loadDraft(storage)) || {};
-    await storage.setItem(DRAFT_KEY, JSON.stringify({ ...current, ...patch, savedAt: Date.now() }));
-  } catch (e) {
-    // A draft is a convenience: failing to keep one must not stop sign-up.
-  }
+// Writes run one at a time: saveDraft reads the draft, merges, and writes it
+// back, so two at once (finishing preferences while Create Account records
+// itself) would each write their own copy and one patch would be lost.
+let queue = Promise.resolve();
+const inQueue = (fn) => {
+  const run = queue.then(fn, fn);
+  queue = run.then(() => {}, () => {});
+  return run;
+};
+
+export function saveDraft(storage, patch) {
+  return inQueue(async () => {
+    try {
+      const current = (await loadDraft(storage)) || {};
+      await storage.setItem(DRAFT_KEY, JSON.stringify({ ...current, ...patch, savedAt: Date.now() }));
+    } catch (e) {
+      // A draft is a convenience: failing to keep one must not stop sign-up.
+    }
+  });
 }
 
-export async function clearDraft(storage) {
-  try { await storage.removeItem(DRAFT_KEY); } catch (e) { /* nothing to keep */ }
+export function clearDraft(storage) {
+  return inQueue(async () => {
+    try { await storage.removeItem(DRAFT_KEY); } catch (e) { /* nothing to keep */ }
+  });
 }

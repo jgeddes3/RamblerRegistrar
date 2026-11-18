@@ -164,3 +164,38 @@ describe('removeSectionFromSchedule (Undo for an add)', () => {
     expect(fs.setDoc).not.toHaveBeenCalled();
   });
 });
+
+describe('schedule writes are queued (two quick "+" taps keep both)', () => {
+  const { addSectionToSchedule, removeSectionFromSchedule } = require('../firestore-data');
+  // An in-memory schedule doc whose writes take a moment, like the network.
+  let stored;
+  beforeEach(() => {
+    stored = ['100'];
+    fs.getDoc.mockReset().mockImplementation(async () => ({
+      exists: () => true, data: () => ({ termCode: '1266', sectionIds: [...stored] }), metadata: { fromCache: false },
+    }));
+    fs.setDoc.mockReset().mockImplementation(async (_ref, payload) => {
+      await new Promise((r) => setTimeout(r, 5));
+      stored = payload.sectionIds;
+    });
+  });
+
+  test('two adds at once both land', async () => {
+    const [a, b] = await Promise.all([
+      addSectionToSchedule('u1', '1266', '201'),
+      addSectionToSchedule('u1', '1266', '202'),
+    ]);
+    expect(a).toEqual({ added: true });
+    expect(b).toEqual({ added: true });
+    expect(stored.sort()).toEqual(['100', '201', '202']);
+  });
+
+  test('an undo racing an add leaves exactly the add', async () => {
+    await addSectionToSchedule('u1', '1266', '201');
+    await Promise.all([
+      removeSectionFromSchedule('u1', '1266', '201'), // Undo
+      addSectionToSchedule('u1', '1266', '202'),
+    ]);
+    expect(stored.sort()).toEqual(['100', '202']);
+  });
+});

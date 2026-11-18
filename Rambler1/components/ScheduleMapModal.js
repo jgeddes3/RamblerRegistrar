@@ -345,7 +345,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: MAROON, borderRadius: 10, paddingVertical: 7, paddingHorizontal: 14,
   },
   rideBtnSecondaryText: { fontSize: 13, color: MAROON, fontVariant: ['tabular-nums'] },
-  rideHint: { fontSize: 13, color: STONE, marginTop: 7 },
+  rideHint: { fontSize: 13, color: STONE, marginTop: 7, fontStyle: 'italic' },
 });
 
 export default ScheduleMapModal;

@@ -223,6 +223,58 @@ const MapScreen = () => {
   const showHome = !!home;
   const showClasses = classCourses.size > 0;
 
+  // Pins are built once per data change, not once per render: every
+  // keystroke in the route search re-renders this screen, and handing the map
+  // ~60 freshly created markers each time made typing stutter.
+  const buildingMarkers = useMemo(
+    () => buildings.filter(hasCoords).map((b) => {
+      const courses = classCourses.get(b.id);
+      if (courses && courses.length > 0) {
+        // Building hosting the user's classes this term — gold pin,
+        // callout lists the courses meeting there.
+        return (
+          <Marker
+            key={`b-${b.id}`}
+            coordinate={{ latitude: Number(b.latitude), longitude: Number(b.longitude) }}
+            pinColor={GOLD}
+          >
+            <Callout>
+              <View style={s.callout}>
+                <Text style={s.calloutTitle}>{b.name}</Text>
+                <Text style={s.calloutSub}>Your classes here:</Text>
+                {courses.map((code) => (
+                  <Text key={code} style={s.calloutCourse}>{code}</Text>
+                ))}
+              </View>
+            </Callout>
+          </Marker>
+        );
+      }
+      return (
+        <Marker
+          key={`b-${b.id}`}
+          coordinate={{ latitude: Number(b.latitude), longitude: Number(b.longitude) }}
+          pinColor={MAROON}
+          title={b.name}
+          description={b.address || undefined}
+        />
+      );
+    }),
+    [buildings, classCourses]
+  );
+  const homeMarker = useMemo(
+    () => showHome && (
+      <Marker
+        key="home"
+        coordinate={{ latitude: Number(home.latitude), longitude: Number(home.longitude) }}
+        pinColor={HOME_BLUE}
+        title={home.label || 'Home'}
+        description={home.address || undefined}
+      />
+    ),
+    [showHome, home]
+  );
+
   return (
     <View style={s.container}>
       <MapView
@@ -232,49 +284,9 @@ const MapScreen = () => {
         showsUserLocation={false}
         toolbarEnabled={false}
       >
-        {buildings.filter(hasCoords).map((b) => {
-          const courses = classCourses.get(b.id);
-          if (courses && courses.length > 0) {
-            // Building hosting the user's classes this term — gold pin,
-            // callout lists the courses meeting there.
-            return (
-              <Marker
-                key={`b-${b.id}`}
-                coordinate={{ latitude: Number(b.latitude), longitude: Number(b.longitude) }}
-                pinColor={GOLD}
-              >
-                <Callout>
-                  <View style={s.callout}>
-                    <Text style={s.calloutTitle}>{b.name}</Text>
-                    <Text style={s.calloutSub}>Your classes here:</Text>
-                    {courses.map((code) => (
-                      <Text key={code} style={s.calloutCourse}>{code}</Text>
-                    ))}
-                  </View>
-                </Callout>
-              </Marker>
-            );
-          }
-          return (
-            <Marker
-              key={`b-${b.id}`}
-              coordinate={{ latitude: Number(b.latitude), longitude: Number(b.longitude) }}
-              pinColor={MAROON}
-              title={b.name}
-              description={b.address || undefined}
-            />
-          );
-        })}
+        {buildingMarkers}
 
-        {showHome && (
-          <Marker
-            key="home"
-            coordinate={{ latitude: Number(home.latitude), longitude: Number(home.longitude) }}
-            pinColor={HOME_BLUE}
-            title={home.label || 'Home'}
-            description={home.address || undefined}
-          />
-        )}
+        {homeMarker}
 
         {routeCoords.length >= 2 && (
           <Polyline

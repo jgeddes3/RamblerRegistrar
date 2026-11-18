@@ -11,7 +11,7 @@ import {
 import { submitFeedback } from '../firestore-data';
 import showAlert from '../alert';
 import { afterModalDismiss } from '../modal-sequencing';
-import { FONT, MAROON, STONE } from '../theme';
+import { FONT, MAROON, STONE, FONT_SEMI } from '../theme';
 
 // Bottom sheet must ride above the keyboard: iOS pads, Android shrinks.
 // (react-native-web ignores `behavior`, so web is unaffected.)
@@ -108,7 +108,7 @@ const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontFamily: FONT, fontSize: 22, color: '#1a1a1a' },
   closeBtn: { padding: 6 },
-  closeText: { fontFamily: FONT, fontSize: 16, color: MAROON, fontWeight: '600' },
+  closeText: { fontFamily: FONT_SEMI, fontSize: 16, color: MAROON, },
   contextText: { fontFamily: FONT, fontSize: 14, color: STONE, marginTop: 2 },
 
   typeRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
@@ -117,7 +117,7 @@ const s = StyleSheet.create({
     paddingVertical: 6, paddingHorizontal: 14,
   },
   typeChipOn: { backgroundColor: MAROON, borderColor: MAROON },
-  typeChipText: { fontFamily: FONT, fontSize: 15, fontWeight: '600', color: '#444' },
+  typeChipText: { fontFamily: FONT_SEMI, fontSize: 15, color: '#444' },
   typeChipTextOn: { color: '#FFF' },
 
   messageInput: {
@@ -128,7 +128,7 @@ const s = StyleSheet.create({
     backgroundColor: MAROON, borderRadius: 12, paddingVertical: 13,
     alignItems: 'center', marginTop: 12, marginBottom: 8,
   },
-  sendBtnText: { fontFamily: FONT, fontSize: 17, fontWeight: '700', color: '#FFF' },
+  sendBtnText: { fontFamily: FONT_SEMI, fontSize: 17, color: '#FFF' },
 });
 
 export default FeedbackModal;

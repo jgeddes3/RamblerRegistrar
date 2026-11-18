@@ -1,6 +1,7 @@
 // styleComponents/CustomButton.js
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { FONT } from '../theme';
 
 const CustomButton2 = ({ onPress, children, width, height }) => {
   const buttonStyles = [
@@ -23,7 +24,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   buttonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 19,
     color: '#FFFFFF',
   },

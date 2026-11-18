@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { FONT } from '../theme';
 
 const CustomLongButton1 = ({ onPress, onLongPress, children, selected }) => {
   const buttonStyles = [
@@ -34,7 +35,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#A30046',
   },
   buttonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 20,
     color: '#000000',
     textAlign: 'center',

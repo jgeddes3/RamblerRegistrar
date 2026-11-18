@@ -21,7 +21,7 @@ import {
 import { transitEstimate, getTrainArrivals } from '../cta';
 import { formatMinutes } from '../schedule-generator';
 import DayMap from './DayMap';
-import { FONT, MAROON, STONE, NEUTRAL } from '../theme';
+import { FONT, MAROON, STONE, NEUTRAL, FONT_SEMI, FONT_MED } from '../theme';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 const WEEKDAYS = [
@@ -278,9 +278,9 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingBottom: 4,
   },
-  title: { fontFamily: FONT, fontSize: 24, fontWeight: '700', color: '#1a1a1a' },
+  title: { fontFamily: FONT_SEMI, fontSize: 24, color: '#1a1a1a' },
   closeBtn: { padding: 8 },
-  closeText: { fontFamily: FONT, fontSize: 18, fontWeight: '600', color: MAROON },
+  closeText: { fontFamily: FONT_SEMI, fontSize: 18, color: MAROON },
 
   dayRow: { flexDirection: 'row', paddingHorizontal: 16, marginTop: 4, marginBottom: 4, gap: 8 },
   dayChip: {
@@ -288,7 +288,7 @@ const s = StyleSheet.create({
     paddingVertical: 6, alignItems: 'center',
   },
   dayChipOn: { backgroundColor: MAROON, borderColor: MAROON },
-  dayChipText: { fontFamily: FONT, fontSize: 15, fontWeight: '600', color: '#444' },
+  dayChipText: { fontFamily: FONT_SEMI, fontSize: 15, color: '#444' },
   dayChipTextOn: { color: '#FFF' },
 
   emptyText: { fontFamily: FONT, fontSize: 17, color: STONE, textAlign: 'center', marginTop: 40 },
@@ -300,7 +300,7 @@ const s = StyleSheet.create({
     backgroundColor: '#F6F6F6', borderRadius: 10, padding: 12, marginBottom: 10,
   },
   commuteTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  commuteTitle: { flex: 1, fontFamily: FONT, fontSize: 17, fontWeight: '700', color: '#1e40af' },
+  commuteTitle: { flex: 1, fontFamily: FONT_SEMI, fontSize: 17, color: '#1e40af' },
   commuteSub: { fontFamily: FONT, fontSize: 14, color: '#555', marginTop: 2 },
   trainRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 },
   trainLabel: { fontFamily: FONT, fontSize: 14, color: '#555' },
@@ -314,14 +314,14 @@ const s = StyleSheet.create({
     width: 28, height: 28, borderRadius: 14, backgroundColor: MAROON,
     alignItems: 'center', justifyContent: 'center',
   },
-  orderBubbleText: { fontFamily: FONT, fontSize: 14, fontWeight: '700', color: '#FFF' },
-  classCode: { fontFamily: FONT, fontSize: 17, fontWeight: '700', color: '#333' },
-  classMeta: { fontFamily: FONT, fontSize: 13, color: STONE },
+  orderBubbleText: { fontFamily: FONT_SEMI, fontSize: 14, color: '#FFF' },
+  classCode: { fontFamily: FONT_SEMI, fontSize: 17, color: '#333' },
+  classMeta: { fontSize: 13, color: STONE },
 
   transRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingLeft: 12 },
   transBadge: { borderRadius: 10, paddingVertical: 2, paddingHorizontal: 9 },
-  transBadgeText: { fontFamily: FONT, fontSize: 12, fontWeight: '700' },
-  transText: { flex: 1, fontFamily: FONT, fontSize: 13, color: '#666' },
+  transBadgeText: { fontSize: 12, fontWeight: '700' },
+  transText: { flex: 1, fontSize: 13, color: '#666' },
 
   impossibleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 12 },
   impossibleNote: {
@@ -331,20 +331,20 @@ const s = StyleSheet.create({
     backgroundColor: '#FBF0F5', borderRadius: 10, padding: 12, marginTop: 12,
     borderWidth: 1, borderColor: '#E8CDD9',
   },
-  rideTitle: { flex: 1, fontFamily: FONT, fontSize: 16, fontWeight: '700', color: MAROON },
+  rideTitle: { flex: 1, fontFamily: FONT_SEMI, fontSize: 16, color: MAROON },
   rideText: { fontFamily: FONT, fontSize: 14, color: '#555', marginTop: 3, lineHeight: 19 },
   rideBtnRow: { flexDirection: 'row', gap: 8, marginTop: 9 },
   rideBtnPrimary: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: MAROON, borderRadius: 10, paddingVertical: 7, paddingHorizontal: 14,
   },
-  rideBtnPrimaryText: { fontFamily: 'CormorantGaramond-Medium', fontSize: 14, color: '#FFFFFF' },
+  rideBtnPrimaryText: { fontFamily: FONT_MED, fontSize: 14, color: '#FFFFFF' },
   rideBtnSecondary: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     borderWidth: 1, borderColor: MAROON, borderRadius: 10, paddingVertical: 7, paddingHorizontal: 14,
   },
   rideBtnSecondaryText: { fontSize: 13, color: MAROON, fontVariant: ['tabular-nums'] },
-  rideHint: { fontFamily: 'CormorantGaramond-Italic', fontSize: 13, color: STONE, marginTop: 7 },
+  rideHint: { fontSize: 13, color: STONE, marginTop: 7 },
 });
 
 export default ScheduleMapModal;

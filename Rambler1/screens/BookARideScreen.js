@@ -127,8 +127,8 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: MAROON, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14,
   },
   btnSecondaryText: { fontFamily: FONT_MED, fontSize: 14, color: MAROON },
-  hint: { fontFamily: FONT_ITALIC, fontSize: 13, color: STONE, marginTop: 9 },
-  footer: { fontFamily: FONT_ITALIC, fontSize: 13, color: '#B3ABA1', textAlign: 'center', marginTop: 4 },
+  hint: { fontSize: 13, color: STONE, marginTop: 9 },
+  footer: { fontSize: 13, color: '#B3ABA1', textAlign: 'center', marginTop: 4 },
 });
 
 export default BookARideScreen;

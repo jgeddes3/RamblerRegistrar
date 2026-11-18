@@ -16,7 +16,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { PARCHMENT, STONE } from '../theme';
+import { PARCHMENT, STONE, FONT } from '../theme';
 
 const MAROON = '#A30046';
 
@@ -34,13 +34,13 @@ const s = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center',
     backgroundColor: PARCHMENT, paddingHorizontal: 24,
   },
-  title: { fontFamily: 'CormorantGaramond-Regular', fontSize: 28, color: MAROON },
+  title: { fontFamily: FONT, fontSize: 28, color: MAROON },
   emptyTitle: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 22, color: STONE,
+    fontFamily: FONT, fontSize: 22, color: STONE,
     textAlign: 'center', marginTop: 14,
   },
   emptyHint: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: STONE,
+    fontFamily: FONT, fontSize: 15, color: STONE,
     marginTop: 6, textAlign: 'center',
   },
 });

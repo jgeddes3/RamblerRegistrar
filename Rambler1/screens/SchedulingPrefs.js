@@ -7,7 +7,7 @@ import StepCounter from '../components/ui/StepCounter';
 import { loadDraft, saveDraft } from '../onboarding';
 import { saveQuizResults } from '../firestore-data';
 import BackgroundImage from '../styleComponents/BackgroundImage';
-import { STONE } from '../theme';
+import { STONE, FONT_SEMI, FONT } from '../theme';
 import { slopTo } from '../components/ui/hitSlop';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
@@ -252,10 +252,9 @@ const s = StyleSheet.create({
     borderRadius: 4,
   },
   backButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 15,
     color: '#A30046',
-    fontWeight: 'bold',
   },
   progressContainer: {
     paddingHorizontal: 20,
@@ -278,7 +277,7 @@ const s = StyleSheet.create({
     borderRadius: 4,
   },
   progressText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: '#666',
     width: 50,
@@ -293,10 +292,9 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   sectionText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 14,
     color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -309,7 +307,7 @@ const s = StyleSheet.create({
     padding: 18,
   },
   question: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 26,
     color: '#000',
     marginBottom: 20,
@@ -331,12 +329,12 @@ const s = StyleSheet.create({
     borderColor: '#A30046',
   },
   optionTextUnselected: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     color: '#333',
   },
   optionTextSelected: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     color: '#FFFFFF',
   },
@@ -357,13 +355,12 @@ const s = StyleSheet.create({
     height: 50,
   },
   nextButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 20,
     color: 'white',
-    fontWeight: 'bold',
   },
   hintText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 15,
     color: STONE,
     marginBottom: 4,

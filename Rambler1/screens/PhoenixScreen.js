@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { getPhoenixHeadlines } from '../campus-api';
 import PhoenixPreviewModal from '../components/PhoenixPreviewModal';
-import { STONE } from '../theme';
+import { STONE, FONT, FONT_SEMI } from '../theme';
 
 const MAROON = '#A30046';
 
@@ -153,14 +153,14 @@ const s = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#FBF9F4', paddingHorizontal: 24,
   },
-  loadingText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 16, color: STONE, marginTop: 12 },
+  loadingText: { fontFamily: FONT, fontSize: 16, color: STONE, marginTop: 12 },
   emptyTitle: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 22, color: STONE,
+    fontFamily: FONT, fontSize: 22, color: STONE,
     textAlign: 'center', marginTop: 10,
   },
-  emptyHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: STONE, marginTop: 6, textAlign: 'center' },
+  emptyHint: { fontFamily: FONT, fontSize: 15, color: STONE, marginTop: 6, textAlign: 'center' },
 
-  sectionTitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 24, color: MAROON, marginBottom: 10 },
+  sectionTitle: { fontFamily: FONT, fontSize: 24, color: MAROON, marginBottom: 10 },
 
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -171,12 +171,12 @@ const s = StyleSheet.create({
     width: 48, height: 52, borderRadius: 10, backgroundColor: MAROON,
     alignItems: 'center', justifyContent: 'center',
   },
-  badgeMonth: { color: '#FFFFFF', fontFamily: 'CormorantGaramond-Regular', fontSize: 10, fontWeight: 'bold', letterSpacing: 1 },
-  badgeDay: { color: '#FFFFFF', fontFamily: 'CormorantGaramond-Regular', fontSize: 20, fontWeight: 'bold', marginTop: -1 },
+  badgeMonth: { color: '#FFFFFF', fontSize: 10, fontWeight: 'bold', letterSpacing: 1 },
+  badgeDay: { color: '#FFFFFF', fontFamily: FONT_SEMI, fontSize: 20, marginTop: -1 },
   cardBody: { flex: 1 },
-  cardTitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 18, color: '#333' },
+  cardTitle: { fontFamily: FONT, fontSize: 18, color: '#333' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
-  metaText: { flex: 1, fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: STONE },
+  metaText: { flex: 1, fontSize: 12, color: STONE },
 });
 
 export default PhoenixScreen;

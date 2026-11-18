@@ -14,7 +14,7 @@ import PrivacyPolicyModal from './components/PrivacyPolicyModal';
 import TextField from './components/ui/TextField';
 import BackgroundImage from './styleComponents/BackgroundImage';
 import { validateSignup, MIN_PASSWORD } from './signup-validation';
-import { DANGER } from './theme';
+import { DANGER, FONT, FONT_SEMI } from './theme';
 import StepCounter from './components/ui/StepCounter';
 import useOnboardingDraft from './components/ui/useOnboardingDraft';
 import { clearDraft } from './onboarding';
@@ -249,7 +249,7 @@ const AccountSetup =() => {
             <Text
               accessibilityRole="alert"
               accessibilityLiveRegion="polite"
-              style={{ color: '#A30046', marginTop: 10, fontFamily: 'CormorantGaramond-Regular', fontSize: 16, textAlign: 'center' }}
+              style={{ color: '#A30046', marginTop: 10, fontFamily: FONT, fontSize: 16, textAlign: 'center' }}
             >
               {errorMessage}
             </Text>
@@ -351,10 +351,9 @@ const s = StyleSheet.create({
     borderRadius: 4,
   },
   backButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 15,
     color: '#A30046',
-    fontWeight: 'bold',
   },
   pageTitleBadge: {
     backgroundColor: '#FFFFFF',
@@ -365,7 +364,7 @@ const s = StyleSheet.create({
     marginTop: 15,
   },
   pageTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 36,
     textAlign: 'center',
     color: 'black',
@@ -377,7 +376,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 28,
     textAlign: 'center',
     color: 'black',
@@ -421,7 +420,7 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   toggleLabel: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 20,
     color: 'black',
   },
@@ -451,7 +450,7 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   consentText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 16,
     color: 'black',
     marginLeft: 8,
@@ -472,7 +471,7 @@ const s = StyleSheet.create({
     height: 53,
   },
   nextButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 19,
     color: 'white',
   },

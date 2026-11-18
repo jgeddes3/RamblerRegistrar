@@ -14,7 +14,7 @@ import { useAppContext } from '../AppContext';
 import { fetchFastestFilling, fetchDegreeProgress, fetchPlans } from '../firestore-data';
 import { allPlannedCodes, normCode } from '../plan-utils';
 import CourseDetailModal from '../CourseDetailModal';
-import { FONT, MAROON, EYEBROW, STONE } from '../theme';
+import { FONT, MAROON, EYEBROW, STONE, FONT_SEMI } from '../theme';
 
 const CLASS_LABELS = {
   'day1-2': 'Filled in 1–2 days',
@@ -185,11 +185,11 @@ const s = StyleSheet.create({
     width: 52, height: 52, borderRadius: 12, backgroundColor: '#FBF0F5',
     alignItems: 'center', justifyContent: 'center',
   },
-  daysBadgeNum: { fontFamily: FONT, fontSize: 20, fontWeight: '700', color: MAROON },
-  daysBadgeUnit: { fontFamily: FONT, fontSize: 11, color: MAROON, marginTop: -3 },
-  rowCode: { fontFamily: FONT, fontSize: 17, fontWeight: '700', color: '#333' },
+  daysBadgeNum: { fontFamily: FONT_SEMI, fontSize: 20, color: MAROON },
+  daysBadgeUnit: { fontSize: 11, color: MAROON, marginTop: -3 },
+  rowCode: { fontFamily: FONT_SEMI, fontSize: 17, color: '#333' },
   rowName: { fontFamily: FONT, fontSize: 14, color: STONE },
-  rowClass: { fontFamily: FONT, fontSize: 13, color: '#B45309', marginTop: 1 },
+  rowClass: { fontSize: 13, color: '#B45309', marginTop: 1 },
   chevron: { fontFamily: FONT, fontSize: 24, color: STONE },
 });
 

@@ -9,6 +9,7 @@ import CourseDetailModal from './CourseDetailModal';
 import { buildCourseRows } from './course-list';
 import StepCounter from './components/ui/StepCounter';
 import useOnboardingDraft from './components/ui/useOnboardingDraft';
+import { FONT, FONT_SEMI } from './theme';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -138,7 +139,7 @@ const CourseSelect =() => {
           <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 100 }} />
         ) : error ? (
           <View style={{ alignItems: 'center', marginTop: 100 }}>
-            <Text style={{ color: '#A30046', textAlign: 'center', fontFamily: 'CormorantGaramond-Regular', fontSize: 18 }}>
+            <Text style={{ color: '#A30046', textAlign: 'center', fontFamily: FONT, fontSize: 18 }}>
               {error}
             </Text>
             <TouchableOpacity onPress={loadCourses} style={s.retryButton}>
@@ -201,10 +202,9 @@ const s = StyleSheet.create({
     borderRadius: 4,
   },
   backButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 15,
     color: '#A30046',
-    fontWeight: 'bold',
   },
   pageTitleBadge: {
     backgroundColor: '#FFFFFF',
@@ -215,14 +215,14 @@ const s = StyleSheet.create({
     marginTop: 15,
   },
   pageTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 36,
     textAlign: 'center',
     color: 'black',
   },
   searchInput: {
     fontSize: 17,
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     color: '#000000',
     backgroundColor: '#D9D9D9',
     borderWidth: 1,
@@ -240,14 +240,13 @@ const s = StyleSheet.create({
     marginTop: 16,
   },
   retryButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     color: '#FFFFFF',
   },
   sectionLabel: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 14,
-    fontWeight: 'bold',
     color: '#A30046',
     backgroundColor: 'rgba(255,255,255,0.9)',
     borderRadius: 10,
@@ -273,7 +272,7 @@ const s = StyleSheet.create({
     height: 53,
   },
   nextButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 19,
     color: '#FFFFFF',
   },

@@ -11,6 +11,7 @@ import LogoImage from './styleComponents/LogoImage1';
 import CustomButton from './styleComponents/customButton1';
 import TextField from './components/ui/TextField';
 import TitleText1 from './styleComponents/TitleTextP1';
+import { FONT } from './theme';
 
 const Login = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -120,7 +121,7 @@ const Login = ({ navigation }) => {
           <Text
             accessibilityRole="alert"
             accessibilityLiveRegion="polite"
-            style={{ color: '#A30046', marginTop: 10, fontFamily: 'CormorantGaramond-Regular', fontSize: 16 }}
+            style={{ color: '#A30046', marginTop: 10, fontFamily: FONT, fontSize: 16 }}
           >
             {errorMessage}
           </Text>
@@ -162,7 +163,7 @@ const Login = ({ navigation }) => {
           >
             <Text
               style={{
-                fontFamily: 'CormorantGaramond-Regular',
+                fontFamily: FONT,
                 fontSize: 15,
                 color: 'black',
                 textDecorationLine: 'underline',
@@ -177,7 +178,7 @@ const Login = ({ navigation }) => {
           >
             <Text
               style={{
-                fontFamily: 'CormorantGaramond-Regular',
+                fontFamily: FONT,
                 fontSize: 15,
                 color: 'black',
                 textDecorationLine: 'underline',

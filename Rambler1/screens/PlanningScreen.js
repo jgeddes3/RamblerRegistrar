@@ -24,7 +24,7 @@ import {
 import { planSemesters, allPlannedCodes, planOrderingIssues, termLabelFor } from '../plan-utils';
 import { requirementCoverage } from '../planning-insights';
 import { buildRecommendations } from '../recommend';
-import { FONT, MAROON, EYEBROW, STONE } from '../theme';
+import { FONT, MAROON, EYEBROW, STONE, FONT_SEMI } from '../theme';
 import showAlert from '../alert';
 import WhatIfModal from '../components/WhatIfModal';
 
@@ -447,7 +447,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#E8CDD9', backgroundColor: '#FBF0F5',
     borderRadius: 10, padding: 12, marginBottom: 14,
   },
-  whatIfBtnText: { flex: 1, fontFamily: FONT, fontSize: 15, color: MAROON, fontWeight: '600' },
+  whatIfBtnText: { flex: 1, fontFamily: FONT_SEMI, fontSize: 15, color: MAROON, },
 
   semCard: {
     borderWidth: 1, borderColor: '#E8E8E8', borderRadius: 12,
@@ -459,14 +459,14 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: MAROON, borderRadius: 14,
     paddingVertical: 4, paddingHorizontal: 12,
   },
-  addBtnText: { fontFamily: FONT, fontSize: 15, color: MAROON, fontWeight: '600' },
+  addBtnText: { fontFamily: FONT_SEMI, fontSize: 15, color: MAROON, },
   semEmpty: { fontFamily: FONT, fontSize: 14, color: STONE },
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap' },
   chip: {
     backgroundColor: '#FBF0F5', borderRadius: 14, paddingVertical: 5, paddingHorizontal: 11,
     marginRight: 8, marginBottom: 8, borderWidth: 1, borderColor: '#E8CDD9',
   },
-  chipText: { fontFamily: FONT, fontSize: 15, color: MAROON, fontWeight: '600' },
+  chipText: { fontFamily: FONT_SEMI, fontSize: 15, color: MAROON, },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
   modalPanel: {
@@ -476,7 +476,7 @@ const s = StyleSheet.create({
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   modalTitle: { fontFamily: FONT, fontSize: 22, color: '#1a1a1a' },
   modalClose: { padding: 6 },
-  modalCloseText: { fontFamily: FONT, fontSize: 17, color: MAROON, fontWeight: '600' },
+  modalCloseText: { fontFamily: FONT_SEMI, fontSize: 17, color: MAROON, },
   searchInput: {
     borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 12,
     fontFamily: FONT, fontSize: 17, color: '#1a1a1a', marginBottom: 6,
@@ -485,7 +485,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
     borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
   },
-  resultCode: { fontFamily: FONT, fontSize: 16, fontWeight: '700', color: MAROON, width: 104 },
+  resultCode: { fontFamily: FONT_SEMI, fontSize: 16, color: MAROON, width: 104 },
   resultName: { fontFamily: FONT, fontSize: 16, flex: 1, color: '#444' },
   recHeading: { ...EYEBROW, marginTop: 8, marginBottom: 2 },
   focusBadge: {
@@ -493,7 +493,7 @@ const s = StyleSheet.create({
     backgroundColor: MAROON, borderRadius: 9,
     paddingVertical: 2, paddingHorizontal: 7, marginLeft: 8,
   },
-  focusBadgeText: { fontFamily: FONT, fontSize: 13, color: '#FFF', fontWeight: '600' },
+  focusBadgeText: { fontSize: 13, color: '#FFF', fontWeight: '600' },
 });
 
 export default PlanningScreen;

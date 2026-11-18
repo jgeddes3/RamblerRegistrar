@@ -48,7 +48,7 @@ import MapScreen from './screens/MapScreen';
 import LibraryScreen from './screens/LibraryScreen';
 import EventsScreen from './screens/EventsScreen';
 import PhoenixScreen from './screens/PhoenixScreen';
-import { STONE } from './theme';
+import { STONE, FONT, FONT_SEMI } from './theme';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -111,7 +111,7 @@ const MoreStack = () => (
     screenOptions={{
       headerTintColor: '#A30046',
       headerTitleStyle: {
-        fontFamily: 'CormorantGaramond-Regular',
+        fontFamily: FONT,
         fontSize: 22,
         color: '#A30046',
       },
@@ -166,9 +166,8 @@ const MainTabs = () => {
           tabBarActiveTintColor: '#A30046',
           tabBarInactiveTintColor: STONE,
           tabBarLabelStyle: {
-            fontFamily: 'CormorantGaramond-Regular',
+            fontFamily: FONT_SEMI,
             fontSize: 14,
-            fontWeight: 'bold',
           },
           tabBarItemStyle: {
             paddingBottom: 14,

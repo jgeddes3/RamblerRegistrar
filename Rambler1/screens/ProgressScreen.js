@@ -9,7 +9,7 @@ import { afterModalDismiss } from '../modal-sequencing';
 import { programProgressSummary } from '../progress-summary';
 import CourseDetailModal from '../CourseDetailModal';
 import ErrorState from '../components/ErrorState';
-import { STONE } from '../theme';
+import { STONE, FONT_SEMI, FONT } from '../theme';
 import { slopTo } from '../components/ui/hitSlop';
 
 // Graduation Outlook banner design tokens (status -> colors)
@@ -887,10 +887,9 @@ const s = StyleSheet.create({
   },
   tabButtonActive: { backgroundColor: '#A30046' },
   tabText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT_SEMI,
+    fontSize: 14,
     color: '#666',
-    fontWeight: 'bold',
   },
   tabTextActive: { color: '#FFFFFF' },
   tabBarMini: {
@@ -915,21 +914,20 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   addedClassesTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 18,
+    fontFamily: FONT_SEMI,
+    fontSize: 18,
     color: '#d97706',
-    fontWeight: 'bold',
     marginBottom: 4,
   },
   addedClassesDetail: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT,
+    fontSize: 14,
     color: '#666',
     lineHeight: 20,
   },
   electiveHint: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
+    fontFamily: FONT,
+    fontSize: 16,
     color: '#666',
     lineHeight: 24,
     marginTop: 16,
@@ -945,34 +943,31 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   outlookStatus: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 18,
     marginBottom: 4,
   },
   outlookMessage: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
+    fontFamily: FONT,
+    fontSize: 15,
     lineHeight: 21,
     marginBottom: 6,
   },
   outlookDisclaimer: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 11,
+    fontSize: 11,
     color: '#666',
     lineHeight: 15,
   },
 
   heading: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 26,
+    fontFamily: FONT_SEMI,
+    fontSize: 26,
     color: '#A30046',
-    fontWeight: 'bold',
     marginBottom: 2,
   },
   subheading: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
+    fontFamily: FONT,
+    fontSize: 15,
     color: STONE,
     marginBottom: 12,
   },
@@ -990,17 +985,15 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   progressCardLabel: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
+    fontFamily: FONT_SEMI,
+    fontSize: 16,
     color: '#333',
-    fontWeight: 'bold',
     flex: 1,
   },
   progressCardPercent: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
+    fontFamily: FONT_SEMI,
+    fontSize: 16,
     color: '#A30046',
-    fontWeight: 'bold',
   },
   progressBarBg: {
     height: 10,
@@ -1014,23 +1007,20 @@ const s = StyleSheet.create({
     borderRadius: 5,
   },
   progressCardDetail: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
+    fontSize: 13,
     color: STONE,
   },
 
   // Sections
   section: { marginTop: 16 },
   sectionHeader: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 20,
+    fontFamily: FONT_SEMI,
+    fontSize: 20,
     color: '#A30046',
-    fontWeight: 'bold',
     marginBottom: 4,
   },
   sectionSub: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
+    fontSize: 13,
     color: STONE,
     marginBottom: 8,
   },
@@ -1046,27 +1036,23 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   rowIcon: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI, fontSize: 16,
     width: 24,
     textAlign: 'center',
     marginTop: 2,
   },
   courseInfo: { flex: 1, marginLeft: 4 },
   courseCode: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
+    fontFamily: FONT_SEMI,
+    fontSize: 15,
     color: '#333',
-    fontWeight: 'bold',
   },
   courseName: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
+    fontSize: 13,
     color: '#666',
   },
   courseDetail: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 12,
+    fontSize: 12,
     color: '#e76f51',
     marginTop: 1,
   },
@@ -1090,14 +1076,13 @@ const s = StyleSheet.create({
     marginBottom: 2,
   },
   coreOptionCode: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 16,
     color: '#333',
   },
   coreOptionName: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT,
+    fontSize: 14,
     color: '#666',
   },
   overlapBadge: {
@@ -1107,8 +1092,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 6,
   },
   overlapBadgeText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 10,
+    fontSize: 10,
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
@@ -1119,8 +1103,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 6,
   },
   requiredBadgeText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 10,
+    fontSize: 10,
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
@@ -1128,21 +1111,19 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   prereqFulfilled: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
+    fontSize: 13,
     color: '#2d6a4f',
     fontWeight: 'bold',
     marginBottom: 1,
   },
   prereqMissing: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
+    fontSize: 13,
     color: '#e76f51',
     marginBottom: 1,
   },
   rowChevron: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 24,
+    fontFamily: FONT,
+    fontSize: 24,
     color: STONE,
     marginLeft: 8,
   },
@@ -1168,14 +1149,13 @@ const s = StyleSheet.create({
     borderBottomColor: '#E0E0E0',
   },
   modalTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 22,
+    fontFamily: FONT_SEMI,
+    fontSize: 22,
     color: '#A30046',
-    fontWeight: 'bold',
   },
   modalSubtitle: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT,
+    fontSize: 14,
     color: STONE,
   },
   modalClose: {
@@ -1186,17 +1166,17 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalCloseText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 14, fontWeight: 'bold', color: '#555' },
+  modalCloseText: { fontFamily: FONT_SEMI, fontSize: 14, color: '#555' },
   modalContent: { padding: 16 },
   modalEmpty: { alignItems: 'center', paddingTop: 40, paddingBottom: 40 },
   modalEmptyText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 18,
+    fontFamily: FONT,
+    fontSize: 18,
     color: STONE,
   },
   modalEmptyHint: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT,
+    fontSize: 14,
     color: STONE,
     marginTop: 6,
   },
@@ -1218,9 +1198,8 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   sectionNumber: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 16,
     color: '#333',
   },
   spotsBadge: {
@@ -1232,14 +1211,13 @@ const s = StyleSheet.create({
   spotsBadgeLow: { backgroundColor: '#fef3c7' },
   spotsBadgeFull: { backgroundColor: '#fee2e2' },
   spotsBadgeText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 12,
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#333',
   },
   sectionTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
+    fontFamily: FONT,
+    fontSize: 15,
     color: '#333',
     marginBottom: 6,
   },
@@ -1247,8 +1225,8 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   sectionInfoText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT,
+    fontSize: 14,
     color: '#555',
     lineHeight: 20,
   },
@@ -1259,10 +1237,9 @@ const s = StyleSheet.create({
     borderTopColor: '#F0F0F0',
   },
   sectionInstructor: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
+    fontFamily: FONT_SEMI,
+    fontSize: 15,
     color: '#A30046',
-    fontWeight: 'bold',
   },
   profRatingRow: {
     flexDirection: 'row',
@@ -1271,40 +1248,36 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   profStar: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT, fontSize: 14,
     color: '#d97706',
   },
   profRating: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
+    fontFamily: FONT_SEMI,
+    fontSize: 15,
     color: '#333',
-    fontWeight: 'bold',
   },
   profAgain: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
+    fontSize: 13,
     color: '#2E7D32',
   },
   profDiff: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
+    fontSize: 13,
     color: STONE,
   },
 
   // Tiered groups
   tieredGroup: { marginBottom: 8 },
   tieredGroupName: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
+    fontFamily: FONT_SEMI,
+    fontSize: 16,
     color: '#333',
-    fontWeight: 'bold',
     marginBottom: 4,
     marginLeft: 4,
   },
 
   emptyText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
+    fontFamily: FONT,
+    fontSize: 16,
     color: STONE,
     textAlign: 'center',
     marginTop: 40,

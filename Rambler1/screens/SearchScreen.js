@@ -18,7 +18,7 @@ import Skeleton from '../components/Skeleton';
 import ErrorState from '../components/ErrorState';
 import { seatAge } from '../seat-age';
 import { useRegistrationTerm, resolveRegistrationTerm } from '../term';
-import { STONE, WARN } from '../theme';
+import { STONE, WARN, FONT, FONT_SEMI } from '../theme';
 import { slopTo } from '../components/ui/hitSlop';
 
 // =============================================================================
@@ -785,8 +785,8 @@ const s = StyleSheet.create({
     position: 'relative',
   },
   searchInput: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 17,
+    fontFamily: FONT,
+    fontSize: 17,
     color: '#333',
     backgroundColor: '#F5F5F5',
     borderRadius: 10,
@@ -805,7 +805,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  clearBtnText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, fontWeight: 'bold', color: '#666' },
+  clearBtnText: { fontSize: 12, fontWeight: 'bold', color: '#666' },
 
   // Filter chips
   chipRow: { flexGrow: 0, marginBottom: 6 },
@@ -818,10 +818,9 @@ const s = StyleSheet.create({
   },
   chipActive: { backgroundColor: '#A30046' },
   chipText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT_SEMI,
+    fontSize: 14,
     color: '#555',
-    fontWeight: 'bold',
   },
   chipTextActive: { color: '#FFFFFF' },
 
@@ -854,9 +853,8 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   cardCode: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 17,
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 17,
     color: '#333',
   },
   cardCodeRow: {
@@ -880,31 +878,30 @@ const s = StyleSheet.create({
   fillFlagText: {
     // System font, not Cormorant: an 11px serif chip is illegible and the
     // design rule reserves Cormorant for headings.
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 11,
+    fontSize: 11,
     fontWeight: 'bold',
   },
   fillFlagTextDanger: { color: '#b91c1c' },
   fillFlagTextWarn: { color: '#92400e' },
   cardCredits: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT,
+    fontSize: 14,
     color: STONE,
   },
   cardName: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
+    fontFamily: FONT,
+    fontSize: 15,
     color: '#555',
     marginTop: 2,
   },
   cardSub: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
+    fontSize: 13,
     color: STONE,
     marginTop: 2,
   },
   cardChevron: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 20,
+    fontFamily: FONT,
+    fontSize: 20,
     color: STONE,
     marginLeft: 8,
   },
@@ -915,8 +912,8 @@ const s = StyleSheet.create({
   showAll: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 14 },
   showAllText: { fontSize: 14, fontWeight: '600', color: '#A30046' },
   noMatchText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT,
+    fontSize: 14,
     color: STONE,
     textAlign: 'center',
     padding: 16,
@@ -938,9 +935,8 @@ const s = StyleSheet.create({
   sectionTopRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   addBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   sectionNum: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 14,
     color: '#333',
   },
   badge: { borderRadius: 8, paddingVertical: 1, paddingHorizontal: 6 },
@@ -948,14 +944,13 @@ const s = StyleSheet.create({
   badgeLow: { backgroundColor: '#fef3c7' },
   badgeFull: { backgroundColor: '#fee2e2' },
   badgeText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 11,
+    fontSize: 11,
     fontWeight: 'bold',
     color: '#333',
   },
   sectionInfo: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT,
+    fontSize: 14,
     color: '#555',
     marginBottom: 2,
   },
@@ -964,23 +959,20 @@ const s = StyleSheet.create({
     gap: 12,
   },
   sectionInstructor: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
+    fontSize: 13,
     color: '#A30046',
   },
   sectionRoom: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
+    fontSize: 13,
     color: STONE,
   },
 
   // Department grid
   deptSection: { paddingHorizontal: 16, marginTop: 16 },
   deptTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 20,
+    fontFamily: FONT_SEMI,
+    fontSize: 20,
     color: '#333',
-    fontWeight: 'bold',
     marginBottom: 12,
   },
   deptGrid: {
@@ -998,14 +990,12 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   deptCode: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 18,
+    fontFamily: FONT_SEMI,
+    fontSize: 18,
     color: '#A30046',
-    fontWeight: 'bold',
   },
   deptName: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 11,
+    fontSize: 11,
     color: STONE,
     textAlign: 'center',
     marginTop: 2,
@@ -1014,10 +1004,9 @@ const s = StyleSheet.create({
   // Recent searches
   recentSection: { paddingHorizontal: 16, marginTop: 8 },
   recentTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
+    fontFamily: FONT_SEMI,
+    fontSize: 16,
     color: STONE,
-    fontWeight: 'bold',
     marginBottom: 8,
   },
   recentRow: {
@@ -1029,43 +1018,42 @@ const s = StyleSheet.create({
   },
   recentTerm: { flex: 1 },
   recentText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
+    fontFamily: FONT,
+    fontSize: 16,
     color: '#333',
   },
   recentX: { padding: 4 },
   recentXText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT_SEMI,
+    fontSize: 14,
     color: STONE,
-    fontWeight: 'bold',
   },
 
   // Empty / loading states
   emptyContent: { paddingBottom: 40 },
   hintText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
+    fontFamily: FONT,
+    fontSize: 15,
     color: STONE,
     textAlign: 'center',
     marginTop: 30,
   },
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
+    fontFamily: FONT,
+    fontSize: 16,
     color: STONE,
     marginTop: 12,
   },
   emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 22,
+    fontFamily: FONT,
+    fontSize: 22,
     color: STONE,
   },
   emptyHint: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
+    fontFamily: FONT,
+    fontSize: 15,
     color: STONE,
     marginTop: 6,
   },

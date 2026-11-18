@@ -6,7 +6,7 @@ import {
   addCourseToPlan, removeCourseFromPlan, addSectionToSchedule, removeSectionFromSchedule, PLAN_TERM_CAP,
 } from './firestore-data';
 import { getInstructorRating, noRatingCopy, ratingsAttribution } from './ratings';
-import { FONT_ITALIC, STONE, WARN } from './theme';
+import { FONT_ITALIC, STONE, WARN, FONT_SEMI, FONT, FONT_MED } from './theme';
 import { useAppContext } from './AppContext';
 import { fillWarning } from './planning-insights';
 import { planSemesters } from './plan-utils';
@@ -622,19 +622,18 @@ const s = StyleSheet.create({
     alignItems: 'flex-start',
   },
   courseCode: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 28,
     color: '#A30046',
-    fontWeight: 'bold',
   },
   courseName: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     color: '#333',
     marginTop: 2,
   },
   credits: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: STONE,
     marginTop: 2,
@@ -650,7 +649,7 @@ const s = StyleSheet.create({
   },
   closeBtnText: { fontSize: 14, fontWeight: 'bold', color: '#555' },
   description: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
@@ -670,9 +669,8 @@ const s = StyleSheet.create({
   fillBannerHigh: { backgroundColor: '#fee2e2' },
   fillBannerWarn: { backgroundColor: '#fef3c7' },
   fillBannerText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 15,
-    fontWeight: 'bold',
     lineHeight: 20,
   },
   fillBannerTextHigh: { color: '#b91c1c' },
@@ -685,7 +683,7 @@ const s = StyleSheet.create({
   },
   fillInfoLine: {
     flex: 1,
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: STONE,
   },
@@ -705,10 +703,9 @@ const s = StyleSheet.create({
     marginVertical: 12,
   },
   termLabel: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 20,
     color: '#A30046',
-    fontWeight: 'bold',
     marginBottom: 10,
   },
   // Seat-count age + "confirm in LOCUS" (sans: it carries a time).
@@ -743,7 +740,6 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   recommendedText: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
     color: '#FFFFFF',
     fontWeight: 'bold',
@@ -755,9 +751,8 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   sectionNum: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 17,
-    fontWeight: 'bold',
     color: '#333',
   },
   badge: { borderRadius: 10, paddingVertical: 2, paddingHorizontal: 8 },
@@ -765,7 +760,6 @@ const s = StyleSheet.create({
   badgeLow: { backgroundColor: '#fef3c7' },
   badgeFull: { backgroundColor: '#fee2e2' },
   badgeText: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
     fontWeight: 'bold',
     color: '#333',
@@ -785,7 +779,7 @@ const s = StyleSheet.create({
   },
   watchBtnActive: { backgroundColor: '#A30046' },
   watchBtnDisabled: { opacity: 0.4 },
-  watchBtnText: { fontFamily: 'CormorantGaramond-Medium', fontSize: 14, color: '#A30046' },
+  watchBtnText: { fontFamily: FONT_MED, fontSize: 14, color: '#A30046' },
   watchBtnTextActive: { color: '#FFFFFF' },
 
   // Section badges row (status + F-HI4 top-prof)
@@ -798,7 +792,7 @@ const s = StyleSheet.create({
   },
   topProfBadgeInner: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   topProfBadgeText: {
-    fontFamily: 'CormorantGaramond-Medium', fontSize: 13, color: '#92400E',
+    fontSize: 13, color: '#92400E',
   },
   // Remove from schedule (schedule-opened single-section view)
   removeBtn: {
@@ -812,7 +806,7 @@ const s = StyleSheet.create({
     borderColor: '#b91c1c',
     backgroundColor: '#FFFFFF',
   },
-  removeBtnText: { fontFamily: 'CormorantGaramond-Medium', fontSize: 14, color: '#b91c1c' },
+  removeBtnText: { fontFamily: FONT_MED, fontSize: 14, color: '#b91c1c' },
 
   // Quick add-to-schedule (F-P3)
   schedAddBtn: {
@@ -825,12 +819,12 @@ const s = StyleSheet.create({
     backgroundColor: '#A30046',
   },
   schedAddBtnText: {
-    fontFamily: 'CormorantGaramond-Medium', fontSize: 14, color: '#FFFFFF',
+    fontFamily: FONT_MED, fontSize: 14, color: '#FFFFFF',
   },
 
   // Report a problem (#17)
   reportLink: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#A30046',
+    fontFamily: FONT, fontSize: 14, color: '#A30046',
     textDecorationLine: 'underline', textAlign: 'center', marginTop: 14,
   },
 
@@ -846,7 +840,7 @@ const s = StyleSheet.create({
   },
   planBtnInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   planBtnText: {
-    fontFamily: 'CormorantGaramond-Medium', fontSize: 15, color: '#A30046',
+    fontFamily: FONT_MED, fontSize: 15, color: '#A30046',
   },
   planChips: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
   planChip: {
@@ -860,7 +854,7 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   planChipText: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#A30046', fontWeight: '600',
+    fontFamily: FONT_SEMI, fontSize: 14, color: '#A30046', 
   },
 
   // Info rows
@@ -874,7 +868,7 @@ const s = StyleSheet.create({
     width: 24,
   },
   infoText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 15,
     color: '#444',
     flex: 1,
@@ -888,10 +882,9 @@ const s = StyleSheet.create({
     borderTopColor: '#F0F0F0',
   },
   profName: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 16,
     color: '#A30046',
-    fontWeight: 'bold',
   },
   profStats: {
     flexDirection: 'row',
@@ -906,24 +899,20 @@ const s = StyleSheet.create({
     paddingVertical: 2,
   },
   ratingBadgeText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 14,
     color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   profStat: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
     color: '#555',
   },
   profStatLight: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
     color: STONE,
     marginTop: 2,
   },
   ratingsAttribution: {
-    fontFamily: FONT_ITALIC,
     fontSize: 12,
     color: STONE,
     textAlign: 'center',
@@ -933,12 +922,12 @@ const s = StyleSheet.create({
   // Empty
   empty: { alignItems: 'center', paddingTop: 30 },
   emptyTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     color: STONE,
   },
   emptyHint: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: STONE,
     marginTop: 4,

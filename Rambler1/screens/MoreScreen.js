@@ -5,7 +5,7 @@ import FeedbackModal from '../components/FeedbackModal';
 import PrivacyPolicyModal from '../components/PrivacyPolicyModal';
 import { TERMS_TITLE, TERMS_SECTIONS } from '../terms-content';
 import ProfileScreen from './ProfileScreen';
-import { STONE } from '../theme';
+import { STONE, FONT, FONT_SEMI } from '../theme';
 import { CAMPUS_LINKS } from '../campus-links';
 
 const MAROON = '#A30046';
@@ -156,13 +156,13 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   title: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 32,
+    fontFamily: FONT,
+    fontSize: 32,
     color: MAROON,
     marginBottom: 4,
   },
   subtitle: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT, fontSize: 14,
     color: STONE,
     marginBottom: 20,
   },
@@ -204,16 +204,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rowLabel: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 20,
+    fontFamily: FONT_SEMI,
+    fontSize: 20,
     color: '#333',
-    fontWeight: 'bold',
   },
   rowLabelDisabled: {
     color: STONE,
   },
   rowSublabel: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 12,
+    fontSize: 12,
     color: STONE,
     marginTop: 1,
   },

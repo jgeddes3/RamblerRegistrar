@@ -6,7 +6,7 @@ import { useAppContext } from './AppContext';
 import CustomLongButton1 from './styleComponents/CustomLongButton1';
 import { ScrollView } from 'react-native';
 import BackgroundImage from './styleComponents/BackgroundImage';
-import { STONE } from './theme';
+import { STONE, FONT, FONT_SEMI } from './theme';
 import StepCounter from './components/ui/StepCounter';
 import useOnboardingDraft from './components/ui/useOnboardingDraft';
 
@@ -275,7 +275,7 @@ const ProgramSelect =() => {
           </View>
         ))}
         {phase === 'minor' && selectedMinors.length >= 3 && (
-          <Text style={{ fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#A30046', textAlign: 'center', marginTop: 4 }}>
+          <Text style={{ fontFamily: FONT, fontSize: 14, color: '#A30046', textAlign: 'center', marginTop: 4 }}>
             Maximum of 3 minors selected
           </Text>
         )}
@@ -300,7 +300,7 @@ const ProgramSelect =() => {
           <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 100 }} />
         ) : error ? (
           <View style={{ alignItems: 'center', marginTop: 100 }}>
-            <Text style={{ color: '#A30046', textAlign: 'center', fontFamily: 'CormorantGaramond-Regular', fontSize: 18 }}>
+            <Text style={{ color: '#A30046', textAlign: 'center', fontFamily: FONT, fontSize: 18 }}>
               {error}
             </Text>
             <TouchableOpacity onPress={loadPrograms} style={s.retryButton}>
@@ -356,10 +356,9 @@ const s = StyleSheet.create({
     borderRadius: 4,
   },
   backButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 15,
     color: '#A30046',
-    fontWeight: 'bold',
   },
   progressBar: {
     flexDirection: 'row',
@@ -389,7 +388,6 @@ const s = StyleSheet.create({
     borderColor: '#FFFFFF',
   },
   progressLabel: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
     color: STONE,
   },
@@ -398,7 +396,7 @@ const s = StyleSheet.create({
     fontWeight: 'bold',
   },
   pageTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 36,
     textAlign: 'center',
     color: 'black',
@@ -416,7 +414,7 @@ const s = StyleSheet.create({
     marginTop: 8,
   },
   selectedBadgeText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 16,
     color: '#A30046',
     flexShrink: 1,
@@ -433,7 +431,7 @@ const s = StyleSheet.create({
     opacity: 0.7,
   },
   selectedBadgeInfoText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: '#333',
   },
@@ -445,13 +443,13 @@ const s = StyleSheet.create({
     marginLeft: 10,
   },
   removeButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: '#FFFFFF',
   },
   searchInput: {
     fontSize: 17,
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     color: '#000000',
     backgroundColor: '#D9D9D9',
     borderWidth: 1,
@@ -481,7 +479,7 @@ const s = StyleSheet.create({
     borderColor: '#A30046',
   },
   choiceButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 24,
     color: '#FFFFFF',
   },
@@ -489,7 +487,7 @@ const s = StyleSheet.create({
     color: '#A30046',
   },
   skipHint: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: '#666',
     marginTop: 10,
@@ -506,13 +504,11 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   undecidedButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 20,
     color: '#A30046',
-    fontWeight: 'bold',
   },
   undecidedHint: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
     color: STONE,
     marginTop: 2,
@@ -525,7 +521,7 @@ const s = StyleSheet.create({
     marginTop: 16,
   },
   retryButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     color: '#FFFFFF',
   },
@@ -545,7 +541,7 @@ const s = StyleSheet.create({
     height: 53,
   },
   nextButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 19,
     color: '#FFFFFF',
   },

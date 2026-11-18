@@ -791,13 +791,11 @@ const s = StyleSheet.create({
   },
   classBuilding: {
     flex: 1,
-    fontFamily: FONT,
     fontSize: 13,
     color: STONE,
   },
   classInstructor: {
     flex: 1,
-    fontFamily: FONT,
     fontSize: 13,
     color: STONE,
   },
@@ -852,12 +850,10 @@ const s = StyleSheet.create({
   },
   trainNoTrains: {
     flexShrink: 0,
-    fontFamily: FONT_ITALIC,
     fontSize: 13,
     color: '#B3ABA1',
   },
   trainHint: {
-    fontFamily: FONT_ITALIC,
     fontSize: 13,
     color: '#B3ABA1',
     paddingVertical: 10,
@@ -885,7 +881,6 @@ const s = StyleSheet.create({
     color: INK,
   },
   eventLocation: {
-    fontFamily: FONT,
     fontSize: 13,
     color: STONE,
     marginTop: 1,
@@ -922,7 +917,6 @@ const s = StyleSheet.create({
     color: INK,
   },
   phoenixMeta: {
-    fontFamily: FONT,
     fontSize: 13,
     color: STONE,
     marginTop: 1,
@@ -952,7 +946,6 @@ const s = StyleSheet.create({
     lineHeight: 19,
   },
   outlookDisclaimer: {
-    fontFamily: FONT_ITALIC,
     fontSize: 13,
     color: '#B3ABA1',
     marginTop: 6,

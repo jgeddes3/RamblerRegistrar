@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Image, TouchableOpacity, Text, StyleSheet, Platform, StatusBar } from 'react-native';
 import { useAppContext } from '../AppContext';
+import { FONT_SEMI } from '../theme';
 
 const TopBar = ({ onMenuPress, onProfilePress }) => {
   const { user } = useAppContext();
@@ -87,10 +88,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 18,
     color: '#A30046',
-    fontWeight: 'bold',
   },
 });
 

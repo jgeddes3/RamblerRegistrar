@@ -9,7 +9,7 @@ import {
   View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { STONE } from '../theme';
+import { STONE, FONT_SEMI, FONT } from '../theme';
 
 const MAROON = '#A30046';
 
@@ -91,24 +91,23 @@ const s = StyleSheet.create({
     borderBottomColor: '#F0F0F0',
   },
   masthead: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 16,
     color: MAROON,
-    fontWeight: 'bold',
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   closeBtn: { padding: 4 },
   content: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 30 },
   title: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 24,
     lineHeight: 29,
     color: '#1a1a1a',
   },
   meta: { fontSize: 12, color: STONE, marginTop: 6 },
   paragraph: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 17,
     lineHeight: 25,
     color: '#333',

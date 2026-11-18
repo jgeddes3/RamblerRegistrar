@@ -18,6 +18,7 @@ import { generateSchedules, formatMinutes } from '../schedule-generator';
 import { sectionsToBlocks, gridBounds, findConflicts } from '../schedule-utils';
 import ScheduleGrid from './ScheduleGrid';
 import showAlert from '../alert';
+import Tappable from './ui/Tappable';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 const MAX_COURSES = 8;
@@ -280,40 +281,40 @@ const GenerateScheduleModal = ({
       <Text style={st.prefSubLabel}>Earliest class</Text>
       <View style={st.chipsWrap}>
         {START_CHOICES.map((c) => (
-          <TouchableOpacity
+          <Tappable role="radio" checked={earliestStart === c.value}
             key={c.label}
             style={[st.optChip, earliestStart === c.value && st.optChipOn]}
             onPress={() => setEarliestStart(c.value)}
             accessibilityLabel={`Earliest class ${c.label}`}
           >
             <Text style={[st.optChipText, earliestStart === c.value && st.optChipTextOn]}>{c.label}</Text>
-          </TouchableOpacity>
+          </Tappable>
         ))}
       </View>
       <Text style={st.prefSubLabel}>Latest class</Text>
       <View style={st.chipsWrap}>
         {END_CHOICES.map((c) => (
-          <TouchableOpacity
+          <Tappable role="radio" checked={latestEnd === c.value}
             key={c.label}
             style={[st.optChip, latestEnd === c.value && st.optChipOn]}
             onPress={() => setLatestEnd(c.value)}
             accessibilityLabel={`Latest class ${c.label}`}
           >
             <Text style={[st.optChipText, latestEnd === c.value && st.optChipTextOn]}>{c.label}</Text>
-          </TouchableOpacity>
+          </Tappable>
         ))}
       </View>
       <Text style={st.prefSubLabel}>Days to keep free</Text>
       <View style={st.chipsWrap}>
         {WEEKDAYS.map((d) => (
-          <TouchableOpacity
+          <Tappable role="checkbox" checked={freeDays.includes(d)}
             key={d}
             style={[st.optChip, freeDays.includes(d) && st.optChipOn]}
             onPress={() => toggleFreeDay(d)}
             accessibilityLabel={`Keep ${d} free`}
           >
             <Text style={[st.optChipText, freeDays.includes(d) && st.optChipTextOn]}>{d}</Text>
-          </TouchableOpacity>
+          </Tappable>
         ))}
       </View>
 

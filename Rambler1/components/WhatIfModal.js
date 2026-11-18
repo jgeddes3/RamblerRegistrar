@@ -25,6 +25,7 @@ import showAlert from '../alert';
 import { canEditProfile } from '../profile-edits';
 import { afterModalDismiss } from '../modal-sequencing';
 import { FONT, MAROON, STONE, FONT_SEMI, OK, DANGER, NEUTRAL } from '../theme';
+import Tappable from './ui/Tappable';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 const MAX_MINORS = 3;
@@ -205,16 +206,16 @@ const WhatIfModal = ({
           Every program, measured against what you've already completed and planned.
         </Text>
 
-        <View style={s.modeRow}>
+        <View style={s.modeRow} accessibilityRole="tablist">
           {MODES.map((m) => (
-            <TouchableOpacity
+            <Tappable role="tab" selected={mode === m.key}
               key={m.key}
               style={[s.modeChip, mode === m.key && s.modeChipOn]}
               onPress={() => setMode(m.key)}
               accessibilityLabel={m.label}
             >
               <Text style={[s.modeChipText, mode === m.key && s.modeChipTextOn]}>{m.label}</Text>
-            </TouchableOpacity>
+            </Tappable>
           ))}
         </View>
 

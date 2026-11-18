@@ -22,6 +22,7 @@ import { transitEstimate, getTrainArrivals } from '../cta';
 import { formatMinutes } from '../schedule-generator';
 import DayMap from './DayMap';
 import { FONT, MAROON, STONE, NEUTRAL, FONT_SEMI, FONT_MED, DANGER, OK, WARN, MAROON_WASH } from '../theme';
+import Tappable from './ui/Tappable';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 const WEEKDAYS = [
@@ -100,16 +101,16 @@ const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
         </View>
 
         {/* Day selector */}
-        <View style={s.dayRow}>
+        <View style={s.dayRow} accessibilityRole="tablist">
           {WEEKDAYS.map((d) => (
-            <TouchableOpacity
+            <Tappable role="tab" selected={day === d.key}
               key={d.key}
               style={[s.dayChip, day === d.key && s.dayChipOn]}
               onPress={() => setDay(d.key)}
               accessibilityLabel={`Show ${d.label}`}
             >
               <Text style={[s.dayChipText, day === d.key && s.dayChipTextOn]}>{d.label}</Text>
-            </TouchableOpacity>
+            </Tappable>
           ))}
         </View>
 

@@ -18,6 +18,7 @@ import { DANGER, FONT, FONT_SEMI, MAROON } from './theme';
 import StepCounter from './components/ui/StepCounter';
 import useOnboardingDraft from './components/ui/useOnboardingDraft';
 import { clearDraft } from './onboarding';
+import Tappable from './components/ui/Tappable';
 
 const CLASS_YEARS = ['Freshman', 'Sophomore', 'Junior', 'Senior'];
 const SIGNUP_SAVE_API = { saveUserProfile, saveQuizResults, addUserCourse };
@@ -257,11 +258,9 @@ const AccountSetup =() => {
         </ScrollView>
         </KeyboardAvoidingView>
         <View style={s.stickyBottom}>
-            <TouchableOpacity
+            <Tappable role="checkbox" checked={termsAccepted}
               style={s.consentRow}
               onPress={() => setTermsVisible(true)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: termsAccepted }}
               accessibilityLabel="Read and agree to the Terms of Service"
             >
               <Ionicons
@@ -273,12 +272,10 @@ const AccountSetup =() => {
                 I have read and agree to the{' '}
                 <Text style={s.consentLink}>Terms of Service</Text>
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Tappable>
+            <Tappable role="checkbox" checked={policyAccepted}
               style={s.consentRow}
               onPress={() => setPolicyVisible(true)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: policyAccepted }}
               accessibilityLabel="Read and agree to the Privacy Policy"
             >
               <Ionicons
@@ -290,7 +287,7 @@ const AccountSetup =() => {
                 I have read and agree to the{' '}
                 <Text style={s.consentLink}>Privacy Policy</Text>
               </Text>
-            </TouchableOpacity>
+            </Tappable>
             {fieldErrors.consent ? (
               <Text style={s.fieldError} accessibilityRole="alert">{fieldErrors.consent}</Text>
             ) : null}

@@ -9,6 +9,7 @@ import StepCounter from './components/ui/StepCounter';
 import { loadDraft, saveDraft } from './onboarding';
 import { STONE, FONT_SEMI, FONT, MAROON } from './theme';
 import { slopTo } from './components/ui/hitSlop';
+import Tappable from './components/ui/Tappable';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -523,18 +524,16 @@ const PreferenceQuiz = () => {
               {q.options.map((option, optIndex) => {
                 const selected = isOptionSelected(optIndex);
                 return (
-                  <TouchableOpacity
+                  <Tappable role={q.multiSelect ? 'checkbox' : 'radio'} checked={selected}
                     key={optIndex}
                     style={[s.option, selected ? s.optionSelected : s.optionUnselected]}
-                    accessibilityRole={q.multiSelect ? 'checkbox' : 'radio'}
-                    accessibilityState={{ checked: selected }}
                     onPress={() => handleOptionPress(optIndex)}
                     activeOpacity={0.7}
                   >
                     <Text style={selected ? s.optionTextSelected : s.optionTextUnselected}>
                       {option.label}
                     </Text>
-                  </TouchableOpacity>
+                  </Tappable>
                 );
               })}
             </View>

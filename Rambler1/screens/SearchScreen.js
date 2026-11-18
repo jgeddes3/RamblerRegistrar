@@ -20,6 +20,7 @@ import { seatAge } from '../seat-age';
 import { useRegistrationTerm, resolveRegistrationTerm } from '../term';
 import { STONE, WARN, FONT, FONT_SEMI, MAROON, DANGER, PARCHMENT, OK } from '../theme';
 import { slopTo } from '../components/ui/hitSlop';
+import Tappable from '../components/ui/Tappable';
 
 // =============================================================================
 // CONSTANTS
@@ -82,7 +83,7 @@ const FILTER_OPTIONS = [
   { key: 'openOnly', label: 'Open Seats', group: 'toggle' },
 ];
 
-const FilterChips = ({ filters, onFilterChange }) => (
+export const FilterChips = ({ filters, onFilterChange }) => (
   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipRow} contentContainerStyle={s.chipRowContent}>
     {FILTER_OPTIONS.map((opt) => {
       let active = false;
@@ -91,7 +92,7 @@ const FilterChips = ({ filters, onFilterChange }) => (
       else if (opt.group === 'toggle') active = filters.openOnly;
 
       return (
-        <TouchableOpacity
+        <Tappable selected={active}
           key={opt.key}
           style={[s.chip, active && s.chipActive]}
           hitSlop={slopTo(44, 30)}
@@ -106,7 +107,7 @@ const FilterChips = ({ filters, onFilterChange }) => (
           }}
         >
           <Text style={[s.chipText, active && s.chipTextActive]}>{opt.label}</Text>
-        </TouchableOpacity>
+        </Tappable>
       );
     })}
   </ScrollView>

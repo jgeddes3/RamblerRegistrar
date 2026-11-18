@@ -41,7 +41,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   setItem: jest.fn(async () => {}),
 }));
 
-import SearchScreen, { PRELOAD_COURSES, SECTIONS_SHOWN } from '../screens/SearchScreen';
+import SearchScreen, { PRELOAD_COURSES, SECTIONS_SHOWN, FilterChips } from '../screens/SearchScreen';
 import { resolveRegistrationTerm, __resetTermForTests } from '../term';
 
 const NOV_2026 = new Date(2026, 10, 18); // calendar registration term: 1272
@@ -237,4 +237,10 @@ describe('"+" adds a section straight to the schedule', () => {
     expect(await screen.findByText('Sec 001')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /to your schedule/ })).toBeNull();
   });
+});
+
+test('filter chips report whether each filter is on', async () => {
+  await render(<FilterChips filters={{ timeOfDay: 'morning', days: null, openOnly: false }} onFilterChange={() => {}} />);
+  expect(screen.getByRole('button', { name: /Morning/ }).props.accessibilityState).toMatchObject({ selected: true });
+  expect(screen.getByRole('button', { name: /Open Seats/ }).props.accessibilityState).toMatchObject({ selected: false });
 });

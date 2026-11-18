@@ -11,6 +11,7 @@ import CourseDetailModal from '../CourseDetailModal';
 import ErrorState from '../components/ErrorState';
 import { STONE, FONT_SEMI, FONT, MAROON, OK, WARN, DANGER, PARCHMENT } from '../theme';
 import { slopTo } from '../components/ui/hitSlop';
+import Tappable from '../components/ui/Tappable';
 
 // Graduation Outlook banner design tokens (status -> colors)
 const OUTLOOK_COLORS = {
@@ -631,9 +632,9 @@ const ProgressScreen = () => {
   return (
     <View style={s.container}>
       {/* Tab toggle */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabScrollRow} contentContainerStyle={s.tabScrollContent}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabScrollRow} contentContainerStyle={s.tabScrollContent} accessibilityRole="tablist">
         {tabs.map((tab) => (
-          <TouchableOpacity
+          <Tappable role="tab" selected={view === tab.key}
             key={tab.key}
             style={[s.tabButton, view === tab.key && s.tabButtonActive]}
             onPress={() => setView(tab.key)}
@@ -644,7 +645,7 @@ const ProgressScreen = () => {
                 <View style={[s.tabBarMiniFill, { width: `${Math.min(tab.percent, 100)}%`, backgroundColor: tab.color || MAROON }]} />
               </View>
             )}
-          </TouchableOpacity>
+          </Tappable>
         ))}
       </ScrollView>
 

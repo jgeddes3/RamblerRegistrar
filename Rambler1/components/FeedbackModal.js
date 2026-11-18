@@ -12,6 +12,7 @@ import { submitFeedback } from '../firestore-data';
 import showAlert from '../alert';
 import { afterModalDismiss } from '../modal-sequencing';
 import { FONT, MAROON, STONE, FONT_SEMI } from '../theme';
+import Tappable from './ui/Tappable';
 
 // Bottom sheet must ride above the keyboard: iOS pads, Android shrinks.
 // (react-native-web ignores `behavior`, so web is unaffected.)
@@ -63,14 +64,14 @@ const FeedbackModal = ({ visible, onClose, context = '' }) => {
 
           <View style={s.typeRow}>
             {TYPES.map((t) => (
-              <TouchableOpacity
+              <Tappable role="radio" checked={type === t.key}
                 key={t.key}
                 style={[s.typeChip, type === t.key && s.typeChipOn]}
                 onPress={() => setType(t.key)}
                 accessibilityLabel={`Feedback type ${t.label}`}
               >
                 <Text style={[s.typeChipText, type === t.key && s.typeChipTextOn]}>{t.label}</Text>
-              </TouchableOpacity>
+              </Tappable>
             ))}
           </View>
 

@@ -9,6 +9,7 @@ import { saveQuizResults } from '../firestore-data';
 import BackgroundImage from '../styleComponents/BackgroundImage';
 import { STONE, FONT_SEMI, FONT, MAROON } from '../theme';
 import { slopTo } from '../components/ui/hitSlop';
+import Tappable from '../components/ui/Tappable';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -183,18 +184,16 @@ const SchedulingPrefs = () => {
             {q.options.map((option) => {
               const selected = currentAnswer === option.value;
               return (
-                <TouchableOpacity
+                <Tappable role="radio" checked={selected}
                   key={option.value}
                   style={[s.option, selected ? s.optionSelected : s.optionUnselected]}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: selected }}
                   onPress={() => handleSelect(option.value)}
                   activeOpacity={0.7}
                 >
                   <Text style={selected ? s.optionTextSelected : s.optionTextUnselected}>
                     {option.label}
                   </Text>
-                </TouchableOpacity>
+                </Tappable>
               );
             })}
           </View>

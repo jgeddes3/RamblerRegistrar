@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signOut, reauthenticate, deleteCurrentAccount } from '../auth';
 import { fetchPrograms, fetchCourses, addUserCourse, removeUserCourse, saveUserProfile, fetchEnrichedRecommendations, fetchQuizFocusAreas, setUserLocation, deleteAllUserData } from '../firestore-data';
 import { eraseAccountData, deletionErrorMessage, setDeletingAccount } from '../account-deletion';
-import { PENDING_SIGNUP_KEY, forgetPendingCourse } from '../signup-save';
+import { PENDING_SIGNUP_KEY, forgetPendingCourse, settleRetry } from '../signup-save';
 import { geocodeAddress, suggestAddresses } from '../campus-api';
 import showAlert from '../alert';
 import { canEditProfile, programEdit, minorToggleEdit, priorityEdit } from '../profile-edits';
@@ -232,6 +232,7 @@ const ProfileScreen = ({ visible, onClose }) => {
     setDeletingAccount(true); // background signup retries stand down
     const res = await eraseAccountData(deletePassword, user?.uid, {
       reauthenticate,
+      settleBackgroundSaves: settleRetry,
       deleteAllUserData,
       clearLocalData: clearAccountLocalData,
     });

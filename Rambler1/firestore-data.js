@@ -919,6 +919,8 @@ export const fetchSignupSaveState = async (uid) => {
       getDoc(doc(db, 'users', userId)),
       getDoc(doc(db, 'users', userId, 'private', 'quiz')),
     ]);
+    // A cached copy may predate edits made since: no answer beats a stale one.
+    if (profile.metadata?.fromCache || quiz.metadata?.fromCache) return null;
     return {
       profileKeys: profile.exists() ? Object.keys(profile.data() || {}) : [],
       hasQuiz: quiz.exists(),

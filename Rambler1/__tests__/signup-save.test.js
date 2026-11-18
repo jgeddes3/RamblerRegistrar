@@ -123,3 +123,27 @@ describe('retrying later never overwrites what the user changed since', () => {
     expect(never).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('races with a retry in flight', () => {
+  const { trackRetry, settleRetry, keepStillPending } = require('../signup-save');
+
+  test('settleRetry waits for the retry in flight, and resolves at once when none is', async () => {
+    let finish;
+    const order = [];
+    trackRetry(new Promise((r) => { finish = r; }).then(() => order.push('retry done')));
+    const waited = settleRetry().then(() => order.push('settled'));
+    await Promise.resolve();
+    expect(order).toEqual([]);
+    finish();
+    await waited;
+    expect(order).toEqual(['retry done', 'settled']);
+    await settleRetry(); // nothing in flight
+  });
+
+  test('a failed retry does not store back a course removed while it ran', () => {
+    const remaining = { profile: null, quiz: null, courseCodes: ['COMP 170', 'MATH 131'] };
+    const current = { profile: null, quiz: null, courseCodes: ['MATH 131'] };
+    expect(keepStillPending(remaining, current).courseCodes).toEqual(['MATH 131']);
+    expect(keepStillPending(remaining, null)).toEqual(remaining);
+  });
+});

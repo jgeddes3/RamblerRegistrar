@@ -9,7 +9,7 @@ import { saveUserProfile, saveQuizResults, addUserCourse, fetchSignupSaveState }
 import { useAppContext } from '../AppContext';
 import {
   saveSignupData, readPendingSignup, storePendingSignup, clearPendingSignup, RETRY_DELAYS_MS,
-  pruneAgainstServer, isNothingPending, firstResult,
+  pruneAgainstServer, isNothingPending, firstResult, keepStillPending, trackRetry,
 } from '../signup-save';
 import { isDeletingAccount } from '../account-deletion';
 import ErrorState from './ErrorState';
@@ -23,7 +23,7 @@ export default function PendingSaveBanner({ retryDelays = RETRY_DELAYS_MS }) {
   const runningRef = useRef(false);
   const delaysRef = useRef(retryDelays);
 
-  const attempt = useCallback(async (delays) => {
+  const run = useCallback(async (delays) => {
     if (!uid || runningRef.current || isDeletingAccount()) return;
     runningRef.current = true;
     try {
@@ -34,7 +34,8 @@ export default function PendingSaveBanner({ retryDelays = RETRY_DELAYS_MS }) {
       }
       // Only what the server still lacks: anything there now was saved by an
       // earlier try or changed by the user since, and must not be overwritten.
-      const server = await firstResult(() => fetchSignupSaveState(uid), delays);
+      const server = await firstResult(() => fetchSignupSaveState(uid), delays, undefined, isDeletingAccount);
+      if (isDeletingAccount()) return;
       if (!server) {
         setFailed(true);
         return;
@@ -42,7 +43,7 @@ export default function PendingSaveBanner({ retryDelays = RETRY_DELAYS_MS }) {
       const toSave = pruneAgainstServer(pending, server);
       const res = isNothingPending(toSave)
         ? { ok: true, remaining: toSave }
-        : await saveSignupData(uid, toSave, API, { delays });
+        : await saveSignupData(uid, toSave, API, { delays, shouldStop: isDeletingAccount });
       if (isDeletingAccount()) return; // the account is going; don't store it again
       if (res.ok) {
         await clearPendingSignup(AsyncStorage);
@@ -50,7 +51,9 @@ export default function PendingSaveBanner({ retryDelays = RETRY_DELAYS_MS }) {
         // On a later launch the profile was restored before this landed.
         if (reloadProfile) reloadProfile();
       } else {
-        await storePendingSignup(AsyncStorage, uid, res.remaining);
+        // Re-read first: a course removed in Profile while this ran stays removed.
+        const current = await readPendingSignup(AsyncStorage, uid);
+        await storePendingSignup(AsyncStorage, uid, keepStillPending(res.remaining, current));
         setFailed(true);
       }
     } catch (e) {
@@ -59,6 +62,9 @@ export default function PendingSaveBanner({ retryDelays = RETRY_DELAYS_MS }) {
       runningRef.current = false;
     }
   }, [uid, reloadProfile]);
+
+  // Registered so account deletion can wait for a retry already under way.
+  const attempt = useCallback((delays) => trackRetry(run(delays)), [run]);
 
   useEffect(() => {
     attempt(delaysRef.current);

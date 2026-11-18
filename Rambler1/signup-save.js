@@ -39,12 +39,14 @@ async function saveOnce(uid, r, api) {
 }
 
 // One attempt, then one more after each delay, retrying only what failed.
-export async function saveSignupData(uid, data, api, { delays = [], sleep = defaultSleep } = {}) {
+// shouldStop(): checked between attempts (account deletion started).
+export async function saveSignupData(uid, data, api, { delays = [], sleep = defaultSleep, shouldStop = () => false } = {}) {
   let remaining = normalize(data);
   for (let attempt = 0; ; attempt++) {
     remaining = await saveOnce(uid, remaining, api);
-    if (isNothingPending(remaining) || attempt >= delays.length) break;
+    if (isNothingPending(remaining) || attempt >= delays.length || shouldStop()) break;
     await sleep(delays[attempt]);
+    if (shouldStop()) break;
   }
   return { ok: isNothingPending(remaining), remaining };
 }
@@ -77,11 +79,28 @@ export async function forgetPendingCourse(storage, uid, code) {
   else await storePendingSignup(storage, uid, remaining);
 }
 
+// A failed retry stores what it still couldn't save. Courses removed from the
+// pending entry while it ran (forgetPendingCourse) stay removed.
+export function keepStillPending(remaining, current) {
+  if (!current) return remaining;
+  return { ...remaining, courseCodes: remaining.courseCodes.filter((c) => current.courseCodes.includes(c)) };
+}
+
+// The banner's retry in flight. Account deletion waits it out rather than
+// racing it: a retry that lands after the delete would recreate the profile.
+let inFlight = null;
+export function trackRetry(promise) {
+  inFlight = promise;
+  promise.then(() => {}, () => {}).then(() => { if (inFlight === promise) inFlight = null; });
+  return promise;
+}
+export const settleRetry = () => (inFlight ? inFlight.then(() => {}, () => {}) : Promise.resolve());
+
 // read() once, then again after each delay while it resolves null.
-export async function firstResult(read, delays = [], sleep = defaultSleep) {
+export async function firstResult(read, delays = [], sleep = defaultSleep, shouldStop = () => false) {
   for (let attempt = 0; ; attempt++) {
     const value = await read();
-    if (value != null || attempt >= delays.length) return value ?? null;
+    if (value != null || attempt >= delays.length || shouldStop()) return value ?? null;
     await sleep(delays[attempt]);
   }
 }

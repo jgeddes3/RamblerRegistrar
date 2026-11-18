@@ -24,6 +24,10 @@ export async function eraseAccountData(password, uid, deps) {
     return { ok: false, step: 'password', code: e && e.code };
   }
   try {
+    // A background save already running (PendingSaveBanner) finishes first,
+    // so it can't land after the delete and recreate data. New ones stand
+    // down: the caller set setDeletingAccount(true) before starting.
+    if (deps.settleBackgroundSaves) await deps.settleBackgroundSaves();
     await deps.deleteAllUserData(uid);
   } catch (e) {
     return { ok: false, step: 'data' };

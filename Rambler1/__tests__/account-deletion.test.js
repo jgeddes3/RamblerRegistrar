@@ -122,3 +122,26 @@ describe('eraseAccountData', () => {
     expect(await eraseAccountData('pw', 'u1', d)).toEqual({ ok: true });
   });
 });
+
+describe('races with background saves', () => {
+  test('eraseAccountData waits for a background save before deleting', async () => {
+    const order = [];
+    const res = await eraseAccountData('pw', 'u1', {
+      reauthenticate: async () => order.push('password'),
+      settleBackgroundSaves: async () => order.push('settled'),
+      deleteAllUserData: async () => order.push('deleted'),
+      clearLocalData: async () => order.push('cleared'),
+    });
+    expect(res).toEqual({ ok: true });
+    expect(order).toEqual(['password', 'settled', 'deleted', 'cleared']);
+  });
+
+  test('fetchSignupSaveState refuses a cached read: it may predate later edits', async () => {
+    const { fetchSignupSaveState } = require('../firestore-data');
+    const snap = (fromCache) => ({ exists: () => true, data: () => ({ graduationYear: '2028' }), metadata: { fromCache } });
+    fs.getDoc.mockReset().mockResolvedValue(snap(true));
+    expect(await fetchSignupSaveState('u1')).toBeNull();
+    fs.getDoc.mockReset().mockResolvedValue(snap(false));
+    expect(await fetchSignupSaveState('u1')).toEqual({ profileKeys: ['graduationYear'], hasQuiz: true });
+  });
+});

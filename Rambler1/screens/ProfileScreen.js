@@ -348,8 +348,8 @@ const ProfileScreen = ({ visible, onClose }) => {
   // ==================== SELECT PROGRAM MODE ====================
   if (mode === 'selectProgram') {
     return (
-      <Modal visible={visible} animationType="slide" transparent>
-        <View style={s.overlay}>
+      <Modal visible={visible} animationType="slide" transparent onRequestClose={() => { setMode('profile'); setSearch(''); }}>
+        <View accessibilityViewIsModal style={s.overlay}>
           <View style={s.panelFull}>
             <View style={s.headerRow}>
               <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }}>
@@ -444,8 +444,8 @@ const ProfileScreen = ({ visible, onClose }) => {
       (m.name || '').toLowerCase().includes(search.toLowerCase())
     );
     return (
-      <Modal visible={visible} animationType="slide" transparent>
-        <View style={s.overlay}>
+      <Modal visible={visible} animationType="slide" transparent onRequestClose={() => { setMode('profile'); setSearch(''); }}>
+        <View accessibilityViewIsModal style={s.overlay}>
           <View style={s.panelFull}>
             <View style={s.headerRow}>
               <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }}>
@@ -490,8 +490,8 @@ const ProfileScreen = ({ visible, onClose }) => {
   // ==================== SELECT COURSES MODE ====================
   if (mode === 'selectCourses') {
     return (
-      <Modal visible={visible} animationType="slide" transparent>
-        <View style={s.overlay}>
+      <Modal visible={visible} animationType="slide" transparent onRequestClose={() => { setMode('profile'); setSearch(''); }}>
+        <View accessibilityViewIsModal style={s.overlay}>
           <View style={s.panelFull}>
             <View style={s.headerRow}>
               <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }}>
@@ -531,8 +531,8 @@ const ProfileScreen = ({ visible, onClose }) => {
 
   // ==================== PROFILE MODE (default) ====================
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={s.overlay}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
+      <View accessibilityViewIsModal style={s.overlay}>
         <View style={s.panel}>
           <TouchableOpacity onPress={handleClose} style={s.closeButton}>
             <Text style={s.closeText}>X</Text>

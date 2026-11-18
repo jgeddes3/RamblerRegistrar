@@ -439,7 +439,7 @@ const GenerateScheduleModal = ({
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={close}>
-      <View style={st.container}>
+      <View accessibilityViewIsModal style={st.container}>
         <View style={st.header}>
           <Text style={st.title}>
             {preview ? 'Preview' : phase === 'results' ? 'Suggested Schedules' : 'Generate Schedule'}

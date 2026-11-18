@@ -769,8 +769,8 @@ const ProgressScreen = () => {
       })()}
 
       {/* Core Area Options Modal */}
-      <Modal visible={!!coreAreaModal} animationType="slide" transparent>
-        <View style={s.modalOverlay}>
+      <Modal visible={!!coreAreaModal} animationType="slide" transparent onRequestClose={() => setCoreAreaModal(null)}>
+        <View accessibilityViewIsModal style={s.modalOverlay}>
           <View style={s.modalPanel}>
             <View style={s.modalHeader}>
               <View style={{ flex: 1 }}>

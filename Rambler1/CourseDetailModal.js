@@ -233,8 +233,8 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
   if (!course) return null;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={s.overlay}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View accessibilityViewIsModal style={s.overlay}>
         <View style={s.modal}>
           {/* Header */}
           <View style={s.header}>

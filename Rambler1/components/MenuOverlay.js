@@ -27,8 +27,8 @@ const MenuOverlay = ({ visible, onClose, onNavigate }) => {
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={s.overlay}>
-        <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={onClose} />
-        <View style={s.panel}>
+        <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={onClose} accessible={false} importantForAccessibility="no" />
+        <View style={s.panel} accessibilityViewIsModal>
           {/* Close */}
           <TouchableOpacity onPress={onClose} style={s.closeButton}>
             <Text style={s.closeText}>X</Text>

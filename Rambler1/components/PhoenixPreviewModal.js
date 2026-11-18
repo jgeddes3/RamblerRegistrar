@@ -29,7 +29,7 @@ const PhoenixPreviewModal = ({ item, visible, onClose }) => {
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={s.overlay}>
+      <View accessibilityViewIsModal style={s.overlay}>
         <View style={s.panel}>
           <View style={s.headerRow}>
             <Text style={s.masthead}>The Loyola Phoenix</Text>

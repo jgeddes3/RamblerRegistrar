@@ -91,7 +91,7 @@ const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={s.container}>
+      <View accessibilityViewIsModal style={s.container}>
         <View style={s.header}>
           <Text style={s.title}>Day Map</Text>
           <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel="Close day map">

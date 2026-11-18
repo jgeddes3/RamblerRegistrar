@@ -263,7 +263,7 @@ const WhatIfModal = ({
   if (asScreen) return visible ? content : null;
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      {content}
+      <View style={{ flex: 1 }} accessibilityViewIsModal>{content}</View>
     </Modal>
   );
 };

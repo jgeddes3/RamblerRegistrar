@@ -905,7 +905,7 @@ const ScheduleScreen = () => {
 
       {/* ============================ ADD-CLASS MODAL ============================ */}
       <Modal visible={addVisible} animationType="slide" onRequestClose={closeAddModal}>
-        <View style={s.modalContainer}>
+        <View accessibilityViewIsModal style={s.modalContainer}>
           <View style={s.modalHeader}>
             <Text style={s.modalTitle}>Add a Class</Text>
             <TouchableOpacity onPress={closeAddModal} style={s.modalClose}>

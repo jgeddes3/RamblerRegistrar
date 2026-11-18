@@ -33,7 +33,7 @@ const PrivacyPolicyModal = ({
       animationType="slide"
       onRequestClose={consent ? () => {} : onClose}
     >
-      <View style={s.page}>
+      <View accessibilityViewIsModal style={s.page}>
         <View style={s.header}>
           <Text style={s.headerTitle}>{title}</Text>
           {!consent ? (

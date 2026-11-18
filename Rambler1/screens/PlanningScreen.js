@@ -354,7 +354,7 @@ const PlanningScreen = () => {
 
       {/* ------------------------- ADD-COURSE MODAL ------------------------- */}
       <Modal visible={!!addTarget} animationType="slide" transparent onRequestClose={closeAdd}>
-        <KeyboardAvoidingView style={s.modalOverlay} behavior={KAV_BEHAVIOR}>
+        <KeyboardAvoidingView accessibilityViewIsModal style={s.modalOverlay} behavior={KAV_BEHAVIOR}>
           <View style={s.modalPanel}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>

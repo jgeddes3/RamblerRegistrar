@@ -51,7 +51,7 @@ const FeedbackModal = ({ visible, onClose, context = '' }) => {
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={close}>
-      <KeyboardAvoidingView style={s.overlay} behavior={KAV_BEHAVIOR}>
+      <KeyboardAvoidingView accessibilityViewIsModal style={s.overlay} behavior={KAV_BEHAVIOR}>
         <View style={s.panel}>
           <View style={s.header}>
             <Text style={s.title}>Send Feedback</Text>

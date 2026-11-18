@@ -6,6 +6,7 @@ import PrivacyPolicyModal from '../components/PrivacyPolicyModal';
 import { TERMS_TITLE, TERMS_SECTIONS } from '../terms-content';
 import ProfileScreen from './ProfileScreen';
 import { STONE } from '../theme';
+import { CAMPUS_LINKS } from '../campus-links';
 
 const MAROON = '#A30046';
 
@@ -28,36 +29,8 @@ const MENU_ROWS = [
     sublabel: 'Courses that filled quickest last cycle',
     icon: 'flash-outline',
   },
-  {
-    key: 'BookARide',
-    label: 'Book a Ride',
-    sublabel: '8-RIDE evenings & the intercampus shuttle',
-    icon: 'bus-outline',
-  },
-  {
-    key: 'Map',
-    label: 'Campus Map',
-    sublabel: 'Buildings across LSC & WTC',
-    icon: 'map-outline',
-  },
-  {
-    key: 'Library',
-    label: 'Library Hours',
-    sublabel: 'Hours and study-room booking',
-    icon: 'library-outline',
-  },
-  {
-    key: 'Events',
-    label: 'Campus Events',
-    sublabel: 'What’s happening at Loyola',
-    icon: 'calendar-outline',
-  },
-  {
-    key: 'Phoenix',
-    label: 'Loyola Phoenix',
-    sublabel: 'Headlines from the student newspaper',
-    icon: 'newspaper-outline',
-  },
+  // Campus-life rows: the same list as the top-bar Campus menu.
+  ...CAMPUS_LINKS,
   {
     key: 'PreferenceQuiz',
     label: 'Retake the Quiz',

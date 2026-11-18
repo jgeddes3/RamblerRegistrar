@@ -33,6 +33,7 @@ import showAlert from '../alert';
 import { useRegistrationTerm, resolveRegistrationTerm, scheduleTermOptions } from '../term';
 import { afterModalDismiss } from '../modal-sequencing';
 import { writeCacheFile } from '../ics-export';
+import { STONE } from '../theme';
 
 // Same pattern as ProfileScreen: RN Modal covers the status bar / notch on iOS.
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
@@ -432,7 +433,7 @@ const ScheduleScreen = () => {
         neededPerSemester: outlook.pace,
       });
       if (!line) return null;
-      return { line, dotColor: PACING_DOT_COLORS[outlook.status] || '#999' };
+      return { line, dotColor: PACING_DOT_COLORS[outlook.status] || STONE };
     } catch (e) {
       return null; // insights never break the schedule UI
     }
@@ -915,7 +916,7 @@ const ScheduleScreen = () => {
           <TextInput
             style={s.searchInput}
             placeholder="Search courses (e.g. COMP 170)"
-            placeholderTextColor="#999"
+            placeholderTextColor={STONE}
             value={query}
             onChangeText={onSearchChange}
             autoCorrect={false}
@@ -1090,7 +1091,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
   },
   title: { fontFamily: 'CormorantGaramond-Regular', fontSize: 28, color: '#A30046' },
-  subtitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: '#999', marginTop: -2 },
+  subtitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: STONE, marginTop: -2 },
   // Term switcher (shown in place of the subtitle when two terms are open)
   termRow: { flexDirection: 'row', gap: 6, marginTop: 2 },
   termChip: {
@@ -1141,7 +1142,7 @@ const s = StyleSheet.create({
   },
   unschedRow: { paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
   unschedCode: { fontFamily: 'CormorantGaramond-Regular', fontSize: 13, fontWeight: 'bold', color: '#333' },
-  unschedDetail: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: '#888', marginTop: 1 },
+  unschedDetail: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: STONE, marginTop: 1 },
 
   // Watching (seat watches)
   watchWrap: {
@@ -1152,7 +1153,7 @@ const s = StyleSheet.create({
     fontFamily: 'CormorantGaramond-Regular', fontSize: 17,
     color: '#A30046', fontWeight: 'bold', marginBottom: 4,
   },
-  watchHintText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 11, color: '#999', marginBottom: 4 },
+  watchHintText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 11, color: STONE, marginBottom: 4 },
   watchRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F5F5F5', gap: 8,
@@ -1171,9 +1172,9 @@ const s = StyleSheet.create({
   watchBtnTextActive: { color: '#FFFFFF' },
 
   // Loading / empty
-  loadingText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 16, color: '#999', marginTop: 12 },
-  emptyTitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 22, color: '#999', textAlign: 'center' },
-  emptyHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: '#CCC', marginTop: 6, textAlign: 'center' },
+  loadingText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 16, color: STONE, marginTop: 12 },
+  emptyTitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 22, color: STONE, textAlign: 'center' },
+  emptyHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: STONE, marginTop: 6, textAlign: 'center' },
   retryBtn: {
     marginTop: 16, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 28,
     backgroundColor: '#A30046',
@@ -1209,7 +1210,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 16, marginBottom: 6,
   },
   noMatchText: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: '#999',
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: STONE,
     textAlign: 'center', padding: 24,
   },
   // F-P4 recommended rail (add modal, pre-search)
@@ -1219,7 +1220,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 16, marginBottom: 2,
   },
   recSub: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#999',
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: STONE,
     paddingHorizontal: 16, marginBottom: 6,
   },
   recCodeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -1237,7 +1238,7 @@ const s = StyleSheet.create({
   },
   courseRowCode: { fontFamily: 'CormorantGaramond-Regular', fontSize: 17, fontWeight: 'bold', color: '#333' },
   courseRowName: { fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#777', marginTop: 1 },
-  courseRowChevron: { fontFamily: 'CormorantGaramond-Regular', fontSize: 20, color: '#CCC', marginLeft: 8 },
+  courseRowChevron: { fontFamily: 'CormorantGaramond-Regular', fontSize: 20, color: STONE, marginLeft: 8 },
   countsRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   countsMarker: { fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#065f46' },
   fillBadge: {
@@ -1276,7 +1277,7 @@ const s = StyleSheet.create({
   sectionMeta: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
   sectionInstructor: { fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#A30046' },
   sectionSeats: { fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#555' },
-  sectionRoom: { fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#888', flexShrink: 1 },
+  sectionRoom: { fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: STONE, flexShrink: 1 },
 });
 
 export default ScheduleScreen;

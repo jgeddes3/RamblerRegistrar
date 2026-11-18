@@ -5,6 +5,7 @@ import FeedbackModal from '../components/FeedbackModal';
 import PrivacyPolicyModal from '../components/PrivacyPolicyModal';
 import { TERMS_TITLE, TERMS_SECTIONS } from '../terms-content';
 import ProfileScreen from './ProfileScreen';
+import { STONE } from '../theme';
 
 const MAROON = '#A30046';
 
@@ -189,7 +190,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
-    color: '#888',
+    color: STONE,
     marginBottom: 20,
   },
   card: {
@@ -236,11 +237,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   rowLabelDisabled: {
-    color: '#999',
+    color: STONE,
   },
   rowSublabel: {
     fontFamily: 'CormorantGaramond-Regular', fontSize: 12,
-    color: '#999',
+    color: STONE,
     marginTop: 1,
   },
 });

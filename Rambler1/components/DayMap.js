@@ -6,11 +6,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FONT } from '../theme';
+import { FONT, STONE } from '../theme';
 
 const DayMap = () => (
   <View style={s.wrap}>
-    <Ionicons name="map-outline" size={28} color="#999" style={{ marginBottom: 4 }} />
+    <Ionicons name="map-outline" size={28} color={STONE} style={{ marginBottom: 4 }} />
     <Text style={s.text}>The map renders in the mobile app.</Text>
   </View>
 );
@@ -20,7 +20,7 @@ const s = StyleSheet.create({
     height: 160, borderRadius: 12, backgroundColor: '#F6F6F6',
     alignItems: 'center', justifyContent: 'center', marginBottom: 10,
   },
-  text: { fontFamily: FONT, fontSize: 14, color: '#999' },
+  text: { fontFamily: FONT, fontSize: 14, color: STONE },
 });
 
 export default DayMap;

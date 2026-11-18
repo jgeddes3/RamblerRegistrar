@@ -27,7 +27,7 @@ import {
   fetchUserPrimaryLocation,
 } from '../firestore-data';
 import { buildRouteLegs } from '../walk-route';
-import { PARCHMENT } from '../theme';
+import { PARCHMENT, STONE } from '../theme';
 import { useRegistrationTerm } from '../term';
 
 const MAROON = '#A30046';
@@ -370,7 +370,7 @@ const MapScreen = () => {
             <TextInput
               style={s.routeSearch}
               placeholder={routeStops.length === 0 ? 'Add a starting building...' : 'Add the next stop...'}
-              placeholderTextColor="#999"
+              placeholderTextColor={STONE}
               value={routeSearch}
               onChangeText={setRouteSearch}
               autoCorrect={false}
@@ -401,7 +401,7 @@ const MapScreen = () => {
                   <View key={`stop-${i}`}>
                     {i > 0 && route.legs[i - 1] ? (
                       <View style={s.routeLegRow}>
-                        <Ionicons name="walk-outline" size={13} color="#888" />
+                        <Ionicons name="walk-outline" size={13} color={STONE} />
                         <Text style={s.routeLegText}>
                           {route.legs[i - 1].walk_minutes} min · {route.legs[i - 1].distance_m} m
                         </Text>
@@ -453,7 +453,7 @@ const MapScreen = () => {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: PARCHMENT },
   title: { fontFamily: 'CormorantGaramond-Regular', fontSize: 28, color: MAROON },
-  subtitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: '#999', marginTop: -2 },
+  subtitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: STONE, marginTop: -2 },
 
   // Overlays
   titleCard: {
@@ -543,7 +543,7 @@ const s = StyleSheet.create({
   },
   routeSuggestText: { flex: 1, fontSize: 14, color: '#333' },
   routeStopsList: { marginTop: 8, maxHeight: 170 },
-  routeEmptyText: { fontSize: 13, color: '#999', paddingVertical: 10 },
+  routeEmptyText: { fontSize: 13, color: STONE, paddingVertical: 10 },
   routeStopRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6,
   },
@@ -557,7 +557,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingLeft: 32, paddingVertical: 1,
   },
-  routeLegText: { fontSize: 12, color: '#888' },
+  routeLegText: { fontSize: 12, color: STONE },
   routeTotalRow: {
     flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8,
     borderTopWidth: 1, borderTopColor: '#F0F0F0', paddingTop: 10,

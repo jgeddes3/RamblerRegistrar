@@ -10,6 +10,7 @@ import showAlert from '../alert';
 import { canEditProfile, programEdit, minorToggleEdit, priorityEdit } from '../profile-edits';
 import { filterCourses, setCourseSelected } from '../course-list';
 import { afterModalDismiss } from '../modal-sequencing';
+import { STONE } from '../theme';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
@@ -699,7 +700,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               <TextInput
                 style={s.addressInput}
                 placeholder={savedHome ? 'Change address...' : 'e.g. 6363 N Winthrop Ave, Chicago, IL'}
-                placeholderTextColor="#999"
+                placeholderTextColor={STONE}
                 value={addressInput}
                 onChangeText={handleAddressChange}
                 autoCorrect={false}
@@ -927,7 +928,7 @@ const s = StyleSheet.create({
   displayName: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 16,
-    color: '#888',
+    color: STONE,
     marginTop: 2,
   },
   divider: {
@@ -943,7 +944,7 @@ const s = StyleSheet.create({
   label: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 14,
-    color: '#999',
+    color: STONE,
     fontWeight: 'bold',
     textTransform: 'uppercase',
     marginBottom: 4,
@@ -956,7 +957,7 @@ const s = StyleSheet.create({
   valueSmall: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 14,
-    color: '#888',
+    color: STONE,
   },
   editHint: {
     fontFamily: 'CormorantGaramond-Regular',
@@ -1072,7 +1073,7 @@ const s = StyleSheet.create({
   focusSelectedCourses: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
-    color: '#888',
+    color: STONE,
     marginTop: 4,
   },
   focusPrompt: {
@@ -1102,7 +1103,7 @@ const s = StyleSheet.create({
   focusOptionDesc: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#888',
+    color: STONE,
     marginTop: 2,
   },
   focusBestBadge: {
@@ -1192,7 +1193,7 @@ const s = StyleSheet.create({
   priorityRowHint: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
-    color: '#888',
+    color: STONE,
     marginTop: 2,
     paddingRight: 8,
   },
@@ -1234,7 +1235,7 @@ const s = StyleSheet.create({
   recsSectionSub: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#888',
+    color: STONE,
     marginBottom: 12,
   },
   recItem: {
@@ -1260,7 +1261,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   recRankBadgeWarn: {
-    backgroundColor: '#999',
+    backgroundColor: STONE,
   },
   recRankText: {
     fontFamily: 'CormorantGaramond-Regular',
@@ -1280,7 +1281,7 @@ const s = StyleSheet.create({
   recItemDegree: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#888',
+    color: STONE,
     marginTop: 2,
   },
   recItemRationale: {
@@ -1312,7 +1313,7 @@ const s = StyleSheet.create({
   recsDividerText: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 16,
-    color: '#999',
+    color: STONE,
     fontWeight: 'bold',
   },
   signOutButton: {
@@ -1404,7 +1405,7 @@ const s = StyleSheet.create({
   listItemSub: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#999',
+    color: STONE,
     marginTop: 2,
   },
 });

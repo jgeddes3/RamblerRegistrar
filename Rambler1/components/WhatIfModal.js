@@ -24,7 +24,7 @@ import { useAppContext } from '../AppContext';
 import showAlert from '../alert';
 import { canEditProfile } from '../profile-edits';
 import { afterModalDismiss } from '../modal-sequencing';
-import { FONT, MAROON } from '../theme';
+import { FONT, MAROON, STONE } from '../theme';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 const MAX_MINORS = 3;
@@ -277,7 +277,7 @@ const s = StyleSheet.create({
   title: { fontFamily: FONT, fontSize: 24, fontWeight: '700', color: '#1a1a1a' },
   closeBtn: { padding: 8 },
   closeText: { fontFamily: FONT, fontSize: 18, fontWeight: '600', color: MAROON },
-  subtitle: { fontFamily: FONT, fontSize: 14, color: '#888', paddingHorizontal: 16, marginBottom: 8 },
+  subtitle: { fontFamily: FONT, fontSize: 14, color: STONE, paddingHorizontal: 16, marginBottom: 8 },
 
   modeRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 6 },
   modeChip: {
@@ -289,7 +289,7 @@ const s = StyleSheet.create({
   modeChipTextOn: { color: '#FFF' },
 
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  loadingText: { fontFamily: FONT, fontSize: 15, color: '#999', marginTop: 12, textAlign: 'center' },
+  loadingText: { fontFamily: FONT, fontSize: 15, color: STONE, marginTop: 12, textAlign: 'center' },
 
   groupTitle: { fontFamily: FONT, fontSize: 20, color: MAROON, marginTop: 10, marginBottom: 6 },
   row: {

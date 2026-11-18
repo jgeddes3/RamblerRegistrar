@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { getPhoenixHeadlines } from '../campus-api';
 import PhoenixPreviewModal from '../components/PhoenixPreviewModal';
+import { STONE } from '../theme';
 
 const MAROON = '#A30046';
 
@@ -60,12 +61,12 @@ const HeadlineCard = ({ item, onPress }) => {
         <Text style={s.cardTitle} numberOfLines={3}>{item.title}</Text>
         {meta ? (
           <View style={s.metaRow}>
-            <Ionicons name="newspaper-outline" size={13} color="#888" />
+            <Ionicons name="newspaper-outline" size={13} color={STONE} />
             <Text style={s.metaText} numberOfLines={1}>{meta}</Text>
           </View>
         ) : null}
       </View>
-      <Ionicons name="chevron-forward" size={18} color="#CCC" />
+      <Ionicons name="chevron-forward" size={18} color={STONE} />
     </TouchableOpacity>
   );
 };
@@ -152,12 +153,12 @@ const s = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#FBF9F4', paddingHorizontal: 24,
   },
-  loadingText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 16, color: '#999', marginTop: 12 },
+  loadingText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 16, color: STONE, marginTop: 12 },
   emptyTitle: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 22, color: '#999',
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 22, color: STONE,
     textAlign: 'center', marginTop: 10,
   },
-  emptyHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: '#CCC', marginTop: 6, textAlign: 'center' },
+  emptyHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: STONE, marginTop: 6, textAlign: 'center' },
 
   sectionTitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 24, color: MAROON, marginBottom: 10 },
 

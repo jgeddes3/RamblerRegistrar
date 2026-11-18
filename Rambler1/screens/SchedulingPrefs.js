@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAppContext } from '../AppContext';
 import { saveQuizResults } from '../firestore-data';
 import BackgroundImage from '../styleComponents/BackgroundImage';
+import { STONE } from '../theme';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -307,7 +308,7 @@ const s = StyleSheet.create({
   hintText: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 15,
-    color: '#999',
+    color: STONE,
     marginBottom: 4,
   },
 });

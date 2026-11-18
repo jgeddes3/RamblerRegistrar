@@ -24,7 +24,7 @@ import {
 import { planSemesters, allPlannedCodes, planOrderingIssues, termLabelFor } from '../plan-utils';
 import { requirementCoverage } from '../planning-insights';
 import { buildRecommendations } from '../recommend';
-import { FONT, MAROON, EYEBROW } from '../theme';
+import { FONT, MAROON, EYEBROW, STONE } from '../theme';
 import showAlert from '../alert';
 import WhatIfModal from '../components/WhatIfModal';
 
@@ -367,7 +367,7 @@ const PlanningScreen = () => {
             <TextInput
               style={s.searchInput}
               placeholder="Search courses (e.g. PHIL 181)"
-              placeholderTextColor="#999"
+              placeholderTextColor={STONE}
               value={query}
               onChangeText={onSearchChange}
               autoCorrect={false}
@@ -428,8 +428,8 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FBF9F4' },
   content: { padding: 16, paddingBottom: 32 },
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FBF9F4', padding: 24 },
-  loadingText: { fontFamily: FONT, fontSize: 16, color: '#999', marginTop: 12 },
-  emptyTitle: { fontFamily: FONT, fontSize: 22, color: '#999', textAlign: 'center' },
+  loadingText: { fontFamily: FONT, fontSize: 16, color: STONE, marginTop: 12 },
+  emptyTitle: { fontFamily: FONT, fontSize: 22, color: STONE, textAlign: 'center' },
   introText: { fontFamily: FONT, fontSize: 15, color: '#777', marginBottom: 14, lineHeight: 21 },
 
   coverageBanner: {

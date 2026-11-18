@@ -8,6 +8,7 @@ import { saveCoursesConcurrently } from '../course-sync';
 import { afterModalDismiss } from '../modal-sequencing';
 import { programProgressSummary } from '../progress-summary';
 import CourseDetailModal from '../CourseDetailModal';
+import { STONE } from '../theme';
 
 // Graduation Outlook banner design tokens (status -> colors)
 const OUTLOOK_COLORS = {
@@ -426,7 +427,7 @@ const ProgressScreen = () => {
             {needsPrereqs.map((c) => (
               <TouchableOpacity key={c.code || c.id} onPress={() => openCourseModal(c)}>
                 <View style={s.courseRow}>
-                  <Text style={[s.rowIcon, { color: '#CCC' }]}>○</Text>
+                  <Text style={[s.rowIcon, { color: STONE }]}>○</Text>
                   <View style={s.courseInfo}>
                     <Text style={s.courseCode}>{c.code}</Text>
                     {c.name ? <Text style={s.courseName}>{c.name}</Text> : null}
@@ -490,7 +491,7 @@ const ProgressScreen = () => {
             const done = a.status === 'completed' || a.status === 'satisfied';
             const waived = a.status === 'waived';
             const icon = done ? '✓' : waived ? '—' : '○';
-            const iconColor = done ? '#2d6a4f' : waived ? '#999' : '#A30046';
+            const iconColor = done ? '#2d6a4f' : waived ? STONE : '#A30046';
             const detail = done ? a.satisfiedBy
               : waived ? (a.override?.notes || 'Waived')
               : a.courseOptions?.find(o => o.is_required) ? `Required: ${a.courseOptions.find(o => o.is_required).course_code}`
@@ -512,7 +513,7 @@ const ProgressScreen = () => {
                 const done = a.status === 'completed' || a.status === 'satisfied';
                 const waived = a.status === 'waived';
                 const icon = done ? '✓' : waived ? '—' : '○';
-                const iconColor = done ? '#2d6a4f' : waived ? '#999' : '#A30046';
+                const iconColor = done ? '#2d6a4f' : waived ? STONE : '#A30046';
                 const tierLabel = a.tier === 'tier1' ? 'Tier 1' : 'Tier 2';
                 const detail = done ? a.satisfiedBy
                   : waived ? (a.override?.notes || 'Waived')
@@ -938,7 +939,7 @@ const s = StyleSheet.create({
   subheading: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
-    color: '#888',
+    color: STONE,
     marginBottom: 12,
   },
 
@@ -981,7 +982,7 @@ const s = StyleSheet.create({
   progressCardDetail: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
-    color: '#999',
+    color: STONE,
   },
 
   // Sections
@@ -996,7 +997,7 @@ const s = StyleSheet.create({
   sectionSub: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
-    color: '#999',
+    color: STONE,
     marginBottom: 8,
   },
 
@@ -1108,7 +1109,7 @@ const s = StyleSheet.create({
   rowChevron: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 24,
-    color: '#CCC',
+    color: STONE,
     marginLeft: 8,
   },
 
@@ -1141,7 +1142,7 @@ const s = StyleSheet.create({
   modalSubtitle: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
-    color: '#888',
+    color: STONE,
   },
   modalClose: {
     width: 32,
@@ -1157,12 +1158,12 @@ const s = StyleSheet.create({
   modalEmptyText: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 18,
-    color: '#999',
+    color: STONE,
   },
   modalEmptyHint: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
-    color: '#CCC',
+    color: STONE,
     marginTop: 6,
   },
   sectionCard: {
@@ -1253,7 +1254,7 @@ const s = StyleSheet.create({
   profDiff: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
-    color: '#888',
+    color: STONE,
   },
 
   // Tiered groups
@@ -1270,7 +1271,7 @@ const s = StyleSheet.create({
   emptyText: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
-    color: '#999',
+    color: STONE,
     textAlign: 'center',
     marginTop: 40,
   },

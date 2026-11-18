@@ -9,6 +9,7 @@ import {
   View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { STONE } from '../theme';
 
 const MAROON = '#A30046';
 
@@ -105,7 +106,7 @@ const s = StyleSheet.create({
     lineHeight: 29,
     color: '#1a1a1a',
   },
-  meta: { fontSize: 12, color: '#888', marginTop: 6 },
+  meta: { fontSize: 12, color: STONE, marginTop: 6 },
   paragraph: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 17,

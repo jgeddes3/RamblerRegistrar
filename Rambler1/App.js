@@ -46,6 +46,7 @@ import MapScreen from './screens/MapScreen';
 import LibraryScreen from './screens/LibraryScreen';
 import EventsScreen from './screens/EventsScreen';
 import PhoenixScreen from './screens/PhoenixScreen';
+import { STONE } from './theme';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -160,7 +161,7 @@ const MainTabs = () => {
           headerShown: false,
           tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
           tabBarActiveTintColor: '#A30046',
-          tabBarInactiveTintColor: '#999',
+          tabBarInactiveTintColor: STONE,
           tabBarLabelStyle: {
             fontFamily: 'CormorantGaramond-Regular',
             fontSize: 14,

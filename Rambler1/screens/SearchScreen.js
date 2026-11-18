@@ -11,6 +11,7 @@ import { fetchCourses as fetchLocalCourses } from '../Database';
 import CourseDetailModal from '../CourseDetailModal';
 import Skeleton from '../components/Skeleton';
 import { useRegistrationTerm, resolveRegistrationTerm } from '../term';
+import { STONE } from '../theme';
 
 // =============================================================================
 // CONSTANTS
@@ -556,7 +557,7 @@ const SearchScreen = () => {
           ref={inputRef}
           style={s.searchInput}
           placeholder="Search courses, departments, professors..."
-          placeholderTextColor="#999"
+          placeholderTextColor={STONE}
           value={query}
           onChangeText={onSearchChange}
           onSubmitEditing={rememberQuery}
@@ -751,7 +752,7 @@ const s = StyleSheet.create({
   cardCredits: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
-    color: '#999',
+    color: STONE,
   },
   cardName: {
     fontFamily: 'CormorantGaramond-Regular',
@@ -762,13 +763,13 @@ const s = StyleSheet.create({
   cardSub: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
-    color: '#999',
+    color: STONE,
     marginTop: 2,
   },
   cardChevron: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 20,
-    color: '#CCC',
+    color: STONE,
     marginLeft: 8,
   },
   cardSections: {
@@ -778,7 +779,7 @@ const s = StyleSheet.create({
   noMatchText: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
-    color: '#999',
+    color: STONE,
     textAlign: 'center',
     padding: 16,
   },
@@ -830,7 +831,7 @@ const s = StyleSheet.create({
   sectionRoom: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
-    color: '#888',
+    color: STONE,
   },
 
   // Department grid
@@ -865,7 +866,7 @@ const s = StyleSheet.create({
   deptName: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 11,
-    color: '#888',
+    color: STONE,
     textAlign: 'center',
     marginTop: 2,
   },
@@ -875,7 +876,7 @@ const s = StyleSheet.create({
   recentTitle: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
-    color: '#999',
+    color: STONE,
     fontWeight: 'bold',
     marginBottom: 8,
   },
@@ -896,7 +897,7 @@ const s = StyleSheet.create({
   recentXText: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
-    color: '#CCC',
+    color: STONE,
     fontWeight: 'bold',
   },
 
@@ -905,7 +906,7 @@ const s = StyleSheet.create({
   hintText: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
-    color: '#CCC',
+    color: STONE,
     textAlign: 'center',
     marginTop: 30,
   },
@@ -913,19 +914,19 @@ const s = StyleSheet.create({
   loadingText: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
-    color: '#999',
+    color: STONE,
     marginTop: 12,
   },
   emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyTitle: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 22,
-    color: '#999',
+    color: STONE,
   },
   emptyHint: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
-    color: '#CCC',
+    color: STONE,
     marginTop: 6,
   },
 });

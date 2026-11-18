@@ -254,7 +254,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
           {fillNotice ? (
             fillNotice.level === 'info' ? (
               <View style={s.fillInfoRow}>
-                <Ionicons name="flash-outline" size={13} color="#888" />
+                <Ionicons name="flash-outline" size={13} color={STONE} />
                 <Text style={s.fillInfoLine}>{fillNotice.text}</Text>
               </View>
             ) : (
@@ -583,7 +583,7 @@ const s = StyleSheet.create({
   credits: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 14,
-    color: '#888',
+    color: STONE,
     marginTop: 2,
   },
   closeBtn: {
@@ -634,7 +634,7 @@ const s = StyleSheet.create({
     flex: 1,
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 14,
-    color: '#888',
+    color: STONE,
   },
   // Icon+text pair inside pill buttons/badges
   btnInner: {
@@ -745,7 +745,7 @@ const s = StyleSheet.create({
   },
   // Trend chart label (F-QW1/F-HI3)
   trendLabel: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#888', marginTop: 8,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: STONE, marginTop: 8,
   },
 
   // Remove from schedule (schedule-opened single-section view)
@@ -867,7 +867,7 @@ const s = StyleSheet.create({
   profStatLight: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#999',
+    color: STONE,
     marginTop: 2,
   },
   ratingsAttribution: {
@@ -883,12 +883,12 @@ const s = StyleSheet.create({
   emptyTitle: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 18,
-    color: '#999',
+    color: STONE,
   },
   emptyHint: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 14,
-    color: '#CCC',
+    color: STONE,
     marginTop: 4,
   },
 });

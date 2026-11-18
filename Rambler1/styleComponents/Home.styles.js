@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native';
+import { STONE } from '../theme';
 
 const styles = StyleSheet.create({
   container: {
@@ -68,7 +69,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 16,
-    color: '#999',
+    color: STONE,
     textAlign: 'center',
     marginTop: 20,
   },

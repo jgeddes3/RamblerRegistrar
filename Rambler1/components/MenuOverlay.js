@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, Platform, StatusBar, Image } from 'react-native';
+import { STONE } from '../theme';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
@@ -145,7 +146,7 @@ const s = StyleSheet.create({
   menuItemTextSecondary: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 18,
-    color: '#888',
+    color: STONE,
   },
 });
 

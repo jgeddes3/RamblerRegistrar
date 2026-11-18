@@ -6,6 +6,7 @@ import { useAppContext } from './AppContext';
 import CustomLongButton1 from './styleComponents/CustomLongButton1';
 import { ScrollView } from 'react-native';
 import BackgroundImage from './styleComponents/BackgroundImage';
+import { STONE } from './theme';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -385,7 +386,7 @@ const s = StyleSheet.create({
   progressLabel: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
-    color: '#999',
+    color: STONE,
   },
   progressLabelActive: {
     color: '#A30046',
@@ -508,7 +509,7 @@ const s = StyleSheet.create({
   undecidedHint: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#888',
+    color: STONE,
     marginTop: 2,
   },
   retryButton: {

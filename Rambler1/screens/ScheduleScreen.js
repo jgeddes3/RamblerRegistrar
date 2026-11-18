@@ -31,25 +31,14 @@ import GenerateScheduleModal from '../components/GenerateScheduleModal';
 import ScheduleMapModal from '../components/ScheduleMapModal';
 import CourseDetailModal from '../CourseDetailModal';
 import showAlert from '../alert';
+import { useRegistrationTerm, resolveRegistrationTerm } from '../term';
+import { afterModalDismiss } from '../modal-sequencing';
 
 // Same pattern as ProfileScreen: RN Modal covers the status bar / notch on iOS.
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
-// =============================================================================
-// TERM (same helper as SearchScreen/ProgressScreen)
-// =============================================================================
-
-function getRegistrationTerm() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const yy = year % 100;
-  if (month >= 10) return { code: `1${yy + 1}2`, label: `Spring ${year + 1}` };
-  if (month >= 3) return { code: `1${yy}6`, label: `Fall ${year}` };
-  return { code: `1${yy}2`, label: `Spring ${year}` };
-}
-
-const TERM = getRegistrationTerm();
+// The registration term comes from term.js (useRegistrationTerm inside the
+// component) so every screen agrees on it and follows the published terms.
 
 // Rough end-of-term for the ICS weekly RRULE UNTIL (mid-May / late Dec).
 function getTermEndDate(term) {
@@ -217,6 +206,7 @@ const ScheduleScreen = () => {
   } = useAppContext();
   const uid = user?.uid;
   const signedIn = !!user && !user.isAnonymous;
+  const TERM = useRegistrationTerm();
 
   const [loading, setLoading] = useState(true);
   const [sections, setSections] = useState([]);        // legacy section rows on the schedule
@@ -285,7 +275,7 @@ const ScheduleScreen = () => {
       setLoadFailed(true);
     }
     setLoading(false);
-  }, [uid, signedIn]);
+  }, [uid, signedIn, TERM.code]);
 
   // Load this term's seat watches + resolve them to section rows for the
   // 'Watching' list. fetchWatches/getSectionsByClassNumbers return [] on
@@ -302,7 +292,7 @@ const ScheduleScreen = () => {
       setWatched(new Set(nums));
       setWatchRows(rows || []);
     }
-  }, [uid, signedIn]);
+  }, [uid, signedIn, TERM.code]);
 
   // One-time hint when the Watching list first becomes non-empty.
   useEffect(() => {
@@ -352,6 +342,7 @@ const ScheduleScreen = () => {
     useCallback(() => {
       let active = true;
       const isActive = () => active;
+      resolveRegistrationTerm(); // retries if the published terms weren't reachable earlier
       loadSchedule();
       loadPlanning(isActive);
       loadWatches(isActive);
@@ -503,7 +494,7 @@ const ScheduleScreen = () => {
     }
     await loadSchedule();
     return true;
-  }, [uid, loadSchedule, loadFailed]);
+  }, [uid, loadSchedule, loadFailed, TERM.code]);
 
   // -------------------------------------------------------------------- add
   const closeAddModal = () => {
@@ -646,7 +637,7 @@ const ScheduleScreen = () => {
       applyWatching(wasWatching); // revert
       showAlert('Watch update failed', 'Could not update your seat watch. Please try again.');
     }
-  }, [uid, signedIn, watched]);
+  }, [uid, signedIn, watched, TERM.code]);
 
   const confirmUnwatch = (section) => {
     showAlert(
@@ -858,8 +849,9 @@ const ScheduleScreen = () => {
         sections={null}
         onClose={() => setDetailSection(null)}
         onRemove={(sec) => {
+          // Confirm only once the detail modal is gone (see modal-sequencing.js).
           setDetailSection(null);
-          confirmRemove(sec);
+          afterModalDismiss(() => confirmRemove(sec));
         }}
       />
 

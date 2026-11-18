@@ -24,7 +24,7 @@ const MenuOverlay = ({ visible, onClose, onNavigate }) => {
   };
 
   return (
-    <Modal visible={visible} animationType="fade" transparent>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={s.overlay}>
         <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={onClose} />
         <View style={s.panel}>

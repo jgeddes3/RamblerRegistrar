@@ -47,6 +47,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const db = require('./db');
+const { registrationTermFor, termLabelFor } = require('./terms');
 
 const STATE_PATH = path.join(__dirname, 'firestore-sync-state.json');
 
@@ -199,10 +200,9 @@ async function syncTermToFirestore(termCode, opts = {}) {
 
   // Term PARENT doc — a subcollection alone does not materialize its parent, so
   // without this, listing the `terms` collection returns nothing.
-  const termRow = (db.getTerms() || []).find((t) => String(t.code) === String(termCode));
   await b.set(fdb.collection('terms').doc(String(termCode)), {
     code: String(termCode),
-    name: (termRow && termRow.name) || `Term ${termCode}`,
+    name: termLabelFor(termCode),
     lastScraped: FieldValue.serverTimestamp(),
   }, { merge: true });
 
@@ -265,7 +265,7 @@ module.exports = { syncTermToFirestore, initFirestore };
 if (require.main === module) {
   const args = process.argv.slice(2);
   const reconcile = args.includes('--reconcile');
-  const termCode = args.find((a) => !a.startsWith('-')) || '1266';
+  const termCode = args.find((a) => !a.startsWith('-')) || registrationTermFor().code;
 
   db.initDb()
     .then(() => syncTermToFirestore(termCode, { reconcile }))

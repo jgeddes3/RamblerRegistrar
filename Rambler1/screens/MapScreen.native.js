@@ -28,26 +28,14 @@ import {
 } from '../firestore-data';
 import { buildRouteLegs } from '../walk-route';
 import { PARCHMENT } from '../theme';
+import { useRegistrationTerm } from '../term';
 
 const MAROON = '#A30046';
 const GOLD = '#FFB81C'; // Loyola gold — "your classes" pins
 const HOME_BLUE = '#2E5E9E';
 
-// =============================================================================
-// TERM (same helper as ScheduleScreen/SearchScreen/ProgressScreen)
-// =============================================================================
-
-function getRegistrationTerm() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const yy = year % 100;
-  if (month >= 10) return { code: `1${yy + 1}2`, label: `Spring ${year + 1}` };
-  if (month >= 3) return { code: `1${yy}6`, label: `Fall ${year}` };
-  return { code: `1${yy}2`, label: `Spring ${year}` };
-}
-
-const TERM = getRegistrationTerm();
+// The registration term comes from term.js (useRegistrationTerm inside the
+// component) so every screen agrees on it and follows the published terms.
 
 // =============================================================================
 // CAMPUS REGIONS
@@ -125,6 +113,7 @@ const MapScreen = () => {
   const { user } = useAppContext();
   const uid = user?.uid;
   const signedIn = !!user && !user.isAnonymous;
+  const TERM = useRegistrationTerm();
 
   const [buildings, setBuildings] = useState([]);
   const [classCourses, setClassCourses] = useState(new Map()); // buildingId -> [codes]
@@ -173,7 +162,7 @@ const MapScreen = () => {
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [uid, signedIn]);
+  }, [uid, signedIn, TERM.code]);
 
   const switchCampus = useCallback((next) => {
     setCampus(next);

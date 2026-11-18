@@ -7,28 +7,29 @@
 //   security rules enforce ownership via request.auth instead).
 // - Every function try/catches and resolves to null / [] exactly like the old
 //   apiFetch, so offline failures degrade silently instead of crashing.
+//   (Exceptions that must tell "failed" from "none": fetchSchedule throws,
+//   getCourseSections returns null.)
 // - library hours / events / study rooms / health stay on the old api.js —
 //   they are intentionally NOT implemented here.
 // - Only single-field equality queries are used on sections (no composite
 //   indexes exist); all sorting is done client-side.
 
 import {
-  addDoc,
   collection,
-  deleteDoc,
   deleteField,
   doc,
-  getDoc,
-  getDocs,
   query,
   serverTimestamp,
-  setDoc,
-  updateDoc,
   where,
 } from 'firebase/firestore';
+// Reads and writes go through the guards: writes time out instead of hanging,
+// and an empty from-cache (offline) collection read rejects instead of
+// passing for "nothing there".
+import { addDoc, deleteDoc, getDoc, getDocs, setDoc, updateDoc } from './firestore-guards';
 import { auth, db } from './firebaseConfig';
 import * as progressLib from './progress';
 import { calculateWalkTime } from './walk-route';
+import { setTermLoader } from './term';
 
 // =============================================================================
 // SHARED HELPERS / MAPPERS
@@ -359,13 +360,12 @@ export const fetchPrerequisites = async (code) => {
 // TERMS & LIVE SECTIONS
 // =============================================================================
 
-// Get available terms -> [{ code, name, last_scraped }] sorted code DESC.
-// Term parent docs may not exist yet — fall back to the registration term.
-const FALLBACK_TERMS = [{ code: '1266', name: 'Fall 2026' }];
+// Get published terms -> [{ code, name, last_scraped }] sorted code DESC.
+// [] means "unknown" (nothing published yet, or the read failed / came back
+// empty while offline) — callers must not treat it as "no terms exist".
 export const getTerms = async () => {
   try {
     const snap = await getDocs(collection(db, 'terms'));
-    if (snap.empty) return [...FALLBACK_TERMS];
     const rows = snap.docs.map((d) => {
       const data = d.data() || {};
       return {
@@ -378,11 +378,17 @@ export const getTerms = async () => {
     return rows;
   } catch (error) {
     logError('getTerms', error);
-    return [...FALLBACK_TERMS];
+    return [];
   }
 };
 
-// Get all sections for a specific course in a term
+// Let term.js correct its calendar guess against the terms that really have
+// sections (see resolveRegistrationTerm).
+setTermLoader(async () => (await getTerms()).map((t) => t.code));
+
+// Get all sections for a specific course in a term. [] = the course has no
+// sections this term; null = the read failed (callers that cache must not
+// keep it).
 export const getCourseSections = async (termCode, courseCode) => {
   try {
     const [subject, catalogNumber] = String(courseCode || '').split(' ');
@@ -400,7 +406,7 @@ export const getCourseSections = async (termCode, courseCode) => {
     return rows;
   } catch (error) {
     logError('getCourseSections', error);
-    return [];
+    return null;
   }
 };
 
@@ -425,7 +431,7 @@ export const getDepartmentSections = async (termCode, subject) => {
 // Get instructors who teach a specific course -> [{ instructor }]
 export const getCourseInstructors = async (termCode, courseCode) => {
   try {
-    const sections = await getCourseSections(termCode, courseCode);
+    const sections = (await getCourseSections(termCode, courseCode)) || [];
     const names = [...new Set(sections.map((s) => s.instructor).filter(Boolean))];
     names.sort((a, b) => a.localeCompare(b)); // ORDER BY instructor
     return names.map((instructor) => ({ instructor }));
@@ -477,7 +483,7 @@ export const searchByInstructor = async (termCode, name) => {
 // Get enrollment stats for a course
 export const getCourseEnrollment = async (termCode, courseCode) => {
   try {
-    const sections = await getCourseSections(termCode, courseCode);
+    const sections = (await getCourseSections(termCode, courseCode)) || [];
     return sections.map((s) => ({
       section_number: s.section_number,
       enrollment_cap: s.enrollment_cap,
@@ -908,20 +914,27 @@ export const submitFeedback = async ({ type, message, context } = {}) => {
 
 export const PLAN_TERM_CAP = 15;
 
-// All plan docs -> { [termCode]: [courseCodes] }.
+// All plan docs -> { [termCode]: [courseCodes] }. THROWS on read errors: the
+// add/remove helpers below rewrite a whole term from this, so "couldn't read"
+// must never look like "no plans".
+const readPlans = async (userId) => {
+  const snap = await getDocs(collection(db, 'users', userId, 'plans'));
+  const out = {};
+  for (const d of snap.docs) {
+    const data = d.data();
+    out[data.termCode || d.id] = Array.isArray(data.courseCodes)
+      ? data.courseCodes.map(String)
+      : [];
+  }
+  return out;
+};
+
+// Display read: {} on failure.
 export const fetchPlans = async (uid) => {
   try {
     const userId = resolveUid(uid);
     if (!userId) return {};
-    const snap = await getDocs(collection(db, 'users', userId, 'plans'));
-    const out = {};
-    for (const d of snap.docs) {
-      const data = d.data();
-      out[data.termCode || d.id] = Array.isArray(data.courseCodes)
-        ? data.courseCodes.map(String)
-        : [];
-    }
-    return out;
+    return await readPlans(userId);
   } catch (error) {
     logError('fetchPlans', error);
     return {};
@@ -954,7 +967,7 @@ export const addCourseToPlan = async (uid, termCode, courseCode) => {
   try {
     const userId = resolveUid(uid);
     if (!userId || !termCode || !courseCode) return null;
-    const plans = await fetchPlans(userId);
+    const plans = await readPlans(userId); // throws -> null below, nothing written
     const codes = plans[String(termCode)] || [];
     const norm = String(courseCode).trim().replace(/\s+/g, ' ').toUpperCase();
     if (codes.some((c) => c.toUpperCase() === norm)) return { already: true };
@@ -971,7 +984,7 @@ export const removeCourseFromPlan = async (uid, termCode, courseCode) => {
   try {
     const userId = resolveUid(uid);
     if (!userId || !termCode || !courseCode) return null;
-    const plans = await fetchPlans(userId);
+    const plans = await readPlans(userId); // throws -> null below, nothing written
     const codes = plans[String(termCode)] || [];
     const norm = String(courseCode).trim().replace(/\s+/g, ' ').toUpperCase();
     const next = codes.filter((c) => c.toUpperCase() !== norm);

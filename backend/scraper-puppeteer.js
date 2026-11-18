@@ -1,5 +1,6 @@
 const puppeteer = require('puppeteer');
 const db = require('./db');
+const { registrationTermFor, termLabelFor } = require('./terms');
 
 // =============================================================================
 // LOCUS PeopleSoft Scraper — Puppeteer Version
@@ -508,9 +509,15 @@ const SUBJECTS = [
 // MAIN SCRAPE FUNCTION
 // =============================================================================
 
+// Term scraped when none is given: the one students are registering for today
+// (same rule as the app — see terms.js).
+function defaultScrapeTerm(now = new Date()) {
+  return registrationTermFor(now).code;
+}
+
 async function scrape(termCode, subjectsToScrape, fetchEnrollment = false) {
   const subjects = subjectsToScrape || SUBJECTS;
-  const code = termCode || '1266'; // Default to Fall 2026
+  const code = termCode || defaultScrapeTerm();
 
   console.log(`\nStarting LOCUS Puppeteer scrape for term ${code}${fetchEnrollment ? ' (with enrollment data)' : ''}`);
   console.log(`Scraping ${subjects.length} departments...\n`);
@@ -570,7 +577,7 @@ async function scrape(termCode, subjectsToScrape, fetchEnrollment = false) {
     // (or the next run) re-persists the full DB image.
     if (savedCount > 0) {
       try {
-        db.recordScrape(code, `Term ${code}`);
+        db.recordScrape(code, termLabelFor(code));
         const newVersion = db.bumpVersion();
         console.log(`Stored ${savedCount} sections. Catalog version: ${newVersion}`);
 
@@ -628,4 +635,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { scrape, LocusPuppeteerScraper, SUBJECTS, TERM_CODES, parseEnrollmentFields };
+module.exports = { scrape, defaultScrapeTerm, LocusPuppeteerScraper, SUBJECTS, TERM_CODES, parseEnrollmentFields };

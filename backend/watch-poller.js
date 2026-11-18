@@ -27,11 +27,11 @@
 // =============================================================================
 
 const path = require('path');
+const { registrationTermFor } = require('./terms');
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const NOTIFY_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
 const STATE_REFRESH_MS = 6 * 60 * 60 * 1000; // rewrite unchanged state docs at most every 6h
-const DEFAULT_TERM = '1266'; // Fall 2026 — last-resort fallback
 // Cap on subjects scraped per term per run. Watches spread across many
 // subjects must not turn every 20-minute poll into a near-full LOCUS scrape;
 // excess subjects rotate round-robin across runs (cursor persisted in the
@@ -65,7 +65,8 @@ function meetingSummary(sec) {
   return summary || 'TBA';
 }
 
-// Latest term doc id (terms/{code} docs carry a `code` field), else DEFAULT_TERM.
+// Latest term doc id (terms/{code} docs carry a `code` field), else the term
+// students are registering for today.
 async function resolveFallbackTerm(fdb) {
   try {
     const snap = await fdb.collection('terms').orderBy('code', 'desc').limit(1).get();
@@ -73,7 +74,7 @@ async function resolveFallbackTerm(fdb) {
   } catch (err) {
     console.warn('[watch-poller] could not resolve latest term:', err.message || err);
   }
-  return DEFAULT_TERM;
+  return registrationTermFor().code;
 }
 
 // Push tokens are credentials-adjacent (anyone holding one can spam that

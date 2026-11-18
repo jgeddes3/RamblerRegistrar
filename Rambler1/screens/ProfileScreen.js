@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, ActivityIndicator, StyleSheet, Platform, StatusBar, Switch } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, ActivityIndicator, StyleSheet, Platform, StatusBar, Switch, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppContext } from '../AppContext';
@@ -7,8 +7,27 @@ import { signOut } from '../auth';
 import { fetchPrograms, fetchCourses, addUserCourse, removeUserCourse, saveUserProfile, fetchEnrichedRecommendations, fetchQuizFocusAreas, setUserLocation } from '../firestore-data';
 import { geocodeAddress, suggestAddresses } from '../campus-api';
 import showAlert from '../alert';
+import { canEditProfile, programEdit, minorToggleEdit, priorityEdit } from '../profile-edits';
+import { filterCourses, setCourseSelected } from '../course-list';
+import { afterModalDismiss } from '../modal-sequencing';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
+
+// One row of the Courses Taken list. Memoized: with ~2,000 courses a tap
+// must re-render the row that changed, not the whole list.
+const TakenCourseRow = React.memo(({ course, selected, onPress }) => (
+  <TouchableOpacity
+    style={[s.listItem, selected && s.listItemSelected]}
+    onPress={() => { onPress(course); }}
+  >
+    <Text style={[s.listItemCode, selected && s.listItemTextSelected]}>
+      {course.code}
+    </Text>
+    <Text style={[s.listItemText, selected && s.listItemTextSelected]}>
+      {course.name}
+    </Text>
+  </TouchableOpacity>
+));
 
 const ProfileScreen = ({ visible, onClose }) => {
   const {
@@ -18,6 +37,7 @@ const ProfileScreen = ({ visible, onClose }) => {
     isHonors, setIsHonors, isAthlete, setIsAthlete,
     userLocations, setUserLocations,
     dataSaleOptOut, setDataSaleOptOut,
+    profileStatus, retryProfileRestore,
   } = useAppContext();
 
   const isUndecided = !selectedProgram || selectedProgram.id === 'undecided';
@@ -166,74 +186,71 @@ const ProfileScreen = ({ visible, onClose }) => {
     }
   }, [visible, selectedProgram, user]);
 
-  const handleSignOut = async () => {
+  const handleSignOut = () => {
     onClose();
     setMode('profile');
-    await signOut();
+    // Signing out swaps the whole signed-in tree (this modal included) for the
+    // login stack. Let the modal finish dismissing first: unmounting a native
+    // Modal that is still presented is the iOS dead-overlay freeze (see
+    // modal-sequencing.js).
+    afterModalDismiss(() => { signOut().catch(() => {}); });
+  };
+
+  // Profile edits (major / minors / priority flags) share three rules:
+  //  - blocked until the saved profile is in memory (profileStatus 'ready'),
+  //    so an edit is never made on top of a profile that failed to load;
+  //  - each sends ONLY the field it changes (profile-edits.js). Resending the
+  //    whole in-memory profile is what used to blank out saved fields;
+  //  - optimistic, but reverted with a message if the save doesn't land.
+  const profileEditBlocked = () => {
+    if (!user || canEditProfile(profileStatus)) return false;
+    retryProfileRestore();
+    showAlert(
+      profileStatus === 'loading' ? 'Still loading your profile' : "Couldn't load your profile",
+      profileStatus === 'loading'
+        ? 'Give it a moment and try again.'
+        : "Your saved profile hasn't loaded, so changes are paused to protect it. Check your connection and try again."
+    );
+    return true;
+  };
+
+  const saveProfileEdit = async (payload, revert) => {
+    if (!user) return;
+    let res = null;
+    try {
+      res = await saveUserProfile(user.uid, payload);
+    } catch (e) {}
+    if (!res) {
+      revert();
+      showAlert('Save failed', "That change wasn't saved. Check your connection and try again.");
+    }
   };
 
   const handleSelectProgram = async (program) => {
+    if (profileEditBlocked()) return;
+    const previous = selectedProgram;
     setSelectedProgram(program);
     setMode('profile');
-    // Save to Firestore
-    try {
-      if (user) {
-        await saveUserProfile(user.uid, {
-          selectedProgramId: program.id,
-          selectedProgram2Id: selectedProgram2?.id || null,
-          selectedMinors: (selectedMinors || []).map(m => m.id),
-          graduationYear: graduationYear || '',
-          classYear: classYear || '',
-        });
-      }
-    } catch (e) {}
+    await saveProfileEdit(programEdit(program), () => setSelectedProgram(previous));
   };
 
   const handleToggleMinor = async (minor) => {
-    const current = selectedMinors || [];
-    const isSelected = current.some(m => m.id === minor.id);
-    let updated;
-    if (isSelected) {
-      updated = current.filter(m => m.id !== minor.id);
-    } else {
-      if (current.length >= 3) return; // Max 3 minors
-      updated = [...current, minor];
-    }
-    setSelectedMinors(updated);
-    // Save to Firestore
-    try {
-      if (user) {
-        await saveUserProfile(user.uid, {
-          selectedProgramId: selectedProgram?.id || null,
-          selectedProgram2Id: selectedProgram2?.id || null,
-          selectedMinors: updated.map(m => m.id),
-          graduationYear: graduationYear || '',
-          classYear: classYear || '',
-        });
-      }
-    } catch (e) {}
+    if (profileEditBlocked()) return;
+    const previous = selectedMinors || [];
+    const edit = minorToggleEdit(previous, minor);
+    if (!edit) return; // at the minors cap
+    setSelectedMinors(edit.updated);
+    await saveProfileEdit(edit.payload, () => setSelectedMinors(previous));
   };
 
   const handleTogglePriority = async (flag, value) => {
-    // Update context immediately so the Switch reflects the new state.
-    if (flag === 'isHonors') setIsHonors(value);
-    else setIsAthlete(value);
-    // Persist to Firestore. Both flags are always sent as real booleans —
-    // saveUserProfile only includes typeof === 'boolean' values, and `false`
-    // must be written explicitly to toggle a flag OFF.
-    try {
-      if (user) {
-        await saveUserProfile(user.uid, {
-          selectedProgramId: selectedProgram?.id || null,
-          selectedProgram2Id: selectedProgram2?.id || null,
-          selectedMinors: (selectedMinors || []).map(m => m.id),
-          graduationYear: graduationYear || '',
-          classYear: classYear || '',
-          isHonors: flag === 'isHonors' ? value === true : isHonors === true,
-          isAthlete: flag === 'isAthlete' ? value === true : isAthlete === true,
-        });
-      }
-    } catch (e) {}
+    if (profileEditBlocked()) return;
+    // Update context immediately so the Switch reflects the new state. The
+    // flag is sent as a real boolean: `false` must be written explicitly to
+    // toggle it OFF.
+    const setFlag = flag === 'isHonors' ? setIsHonors : setIsAthlete;
+    setFlag(value === true);
+    await saveProfileEdit(priorityEdit(flag, value), () => setFlag(value !== true));
   };
 
   const handleToggleDataSale = async (optedOut) => {
@@ -275,30 +292,41 @@ const ProfileScreen = ({ visible, onClose }) => {
     }
   };
 
-  const handleToggleCourse = async (course) => {
-    // Compare by code, not id: sqlite-cached courses carry synthetic integer ids
-    // while Firestore-sourced courses use the code string — code is stable in both.
-    const isSelected = (selectedCourses || []).some(c => c.code === course.code);
-    let updated;
-    if (isSelected) {
-      updated = selectedCourses.filter(c => c.code !== course.code);
-      // Also remove from Firestore
-      try {
-        if (user) {
-          await removeUserCourse(user.uid, course.code);
-        }
-      } catch (e) {}
-    } else {
-      updated = [...(selectedCourses || []), course];
-      // Also save to Firestore
-      try {
-        if (user) {
-          await addUserCourse(user.uid, course.code, null, null);
-        }
-      } catch (e) {}
+  // Codes currently selected, readable from a callback without waiting for a
+  // re-render (so quick taps each see the taps before them).
+  const selectedCodes = useMemo(
+    () => new Set((selectedCourses || []).map(c => c.code)),
+    [selectedCourses]
+  );
+  const selectedCodesRef = useRef(selectedCodes);
+  selectedCodesRef.current = selectedCodes;
+
+  // Flip the row first, save behind it. Waiting for the server before the row
+  // changed made every tap feel dead (and dropped quick taps); a failed save
+  // now puts the row back and says so.
+  // Compare by code, not id: sqlite-cached courses carry synthetic integer ids
+  // while Firestore-sourced courses use the code string — code is stable in both.
+  const handleToggleCourse = useCallback(async (course) => {
+    const wasSelected = selectedCodesRef.current.has(course.code);
+    const apply = (selected) => {
+      const next = new Set(selectedCodesRef.current);
+      if (selected) next.add(course.code); else next.delete(course.code);
+      selectedCodesRef.current = next;
+      setSelectedCourses(prev => setCourseSelected(prev, course, selected));
+    };
+    apply(!wasSelected);
+    if (!user) return;
+    let res = null;
+    try {
+      res = wasSelected
+        ? await removeUserCourse(user.uid, course.code)
+        : await addUserCourse(user.uid, course.code, null, null);
+    } catch (e) {}
+    if (!res) {
+      apply(wasSelected);
+      showAlert('Save failed', `${course.code} wasn't updated. Check your connection and try again.`);
     }
-    setSelectedCourses(updated);
-  };
+  }, [user, setSelectedCourses]);
 
   const handleClose = () => {
     setMode('profile');
@@ -311,10 +339,10 @@ const ProfileScreen = ({ visible, onClose }) => {
     (p.name || '').toLowerCase().includes(search.toLowerCase()) ||
     (p.degree || '').toLowerCase().includes(search.toLowerCase())
   );
-  const filteredCourses = courses.filter(c =>
-    (c.name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (c.code || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredCourses = useMemo(() => filterCourses(courses, search), [courses, search]);
+  const renderTakenCourse = useCallback(({ item }) => (
+    <TakenCourseRow course={item} selected={selectedCodes.has(item.code)} onPress={handleToggleCourse} />
+  ), [selectedCodes, handleToggleCourse]);
 
   // ==================== SELECT PROGRAM MODE ====================
   if (mode === 'selectProgram') {
@@ -460,7 +488,6 @@ const ProfileScreen = ({ visible, onClose }) => {
 
   // ==================== SELECT COURSES MODE ====================
   if (mode === 'selectCourses') {
-    const selectedIds = new Set((selectedCourses || []).map(c => c.code));
     return (
       <Modal visible={visible} animationType="slide" transparent>
         <View style={s.overlay}>
@@ -481,25 +508,19 @@ const ProfileScreen = ({ visible, onClose }) => {
             {loading ? (
               <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 40 }} />
             ) : (
-              <ScrollView contentContainerStyle={s.listContent}>
-                {filteredCourses.map(course => {
-                  const isSelected = selectedIds.has(course.code);
-                  return (
-                    <TouchableOpacity
-                      key={course.id}
-                      style={[s.listItem, isSelected && s.listItemSelected]}
-                      onPress={() => handleToggleCourse(course)}
-                    >
-                      <Text style={[s.listItemCode, isSelected && s.listItemTextSelected]}>
-                        {course.code}
-                      </Text>
-                      <Text style={[s.listItemText, isSelected && s.listItemTextSelected]}>
-                        {course.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+              // FlatList, not ScrollView + map: only the rows near the viewport
+              // are mounted. Rendering all ~2,000 (again on every tap and
+              // keystroke) is what locked this list up.
+              <FlatList
+                data={filteredCourses}
+                keyExtractor={(course) => String(course.id ?? course.code)}
+                renderItem={renderTakenCourse}
+                contentContainerStyle={s.listContent}
+                keyboardShouldPersistTaps="handled"
+                initialNumToRender={20}
+                maxToRenderPerBatch={20}
+                windowSize={9}
+              />
             )}
           </View>
         </View>

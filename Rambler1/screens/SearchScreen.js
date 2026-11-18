@@ -10,22 +10,11 @@ import { searchCourses as apiSearchCourses, getCourseSections, searchByInstructo
 import { fetchCourses as fetchLocalCourses } from '../Database';
 import CourseDetailModal from '../CourseDetailModal';
 import Skeleton from '../components/Skeleton';
+import { useRegistrationTerm, resolveRegistrationTerm } from '../term';
 
 // =============================================================================
 // CONSTANTS
 // =============================================================================
-
-function getRegistrationTerm() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const yy = year % 100;
-  if (month >= 10) return { code: `1${yy + 1}2`, label: `Spring ${year + 1}` };
-  if (month >= 3) return { code: `1${yy}6`, label: `Fall ${year}` };
-  return { code: `1${yy}2`, label: `Spring ${year}` };
-}
-
-const TERM = getRegistrationTerm();
 
 const DEPARTMENTS = [
   { code: 'COMP', name: 'Computer Science' },
@@ -173,6 +162,7 @@ function getFillFlag(fillStats) {
 }
 
 const CourseCard = ({ course, sections, sectionsLoading, filters, onCoursePress, onSectionPress }) => {
+  const TERM = useRegistrationTerm();
   // Filter sections by active filters
   const filteredSections = (sections || []).filter(sec => {
     if (filters.openOnly) {
@@ -298,6 +288,11 @@ const RecentSearches = ({ searches, onSelect, onRemove }) => {
 
 const SearchScreen = () => {
   const { selectedProgram } = useAppContext();
+  const TERM = useRegistrationTerm();
+  // Callbacks read the term through a ref so a term correction never leaves
+  // an old code captured in a memoized closure.
+  const termCodeRef = useRef(TERM.code);
+  termCodeRef.current = TERM.code;
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -314,6 +309,12 @@ const SearchScreen = () => {
   // Monotonic token: a slower API response for an OLD query must not
   // overwrite the results of a newer one.
   const searchGenRef = useRef(0);
+  // Course codes whose sections are loaded or loading for the current term.
+  // A ref, not the `sections` state: performSearch is memoized, so reading
+  // state here saw a stale empty map and refetched every course every search.
+  const sectionsRequestedRef = useRef(new Set());
+  const resultsRef = useRef([]);
+  resultsRef.current = results;
 
   // Load local courses + recent searches on mount
   useEffect(() => {
@@ -357,8 +358,53 @@ const SearchScreen = () => {
     });
   }, []);
 
+  // Batch-load sections for a list of courses (skips ones already requested)
+  const loadSectionsForCourses = useCallback(async (courses) => {
+    const termCode = termCodeRef.current;
+    const requested = sectionsRequestedRef.current;
+    const toLoad = courses.filter(c => c.code && !requested.has(c.code)).slice(0, 30); // Cap at 30
+    if (toLoad.length === 0) return;
+
+    const loading = {};
+    toLoad.forEach(c => { loading[c.code] = true; requested.add(c.code); });
+    setSectionsLoading(prev => ({ ...prev, ...loading }));
+
+    const results = await Promise.allSettled(
+      toLoad.map(c => getCourseSections(termCode, c.code).then(data => ({ code: c.code, data })))
+    );
+    // The term was corrected while these were in flight: they belong to the
+    // old term, and the term-change effect has already started a fresh load.
+    if (termCodeRef.current !== termCode) return;
+
+    const newSections = {};
+    const doneLoading = {};
+    toLoad.forEach(c => { doneLoading[c.code] = false; });
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled' && Array.isArray(r.value.data)) {
+        newSections[r.value.code] = r.value.data;
+      } else {
+        requested.delete(toLoad[i].code); // failed read: let a later search retry
+      }
+    });
+    setSections(prev => ({ ...prev, ...newSections }));
+    setSectionsLoading(prev => ({ ...prev, ...doneLoading }));
+  }, []);
+
+  // The registration term was corrected: sections on screen belong to the old
+  // term. Drop them and reload for the results currently showing.
+  const loadedTermRef = useRef(TERM.code);
+  useEffect(() => {
+    if (loadedTermRef.current === TERM.code) return;
+    loadedTermRef.current = TERM.code;
+    sectionsRequestedRef.current = new Set();
+    setSections({});
+    setSectionsLoading({});
+    loadSectionsForCourses(resultsRef.current);
+  }, [TERM.code, loadSectionsForCourses]);
+
   const performSearch = useCallback(async (q) => {
     const gen = ++searchGenRef.current;
+    resolveRegistrationTerm(); // retries if the published terms weren't reachable earlier
     // Phase 1: instant local search
     const qLower = q.toLowerCase();
     const localMatches = allCoursesRef.current.filter(c =>
@@ -393,7 +439,7 @@ const SearchScreen = () => {
       // If query looks like an instructor name (letters/spaces only, no digits)
       if (/^[a-zA-Z\s.]+$/.test(q) && q.length > 2 && !DEPARTMENTS.some(d => d.code === q.toUpperCase())) {
         try {
-          const instrSections = await searchByInstructor(TERM.code, q);
+          const instrSections = await searchByInstructor(termCodeRef.current, q);
           if (instrSections && instrSections.length > 0) {
             // Convert instructor sections to course-like entries
             const instrCourses = {};
@@ -425,32 +471,7 @@ const SearchScreen = () => {
     } catch (e) {}
     if (gen === searchGenRef.current) setLoading(false);
     saveRecent(q);
-  }, [sortResults, saveRecent]);
-
-  // Batch-load sections for a list of courses
-  const loadSectionsForCourses = useCallback(async (courses) => {
-    const toLoad = courses.filter(c => c.code && !sections[c.code]).slice(0, 30); // Cap at 30
-    if (toLoad.length === 0) return;
-
-    const loading = {};
-    toLoad.forEach(c => { loading[c.code] = true; });
-    setSectionsLoading(prev => ({ ...prev, ...loading }));
-
-    const results = await Promise.allSettled(
-      toLoad.map(c => getCourseSections(TERM.code, c.code).then(data => ({ code: c.code, data })))
-    );
-
-    const newSections = {};
-    const doneLoading = {};
-    for (const r of results) {
-      if (r.status === 'fulfilled') {
-        newSections[r.value.code] = r.value.data || [];
-        doneLoading[r.value.code] = false;
-      }
-    }
-    setSections(prev => ({ ...prev, ...newSections }));
-    setSectionsLoading(prev => ({ ...prev, ...doneLoading }));
-  }, [sections]);
+  }, [sortResults, saveRecent, loadSectionsForCourses]);
 
   const onSearchChange = (text) => {
     setQuery(text);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Image, ActivityIndicator, TouchableOpacity, Platform, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { fetchPrograms } from './Database';
+import { fetchPrograms, ensureCatalog } from './Database';
 import { useAppContext } from './AppContext';
 import CustomLongButton1 from './styleComponents/CustomLongButton1';
 import { ScrollView } from 'react-native';
@@ -32,10 +32,14 @@ const ProgramSelect =() => {
   const loadPrograms = () => {
     setLoading(true);
     setError('');
-    Promise.all([fetchPrograms('major'), fetchPrograms('minor')])
+    // ensureCatalog: if the local catalog is empty (first launch was offline),
+    // try the download again now instead of showing an empty list forever.
+    ensureCatalog()
+      .then(() => Promise.all([fetchPrograms('major'), fetchPrograms('minor')]))
       .then(([majorData, minorData]) => {
         setPrograms(majorData);
         setMinors(minorData);
+        if (majorData.length === 0) setError("Couldn't load programs. Check your connection and retry.");
       })
       .catch(() => setError('Failed to load programs'))
       .finally(() => setLoading(false));

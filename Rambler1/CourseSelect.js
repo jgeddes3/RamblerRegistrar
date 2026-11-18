@@ -1,15 +1,27 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Image, ActivityIndicator, TouchableOpacity, Platform, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, TextInput, Image, ActivityIndicator, TouchableOpacity, Platform, StyleSheet, FlatList } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { fetchCourses, fetchProgramCourses } from './Database';
+import { fetchCourses, fetchProgramCourses, ensureCatalog } from './Database';
 import { useAppContext } from './AppContext';
 import CustomLongButton1 from './styleComponents/CustomLongButton1';
-import { ScrollView } from 'react-native';
 import BackgroundImage from './styleComponents/BackgroundImage';
 import CourseDetailModal from './CourseDetailModal';
+import { buildCourseRows } from './course-list';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
+
+// One course row. Memoized: with ~2,000 courses in the catalog, a tap must
+// re-render the row that changed, not the whole list.
+const CourseRow = React.memo(({ course, selected, onPress, onLongPress }) => (
+  <CustomLongButton1
+    onPress={() => onPress(course)}
+    onLongPress={() => onLongPress(course)}
+    selected={selected}
+  >
+    {course.code} · {course.name}
+  </CustomLongButton1>
+));
 
 const CourseSelect =() => {
   const [courses, setCourses] = useState([]);
@@ -24,8 +36,14 @@ const CourseSelect =() => {
   const loadCourses = () => {
     setLoading(true);
     setError('');
-    fetchCourses()
-      .then((data) => setCourses(data))
+    // ensureCatalog: if the local catalog is empty (first launch was offline),
+    // try the download again now instead of showing an empty list forever.
+    ensureCatalog()
+      .then(() => fetchCourses())
+      .then((data) => {
+        setCourses(data || []);
+        if (!data || data.length === 0) setError("Couldn't load courses. Check your connection and retry.");
+      })
       .catch(() => setError('Failed to load courses'))
       .finally(() => setLoading(false));
   };
@@ -51,7 +69,7 @@ const CourseSelect =() => {
     return () => { cancelled = true; };
   }, [selectedProgram]);
 
-  const handleCoursePress = (item) => {
+  const handleCoursePress = useCallback((item) => {
     setSelectedCourses((prev) => {
       const isSelected = prev.some((c) => c.id === item.id);
       if (isSelected) {
@@ -59,35 +77,34 @@ const CourseSelect =() => {
       }
       return [...prev, item];
     });
-  };
+  }, [setSelectedCourses]);
 
   const handleNextButtonPress = () => {
     navigation.navigate('PreferenceQuiz');
   };
 
-  const filteredCourses = courses.filter((item) =>
-    (item.name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (item.code || '').toLowerCase().includes(search.toLowerCase())
+  // Rows for the list: filtered by search, the user's major courses first.
+  const rows = useMemo(
+    () => buildCourseRows(courses, search, majorCourseIds),
+    [courses, search, majorCourseIds]
+  );
+  const selectedIds = useMemo(
+    () => new Set((selectedCourses || []).map((c) => c.id)),
+    [selectedCourses]
   );
 
-  // Stable partition: major courses first, everything else keeps its order
-  const majorCourses = majorCourseIds
-    ? filteredCourses.filter((item) => majorCourseIds.has(item.id))
-    : [];
-  const otherCourses = majorCourseIds
-    ? filteredCourses.filter((item) => !majorCourseIds.has(item.id))
-    : filteredCourses;
-
-  const renderCourse = (item) => (
-    <CustomLongButton1
-      key={item.id}
-      onPress={() => handleCoursePress(item)}
-      onLongPress={() => setDetailCourse(item)}
-      selected={selectedCourses.some((c) => c.id === item.id)}
-    >
-      {item.code} · {item.name}
-    </CustomLongButton1>
-  );
+  const renderRow = useCallback(({ item }) => (
+    item.type === 'label' ? (
+      <Text style={s.sectionLabel}>{item.title}</Text>
+    ) : (
+      <CourseRow
+        course={item.course}
+        selected={selectedIds.has(item.course.id)}
+        onPress={handleCoursePress}
+        onLongPress={setDetailCourse}
+      />
+    )
+  ), [selectedIds, handleCoursePress]);
 
   return (
     <BackgroundImage source={require('./assets/Backgrounds/Wallpaper-01.jpg')}>
@@ -124,16 +141,19 @@ const CourseSelect =() => {
             </TouchableOpacity>
           </View>
         ) : (
-          <ScrollView contentContainerStyle={{ alignItems: 'center', paddingBottom: 24 }}>
-            {majorCourses.length > 0 && (
-              <Text style={s.sectionLabel}>From your major</Text>
-            )}
-            {majorCourses.map(renderCourse)}
-            {majorCourses.length > 0 && otherCourses.length > 0 && (
-              <Text style={s.sectionLabel}>Other courses</Text>
-            )}
-            {otherCourses.map(renderCourse)}
-          </ScrollView>
+          // FlatList, not ScrollView + map: only the rows near the viewport are
+          // mounted. Rendering all ~2,000 at once (and again on every tap and
+          // keystroke) is what locked this screen up.
+          <FlatList
+            data={rows}
+            keyExtractor={(item) => item.key}
+            renderItem={renderRow}
+            contentContainerStyle={{ alignItems: 'center', paddingBottom: 24 }}
+            keyboardShouldPersistTaps="handled"
+            initialNumToRender={20}
+            maxToRenderPerBatch={20}
+            windowSize={9}
+          />
         )}
         <View style={s.stickyBottom}>
           <TouchableOpacity style={s.nextButton} onPress={handleNextButtonPress} accessibilityLabel="Next">

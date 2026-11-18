@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { submitFeedback } from '../firestore-data';
 import showAlert from '../alert';
+import { afterModalDismiss } from '../modal-sequencing';
 import { FONT, MAROON } from '../theme';
 
 // Bottom sheet must ride above the keyboard: iOS pads, Android shrinks.
@@ -41,7 +42,8 @@ const FeedbackModal = ({ visible, onClose, context = '' }) => {
     setSending(false);
     if (res) {
       close();
-      showAlert('Thanks!', 'Your feedback is in. It genuinely helps.');
+      // Thank them once the sheet is gone (see modal-sequencing.js).
+      afterModalDismiss(() => showAlert('Thanks!', 'Your feedback is in. It genuinely helps.'));
     } else {
       showAlert('Send failed', 'Could not send feedback. Please try again.');
     }

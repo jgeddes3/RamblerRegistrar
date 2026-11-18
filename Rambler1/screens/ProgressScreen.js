@@ -4,6 +4,8 @@ import { useAppContext } from '../AppContext';
 import { fetchDegreeProgress, fetchPrerequisites, addUserCourse, fetchUserCourses, fetchUserCoreProgress } from '../firestore-data';
 import { computeGraduationOutlook, OUTLOOK_DISCLAIMER } from '../graduation-outlook';
 import { getIdToken } from '../auth';
+import { saveCoursesConcurrently } from '../course-sync';
+import { afterModalDismiss } from '../modal-sequencing';
 import CourseDetailModal from '../CourseDetailModal';
 
 // Graduation Outlook banner design tokens (status -> colors)
@@ -17,29 +19,6 @@ const OUTLOOK_LABELS = {
   'at-risk': 'At Risk',
   'off-track': 'Off Track',
 };
-
-// Loyola term codes: 1 + 2-digit-year + semester (6=Fall, 2=Spring, 1=J-term, 4=Summer)
-// E.g., Fall 2026 = 1266, Spring 2027 = 1272
-function getRegistrationTerm() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const yy = year % 100;
-
-  if (month >= 10) {
-    // Oct-Dec: registering for Spring next year
-    return { code: `1${(yy + 1)}2`, label: `Spring ${year + 1}` };
-  } else if (month >= 3) {
-    // Mar-Sep: registering for Fall
-    return { code: `1${yy}6`, label: `Fall ${year}` };
-  } else {
-    // Jan-Feb: registering for Spring
-    return { code: `1${yy}2`, label: `Spring ${year}` };
-  }
-}
-const REGISTRATION_TERM = getRegistrationTerm();
-const CURRENT_TERM = REGISTRATION_TERM.code;
-const CURRENT_TERM_LABEL = REGISTRATION_TERM.label;
 
 // ============================================================
 // Progress Bar Component
@@ -157,11 +136,12 @@ const ProgressScreen = () => {
         if (!token) { setSynced(true); return; }
         const existing = await fetchUserCourses(user.uid);
         const existingCodes = new Set((existing || []).map(c => c.course_code));
-        for (const course of selectedCourses) {
-          if (!existingCodes.has(course.code)) {
-            await addUserCourse(user.uid, course.code, null, null, token);
-          }
-        }
+        // All at once: awaiting these one by one held the whole tab on its
+        // spinner (forever, when a save never came back).
+        await saveCoursesConcurrently(
+          selectedCourses.map(c => c.code).filter(code => !existingCodes.has(code)),
+          (code) => addUserCourse(user.uid, code, null, null, token)
+        );
       } catch (e) {}
       setSynced(true);
     };
@@ -179,9 +159,12 @@ const ProgressScreen = () => {
       const upNextList = [];
       const needsList = [];
 
-      for (const course of (data.remaining || [])) {
-        const prereqs = await fetchPrerequisites(course.code);
-        const prereqCodes = (prereqs || []).map(p => p.prerequisite_code);
+      // All prerequisite lookups at once. Awaiting them one course at a time
+      // meant up to ~190 round trips in a row behind the tab's spinner.
+      const remaining = data.remaining || [];
+      const prereqLists = await Promise.all(remaining.map(course => fetchPrerequisites(course.code)));
+      remaining.forEach((course, i) => {
+        const prereqCodes = (prereqLists[i] || []).map(p => p.prerequisite_code);
         if (prereqCodes.length === 0) {
           upNextList.push({ ...course, prereqs: [] });
         } else {
@@ -194,7 +177,7 @@ const ProgressScreen = () => {
             needsList.push({ ...course, missingPrereqs: missing, fulfilledPrereqs: fulfilled });
           }
         }
-      }
+      });
 
       return { progress: data, upNext: upNextList, needsPrereqs: needsList };
     } catch (e) { return null; }
@@ -807,7 +790,13 @@ const ProgressScreen = () => {
                   <TouchableOpacity
                     key={opt.course_code || i}
                     style={[s.coreOptionCard, inProgram && s.coreOptionHighlight]}
-                    onPress={() => { setCoreAreaModal(null); openCourseModal({ code: opt.course_code, name: opt.course_name }); }}
+                    onPress={() => {
+                      // Open the course modal only once this one is gone: two
+                      // modals swapping in one tick is the iOS dead-overlay race
+                      // (see modal-sequencing.js).
+                      setCoreAreaModal(null);
+                      afterModalDismiss(() => openCourseModal({ code: opt.course_code, name: opt.course_name }));
+                    }}
                   >
                     <View style={s.coreOptionTop}>
                       <Text style={s.coreOptionCode}>{opt.course_code}</Text>

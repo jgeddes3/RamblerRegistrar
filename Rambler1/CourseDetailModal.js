@@ -13,20 +13,12 @@ import { planSemesters } from './plan-utils';
 import TrendChart from './components/TrendChart';
 import FeedbackModal from './components/FeedbackModal';
 import showAlert from './alert';
+import { useRegistrationTerm, resolveRegistrationTerm } from './term';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
-// Dynamic term (same logic as ProgressScreen)
-function getRegistrationTerm() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const yy = year % 100;
-  if (month >= 10) return { code: `1${yy + 1}2`, label: `Spring ${year + 1}` };
-  if (month >= 3) return { code: `1${yy}6`, label: `Fall ${year}` };
-  return { code: `1${yy}2`, label: `Spring ${year}` };
-}
-const TERM = getRegistrationTerm();
+// The registration term comes from term.js (useRegistrationTerm inside the
+// component) so every screen agrees on it and follows the published terms.
 
 // Props:
 // - course: { code, name, credits, description }
@@ -41,6 +33,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
   const { user, quizResults, classYear, isHonors, isAthlete, graduationYear } = useAppContext();
   const prefs = quizResults?.schedulingPrefs || {};
   const signedIn = !!user && !user.isAnonymous; // anonymous users can't own watches
+  const TERM = useRegistrationTerm();
 
   const [sections, setSections] = useState([]);
   const [sectionsLoading, setSectionsLoading] = useState(false);
@@ -140,6 +133,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
 
   useEffect(() => {
     if (!visible || !course) return;
+    resolveRegistrationTerm(); // retries if the published terms weren't reachable earlier
 
     if (singleSection) {
       fetchProfRatings([singleSection]);
@@ -149,7 +143,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
     } else {
       loadSections();
     }
-  }, [visible, course, singleSection]);
+  }, [visible, course, singleSection, TERM.code]);
 
   // Seat watches: load the user's watches for this term each time the modal
   // opens. fetchWatches returns [] on failure, so this never throws.
@@ -164,7 +158,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
       }
     });
     return () => { cancelled = true; };
-  }, [isControlled, visible, signedIn, user]);
+  }, [isControlled, visible, signedIn, user, TERM.code]);
 
   // Optimistic bell flip, reverted with an alert if the write fails.
   const ownToggleWatch = async (sec) => {

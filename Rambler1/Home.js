@@ -21,24 +21,13 @@ import PhoenixPreviewModal from './components/PhoenixPreviewModal';
 import { nearestStation, getTrainArrivals, groupArrivalsBothWays } from './cta';
 import { walkMinutesFromMeters } from './commute-utils';
 import { computeGraduationOutlook } from './graduation-outlook';
+import { inSessionTermFor } from './term';
 
-// Term currently IN SESSION — deliberately different from the
-// getRegistrationTerm() helper used by ScheduleScreen/SearchScreen/
-// ProgressScreen, which targets the term students are registering FOR.
-// "Today's Schedule" must show the term happening now:
-//   Jan-May -> Spring of the current year, Aug-Dec -> Fall of the current
-//   year, Jun-Jul -> null (no in-session term; the card shows a summer state).
-function getCurrentTerm() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const yy = year % 100;
-  if (month >= 8) return { code: `1${yy}6`, label: `Fall ${year}` };
-  if (month <= 5) return { code: `1${yy}2`, label: `Spring ${year}` };
-  return null; // June/July: summer break
-}
-
-const TERM = getCurrentTerm();
+// Term currently IN SESSION — deliberately different from the registration
+// term used by Schedule/Search, which targets the term students are
+// registering FOR. "Today's Schedule" must show the term happening now
+// (null in June/July: the card shows a summer state). See term.js.
+const TERM = inSessionTermFor();
 
 // JS Date.getDay() (Sun=0..Sat=6) -> LOCUS day token.
 const JS_DOW_TO_DAY = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];

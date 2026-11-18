@@ -22,6 +22,8 @@ import { computeRequirementProgress } from '../requirement-progress';
 import { programImpact, allPlannedCodes, normCode } from '../plan-utils';
 import { useAppContext } from '../AppContext';
 import showAlert from '../alert';
+import { canEditProfile } from '../profile-edits';
+import { afterModalDismiss } from '../modal-sequencing';
 import { FONT, MAROON } from '../theme';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
@@ -50,6 +52,7 @@ const WhatIfModal = ({
     selectedProgram, setSelectedProgram,
     selectedProgram2, setSelectedProgram2,
     selectedMinors, setSelectedMinors,
+    profileStatus, retryProfileRestore,
   } = useAppContext();
 
   const [mode, setMode] = useState('change');
@@ -103,6 +106,13 @@ const WhatIfModal = ({
 
   const apply = async (entry) => {
     if (applying || !user) return;
+    // The minors write is built from the in-memory list: never apply on top
+    // of a profile that hasn't been restored.
+    if (!canEditProfile(profileStatus)) {
+      retryProfileRestore();
+      showAlert("Couldn't load your profile", "Your saved profile hasn't loaded yet, so changes are paused to protect it. Try again in a moment.");
+      return;
+    }
     const p = entry.program;
     const doApply = async () => {
       setApplying(true);
@@ -126,7 +136,10 @@ const WhatIfModal = ({
       setApplying(false);
       if (ok) {
         onClose();
-        showAlert('Done', `${p.name} ${mode === 'change' ? 'is now your major' : 'added'}.`);
+        const done = () => showAlert('Done', `${p.name} ${mode === 'change' ? 'is now your major' : 'added'}.`);
+        // As a Modal, let it finish dismissing before the alert presents
+        // (see modal-sequencing.js). As a plain screen there is nothing to wait for.
+        if (asScreen) done(); else afterModalDismiss(done);
       } else {
         showAlert('Save failed', 'Could not update your profile. Please try again.');
       }

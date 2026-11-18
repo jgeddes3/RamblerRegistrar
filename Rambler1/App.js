@@ -1,6 +1,6 @@
 // App.js
 import React, { useEffect, useState, useCallback } from 'react';
-import { View } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
@@ -16,6 +16,8 @@ import { saveUserProfile } from './firestore-data';
 import { POLICY_VERSION } from './privacy-policy-content';
 import { TERMS_VERSION, TERMS_TITLE, TERMS_SECTIONS } from './terms-content';
 import showAlert from './alert';
+import { resolveRegistrationTerm } from './term';
+import { afterModalDismiss } from './modal-sequencing';
 import TopBar from './components/TopBar';
 import MenuOverlay from './components/MenuOverlay';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
@@ -265,17 +267,29 @@ const LegalConsentGate = () => {
     }
   };
 
-  const declineWith = (docName) => async () => {
-    // signOut fires onAuthChange -> AppContext resets -> AuthStack replaces
-    // MainTabs, which unmounts this gate.
-    await signOut();
-    showAlert('Signed out', `Using an account requires accepting the ${docName}. You can sign back in and accept any time.`);
+  // Declining signs the user out, and signOut fires onAuthChange -> AppContext
+  // resets -> AuthStack replaces MainTabs, which unmounts this gate. Take the
+  // consent modal down FIRST and let it finish dismissing: unmounting a native
+  // Modal that is still presented is the iOS dead-overlay freeze (see
+  // modal-sequencing.js).
+  const [declining, setDeclining] = useState(false);
+  const declineWith = (docName) => () => {
+    setDeclining(true);
+    afterModalDismiss(async () => {
+      try {
+        await signOut();
+      } catch (e) {
+        setDeclining(false); // still signed in: bring the gate back
+        return;
+      }
+      showAlert('Signed out', `Using an account requires accepting the ${docName}. You can sign back in and accept any time.`);
+    });
   };
 
   return (
     <>
       <PrivacyPolicyModal
-        visible={needsTerms}
+        visible={needsTerms && !declining}
         mode="consent"
         title={TERMS_TITLE}
         sections={TERMS_SECTIONS}
@@ -284,7 +298,7 @@ const LegalConsentGate = () => {
         onDecline={declineWith('Terms of Service')}
       />
       <PrivacyPolicyModal
-        visible={!needsTerms && needsPrivacy}
+        visible={!needsTerms && needsPrivacy && !declining}
         mode="consent"
         onAccept={acceptPrivacy}
         onDecline={declineWith('Privacy Policy')}
@@ -299,7 +313,15 @@ const LegalConsentGate = () => {
 const RootNavigator = () => {
   const { isLoggedIn, authLoading } = useAppContext();
 
-  if (authLoading) return null; // Still checking Firebase auth state
+  // Still checking Firebase auth state. Show that something is happening:
+  // a bare maroon screen looked like a hang.
+  if (authLoading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color="#FFFFFF" />
+      </View>
+    );
+  }
 
   return isLoggedIn ? (
     <>
@@ -331,6 +353,9 @@ const App = () => {
     ensureAnonymousSignIn()
       .catch(() => {})
       .finally(() => {
+        // Not awaited: settle which term has sections before the user reaches
+        // Schedule/Search, without holding up the splash for it.
+        resolveRegistrationTerm();
         initDatabase()
           .then(() => setDbReady(true))
           .catch((error) => {

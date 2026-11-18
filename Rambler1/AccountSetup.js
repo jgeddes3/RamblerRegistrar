@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from './AppContext';
 import { upgradeAnonymousAccount } from './auth';
 import { saveUserProfile, addUserCourse, saveQuizResults } from './firestore-data';
+import { saveCoursesConcurrently } from './course-sync';
 import { POLICY_VERSION } from './privacy-policy-content';
 import { TERMS_VERSION, TERMS_TITLE, TERMS_SECTIONS } from './terms-content';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
@@ -64,27 +65,24 @@ const AccountSetup =() => {
           termsVersion: TERMS_VERSION,
         });
 
-        // Save quiz results to Firestore
-        if (quizResults) {
-          try {
-            await saveQuizResults(firebaseUser.uid, {
-              scores: quizResults.scores,
-              code: quizResults.code,
-              profileName: quizResults.profileName,
-              answers: quizResults.answers,
-              schedulingPrefs: quizResults.schedulingPrefs || {},
-            });
-          } catch (e) {}
-        }
-
-        // Also sync selected courses to Firestore
-        if (selectedCourses && selectedCourses.length > 0) {
-          for (const course of selectedCourses) {
-            try {
-              await addUserCourse(firebaseUser.uid, course.code, null, null);
-            } catch (e) {}
-          }
-        }
+        // Quiz results and taken courses, all at once. Awaiting them one by
+        // one left this screen on "..." for minutes on a bad connection; each
+        // save gives up on its own, so together they take one timeout at most.
+        await Promise.allSettled([
+          quizResults
+            ? saveQuizResults(firebaseUser.uid, {
+                scores: quizResults.scores,
+                code: quizResults.code,
+                profileName: quizResults.profileName,
+                answers: quizResults.answers,
+                schedulingPrefs: quizResults.schedulingPrefs || {},
+              })
+            : null,
+          saveCoursesConcurrently(
+            (selectedCourses || []).map((course) => course.code),
+            (code) => addUserCourse(firebaseUser.uid, code, null, null)
+          ),
+        ]);
       } catch (e) {
         // Non-critical — profile can be saved later
       }

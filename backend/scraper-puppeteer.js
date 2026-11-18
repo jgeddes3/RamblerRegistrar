@@ -19,6 +19,11 @@ const TERM_CODES = {
   'Winter 2025': '1258',
 };
 
+// How many times one subject's enrollment pass may run its search again after
+// LOCUS drops the session. Each costs ~10 s; a session that won't come back
+// after this many is left for tomorrow's scrape.
+const MAX_RESEARCHES_PER_SUBJECT = 5;
+
 // Turn the raw text of a section detail page's enrollment fields into numbers.
 // Returns null when cap or total is missing/unparseable: that means the read
 // failed (LOCUS dropped the session or we never reached the detail page), and
@@ -316,63 +321,100 @@ class LocusPuppeteerScraper {
   // This is slow (~3 sec per section) so only use when needed
   // A section whose read fails is left WITHOUT enrollment fields, so
   // db.insertSection keeps its last known numbers rather than saving 0/0.
-  async fetchEnrollmentForSections(sections) {
+  //
+  // opts.reSearch: async () => boolean, runs this subject's search again from
+  // a fresh form. LOCUS drops the session partway through big subjects; from
+  // then on there is no results page and every read fails. When a read fails
+  // and the results page is gone, the search is run again and that section
+  // retried, at most MAX_RESEARCHES_PER_SUBJECT times per subject.
+  async fetchEnrollmentForSections(sections, { reSearch } = {}) {
     console.log(`  Fetching enrollment for ${sections.length} sections...`);
-    let read = 0;
+    const tally = { read: 0, nolink: 0, mismatch: 0, nofields: 0, error: 0 };
+    let reSearches = 0;
     for (let i = 0; i < sections.length; i++) {
-      try {
-        // Click the class number link for THIS section's row. The row number
-        // comes from LOCUS, not from the section's position in our list (the
-        // two differ whenever a row is skipped or numbering has a gap), and
-        // the link's text must be this section's class number. Otherwise the
-        // numbers on the detail page belong to a different section: skip, and
-        // the previous numbers are kept.
-        const link = await this.page.$(`[id="MTG_CLASS_NBR$${enrollmentRowIndex(sections[i], i)}"]`);
-        if (!link) continue;
-        const linkText = await this.page.evaluate((el) => el.textContent, link);
-        if (!sameClassNumber(linkText, sections[i].class_number)) continue;
-
-        await link.click();
-        await new Promise(r => setTimeout(r, 2500));
-
-        // Raw field text from the detail page; null when a field is absent
-        // (we are not actually on a detail page).
-        const raw = await this.page.evaluate(() => {
-          const text = (id) => {
-            const el = document.getElementById(id);
-            return el ? el.textContent : null;
-          };
-          return {
-            cap: text('SSR_CLS_DTL_WRK_ENRL_CAP'),
-            total: text('SSR_CLS_DTL_WRK_ENRL_TOT'),
-            waitCap: text('SSR_CLS_DTL_WRK_WAIT_CAP'),
-            waitTotal: text('SSR_CLS_DTL_WRK_WAIT_TOT'),
-          };
-        });
-        const enrollment = parseEnrollmentFields(raw);
-        if (enrollment) {
-          // Stamped at the read, not at the end-of-subject save.
-          Object.assign(sections[i], enrollment, { enrollment_read_at: new Date().toISOString() });
-          read++;
-        }
-
-        // Click "Return to Search Results"
-        const returnBtn = await this.page.$('#CLASS_SRCH_WRK2_SSR_PB_BACK');
-        if (returnBtn) {
-          await returnBtn.click();
-          await new Promise(r => setTimeout(r, 2000));
-        } else {
-          await this.page.goBack();
-          await new Promise(r => setTimeout(r, 2000));
-        }
-      } catch (e) {
-        // Skip this section if detail fetch fails
+      let outcome = await this.readOneEnrollment(sections[i], i);
+      while (outcome !== 'read' && reSearch && reSearches < MAX_RESEARCHES_PER_SUBJECT
+             && !(await this.onResultsPage())) {
+        reSearches++;
+        console.log(`  Lost the results page at section ${i + 1}/${sections.length}; ` +
+          `searching again (${reSearches}/${MAX_RESEARCHES_PER_SUBJECT})...`);
+        let back = false;
+        try { back = await reSearch(); } catch (e) { back = false; }
+        if (!back) continue; // try again while re-searches remain, then give up
+        outcome = await this.readOneEnrollment(sections[i], i);
       }
+      tally[outcome] = (tally[outcome] || 0) + 1;
     }
-    const missed = sections.length - read;
-    console.log(`  Enrollment data: ${read}/${sections.length} sections` +
-      (missed ? ` (${missed} not read, previous numbers kept)` : ''));
+    const missed = sections.length - tally.read;
+    const why = ['nolink', 'mismatch', 'nofields', 'error'].filter((k) => tally[k]).map((k) => `${k} ${tally[k]}`);
+    console.log(`  Enrollment data: ${tally.read}/${sections.length} sections` +
+      (missed ? ` (${missed} not read, previous numbers kept: ${why.join(', ')})` : '') +
+      (reSearches ? `; searched again ${reSearches}x` : ''));
     return sections;
+  }
+
+  // True when the page shows search results (class number links). Absent
+  // when LOCUS dropped the session or left us on a form or error page.
+  async onResultsPage() {
+    try {
+      return !!(await this.page.$('[id^="MTG_CLASS_NBR$"]'));
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Read one section's enrollment from its detail page and come back to the
+  // results. Returns 'read' | 'nolink' | 'mismatch' | 'nofields' | 'error'.
+  // Only 'read' sets enrollment fields on the section.
+  async readOneEnrollment(section, i) {
+    try {
+      // Click the class number link for THIS section's row. The row number
+      // comes from LOCUS, not from the section's position in our list (the
+      // two differ whenever a row is skipped or numbering has a gap), and
+      // the link's text must be this section's class number. Otherwise the
+      // numbers on the detail page belong to a different section: skip, and
+      // the previous numbers are kept.
+      const link = await this.page.$(`[id="MTG_CLASS_NBR$${enrollmentRowIndex(section, i)}"]`);
+      if (!link) return 'nolink';
+      const linkText = await this.page.evaluate((el) => el.textContent, link);
+      if (!sameClassNumber(linkText, section.class_number)) return 'mismatch';
+
+      await link.click();
+      await new Promise(r => setTimeout(r, 2500));
+
+      // Raw field text from the detail page; null when a field is absent
+      // (we are not actually on a detail page).
+      const raw = await this.page.evaluate(() => {
+        const text = (id) => {
+          const el = document.getElementById(id);
+          return el ? el.textContent : null;
+        };
+        return {
+          cap: text('SSR_CLS_DTL_WRK_ENRL_CAP'),
+          total: text('SSR_CLS_DTL_WRK_ENRL_TOT'),
+          waitCap: text('SSR_CLS_DTL_WRK_WAIT_CAP'),
+          waitTotal: text('SSR_CLS_DTL_WRK_WAIT_TOT'),
+        };
+      });
+      const enrollment = parseEnrollmentFields(raw);
+      if (enrollment) {
+        // Stamped at the read, not at the end-of-subject save.
+        Object.assign(section, enrollment, { enrollment_read_at: new Date().toISOString() });
+      }
+
+      // Click "Return to Search Results"
+      const returnBtn = await this.page.$('#CLASS_SRCH_WRK2_SSR_PB_BACK');
+      if (returnBtn) {
+        await returnBtn.click();
+        await new Promise(r => setTimeout(r, 2000));
+      } else {
+        await this.page.goBack();
+        await new Promise(r => setTimeout(r, 2000));
+      }
+      return enrollment ? 'read' : 'nofields';
+    } catch (e) {
+      return 'error';
+    }
   }
 
   // Parse the course title to extract catalog number and section
@@ -430,9 +472,20 @@ class LocusPuppeteerScraper {
 
     let sections = await this.extractSections(subject);
 
-    // Optionally fetch enrollment details (clicks into each section)
+    // Optionally fetch enrollment details (clicks into each section). If LOCUS
+    // drops the session partway, the same search is run again from a fresh
+    // form; its rows are in the same order, so the row indexes still hold.
     if (fetchEnrollment && sections.length > 0) {
-      sections = await this.fetchEnrollmentForSections(sections);
+      const reSearch = async () => {
+        await this.loadSearchForm();
+        await this.ensureTerm(termCode);
+        await this.selectSubject(subject);
+        await this.selectCareer('UGRD');
+        await this.uncheckOpenOnly();
+        await this.clickSearch();
+        return this.onResultsPage();
+      };
+      sections = await this.fetchEnrollmentForSections(sections, { reSearch });
     }
 
     return sections;
@@ -703,4 +756,4 @@ if (require.main === module) {
 }
 
 module.exports = { scrape, defaultScrapeTerm, LocusPuppeteerScraper, SUBJECTS, TERM_CODES, parseEnrollmentFields, closeBrowserBounded,
-  enrollmentRowIndex, sameClassNumber, freshEnrollmentClassNumbers };
+  enrollmentRowIndex, sameClassNumber, freshEnrollmentClassNumbers, MAX_RESEARCHES_PER_SUBJECT };

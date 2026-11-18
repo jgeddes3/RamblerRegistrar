@@ -7,6 +7,8 @@ import CustomLongButton1 from './styleComponents/CustomLongButton1';
 import { ScrollView } from 'react-native';
 import BackgroundImage from './styleComponents/BackgroundImage';
 import { STONE } from './theme';
+import StepCounter from './components/ui/StepCounter';
+import useOnboardingDraft from './components/ui/useOnboardingDraft';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -29,6 +31,7 @@ const ProgramSelect =() => {
     setSelectedCourses, setQuizTags, setUser, setIsLoggedIn,
   } = useAppContext();
   const navigation = useNavigation();
+  useOnboardingDraft('ProgramSelect', { selectedProgram, selectedProgram2, selectedMinors });
 
   const loadPrograms = () => {
     setLoading(true);
@@ -177,7 +180,9 @@ const ProgramSelect =() => {
         </TouchableOpacity>
       </View>
       <Image source={require('./assets/Icons/Logo2-02.png')} style={s.headerLogo} />
-      <View style={s.headerSide} />
+      <View style={s.headerSide}>
+        <StepCounter route="ProgramSelect" />
+      </View>
     </View>
   );
 

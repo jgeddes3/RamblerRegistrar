@@ -1,9 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, Animated, Platform, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppContext } from './AppContext';
 import BackgroundImage from './styleComponents/BackgroundImage';
 import useReduceMotion from './components/ui/useReduceMotion';
+import StepCounter from './components/ui/StepCounter';
+import { loadDraft, saveDraft } from './onboarding';
 import { STONE } from './theme';
 import { slopTo } from './components/ui/hitSlop';
 
@@ -356,11 +359,40 @@ function calculateRIASEC(answers) {
 const PreferenceQuiz = () => {
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const { setQuizResults } = useAppContext();
+  const { setQuizResults, isLoggedIn } = useAppContext();
   const navigation = useNavigation();
   const scrollRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const reduceMotion = useReduceMotion();
+  // In sign-up (not a retake from More): keep answers in the draft, so
+  // closing the app mid-quiz doesn't lose them, and offer Skip for now.
+  const onboarding = !isLoggedIn;
+  const restoredRef = useRef(!onboarding); // retakes have nothing to restore
+
+  useEffect(() => {
+    if (!onboarding) return undefined;
+    let alive = true;
+    loadDraft(AsyncStorage).then((draft) => {
+      if (!alive) return;
+      const p = draft && draft.quizProgress;
+      if (p && p.answers) {
+        setSelectedAnswers(p.answers);
+        if (Number.isInteger(p.current)) setCurrentQuestion(Math.min(p.current, QUESTIONS.length - 1));
+      }
+      restoredRef.current = true;
+    });
+    return () => { alive = false; };
+  }, [onboarding]);
+
+  useEffect(() => {
+    if (!onboarding || !restoredRef.current) return;
+    saveDraft(AsyncStorage, { step: 'PreferenceQuiz', quizProgress: { answers: selectedAnswers, current: currentQuestion } });
+  }, [onboarding, selectedAnswers, currentQuestion]);
+
+  const skipQuiz = () => {
+    saveDraft(AsyncStorage, { step: 'SchedulingPrefs' });
+    navigation.navigate('SchedulingPrefs');
+  };
 
   const q = QUESTIONS[currentQuestion];
   const totalQuestions = QUESTIONS.length;
@@ -417,6 +449,9 @@ const PreferenceQuiz = () => {
       // All done — calculate and navigate
       const results = calculateRIASEC(selectedAnswers);
       setQuizResults({ ...results, answers: selectedAnswers });
+      if (onboarding) {
+        saveDraft(AsyncStorage, { step: 'QuizResults', quizResults: { ...results, answers: selectedAnswers } });
+      }
       navigation.navigate('QuizResults');
     }
   };
@@ -449,7 +484,9 @@ const PreferenceQuiz = () => {
             </TouchableOpacity>
           </View>
           <Image source={require('./assets/Icons/Logo2-02.png')} style={s.headerLogo} />
-          <View style={s.headerSide} />
+          <View style={s.headerSide}>
+            <StepCounter route="PreferenceQuiz" />
+          </View>
         </View>
 
         {/* Progress bar */}
@@ -541,6 +578,16 @@ const PreferenceQuiz = () => {
               {q.multiSelect ? 'Select at least 2 topics' : 'Select an answer to continue'}
             </Text>
           )}
+          {onboarding ? (
+            <TouchableOpacity
+              onPress={skipQuiz}
+              style={s.skipButton}
+              accessibilityRole="button"
+              accessibilityLabel="Skip the quiz for now"
+            >
+              <Text style={s.skipText}>Skip for now</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
     </BackgroundImage>
@@ -552,6 +599,13 @@ const PreferenceQuiz = () => {
 // =============================================================================
 
 const s = StyleSheet.create({
+  // "Skip for now" under Next: a quiet text button on a white pill (the
+  // page background is a photo), 44 pt tall.
+  skipButton: {
+    alignSelf: 'center', minHeight: 44, justifyContent: 'center', marginTop: 8,
+    paddingHorizontal: 16, backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 22,
+  },
+  skipText: { fontSize: 15, fontWeight: '600', color: '#A30046' },
   headerBar: {
     height: 120,
     backgroundColor: '#A30046',

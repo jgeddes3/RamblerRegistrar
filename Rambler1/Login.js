@@ -1,5 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, View, Text, TouchableOpacity } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loadDraft, resumeRoutes, clearDraft } from './onboarding';
 import { signIn } from './auth';
 import { useAppContext } from './AppContext';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
@@ -18,6 +20,29 @@ const Login = ({ navigation }) => {
   const [policyVisible, setPolicyVisible] = useState(false);
   const [termsVisible, setTermsVisible] = useState(false);
   const passwordRef = useRef(null);
+  const { setSelectedProgram, setSelectedProgram2, setSelectedMinors, setSelectedCourses, setQuizResults } = useAppContext();
+
+  // A sign-up left part-way (the app was closed): offer to pick it up.
+  const [draft, setDraft] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    loadDraft(AsyncStorage).then((d) => {
+      if (alive && d && resumeRoutes(d.step)) setDraft(d);
+    });
+    return () => { alive = false; };
+  }, []);
+
+  const continueSignup = () => {
+    if (!draft) return;
+    const restore = [
+      ['selectedProgram', setSelectedProgram], ['selectedProgram2', setSelectedProgram2],
+      ['selectedMinors', setSelectedMinors], ['selectedCourses', setSelectedCourses],
+      ['quizResults', setQuizResults],
+    ];
+    for (const [key, set] of restore) if (key in draft && set) set(draft[key]);
+    const routes = resumeRoutes(draft.step);
+    navigation.reset({ index: routes.length - 1, routes });
+  };
 
   // Shown under the fields and read out at once (the field the user is in
   // may be far from where the message appears).
@@ -55,6 +80,9 @@ const Login = ({ navigation }) => {
   };
 
   const handleSignup = () => {
+    // A fresh sign-up: an older half-finished one would otherwise refill it.
+    clearDraft(AsyncStorage);
+    setDraft(null);
     navigation.navigate('ProgramSelect');
   };
 
@@ -112,6 +140,21 @@ const Login = ({ navigation }) => {
             Sign up
           </CustomButton>
         </View>
+        {draft ? (
+          <TouchableOpacity
+            onPress={continueSignup}
+            accessibilityRole="button"
+            accessibilityLabel="Continue setting up your account"
+            style={{
+              marginTop: 16, minHeight: 44, justifyContent: 'center', paddingHorizontal: 18,
+              backgroundColor: '#FFFFFF', borderRadius: 22, borderWidth: 1, borderColor: '#A30046',
+            }}
+          >
+            <Text style={{ color: '#A30046', fontSize: 15, fontWeight: '600' }}>
+              Continue setting up your account
+            </Text>
+          </TouchableOpacity>
+        ) : null}
         <View style={{ flexDirection: 'row', gap: 22, marginTop: 24 }}>
           <TouchableOpacity
             onPress={() => setTermsVisible(true)}

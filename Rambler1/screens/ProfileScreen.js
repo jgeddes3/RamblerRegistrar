@@ -910,7 +910,7 @@ const ProfileScreen = ({ visible, onClose }) => {
             <View style={s.divider} />
 
             {/* RIASEC Quiz Results */}
-            {quizResults && quizResults.scores ? (
+            {quizResults && quizResults.code && quizResults.scores ? (
               <View style={s.infoBlock}>
                 <Text style={s.label}>Personality Profile</Text>
                 <View style={s.riasecHeader}>

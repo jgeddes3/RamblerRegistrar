@@ -7,6 +7,8 @@ import CustomLongButton1 from './styleComponents/CustomLongButton1';
 import BackgroundImage from './styleComponents/BackgroundImage';
 import CourseDetailModal from './CourseDetailModal';
 import { buildCourseRows } from './course-list';
+import StepCounter from './components/ui/StepCounter';
+import useOnboardingDraft from './components/ui/useOnboardingDraft';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -32,6 +34,7 @@ const CourseSelect =() => {
   const [majorCourseIds, setMajorCourseIds] = useState(null);
   const { selectedCourses, setSelectedCourses, selectedProgram } = useAppContext();
   const navigation = useNavigation();
+  useOnboardingDraft('CourseSelect', { selectedCourses });
 
   const loadCourses = () => {
     setLoading(true);
@@ -116,7 +119,9 @@ const CourseSelect =() => {
             </TouchableOpacity>
           </View>
           <Image source={require('./assets/Icons/Logo2-02.png')} style={s.headerLogo} />
-          <View style={s.headerSide} />
+          <View style={s.headerSide}>
+            <StepCounter route="CourseSelect" />
+          </View>
         </View>
         <View style={s.pageTitleBadge}>
           <Text accessibilityRole="header" style={s.pageTitle}>Select Courses You've Taken</Text>

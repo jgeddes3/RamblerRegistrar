@@ -5,6 +5,8 @@ import { useAppContext } from '../AppContext';
 import { fetchQuizRecommendations, fetchQuizFocusAreas } from '../firestore-data';
 import BackgroundImage from '../styleComponents/BackgroundImage';
 import { STONE } from '../theme';
+import StepCounter from '../components/ui/StepCounter';
+import useOnboardingDraft from '../components/ui/useOnboardingDraft';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -31,6 +33,7 @@ const DIMENSION_ORDER = ['R', 'I', 'A', 'S', 'E', 'C'];
 const QuizResults = () => {
   const navigation = useNavigation();
   const { quizResults, selectedProgram } = useAppContext();
+  useOnboardingDraft('QuizResults', { quizResults });
   const [recommendations, setRecommendations] = useState([]);
   const [focusAreas, setFocusAreas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -89,6 +92,7 @@ const QuizResults = () => {
         <ScrollView contentContainerStyle={s.scrollContent}>
           {/* Profile header */}
           <View style={s.profileCard}>
+            <StepCounter route="QuizResults" tone="onLight" />
             <Text style={s.codeLabel}>{code}</Text>
             <Text style={s.profileName}>{profileName}</Text>
             <Text style={s.profileSubtitle}>Your RIASEC Profile</Text>

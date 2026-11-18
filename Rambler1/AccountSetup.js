@@ -15,6 +15,9 @@ import TextField from './components/ui/TextField';
 import BackgroundImage from './styleComponents/BackgroundImage';
 import { validateSignup, MIN_PASSWORD } from './signup-validation';
 import { DANGER } from './theme';
+import StepCounter from './components/ui/StepCounter';
+import useOnboardingDraft from './components/ui/useOnboardingDraft';
+import { clearDraft } from './onboarding';
 
 const CLASS_YEARS = ['Freshman', 'Sophomore', 'Junior', 'Senior'];
 const SIGNUP_SAVE_API = { saveUserProfile, saveQuizResults, addUserCourse };
@@ -44,6 +47,7 @@ const AccountSetup =() => {
   const { selectedProgram, selectedProgram2, selectedMinors, selectedCourses, setGraduationYear, setClassYear, setIsHonors, setIsAthlete, quizResults, setUser, setIsLoggedIn, setPrivacyPolicyVersion, setTermsVersion } = useAppContext();
 
   const navigation = useNavigation();
+  useOnboardingDraft('AccountSetup');
   const currentYear = new Date().getFullYear();
 
   // Next is always on screen. The first press shows what's missing under each
@@ -113,6 +117,7 @@ const AccountSetup =() => {
         isAnonymous: false,
       });
       setIsLoggedIn(true);
+      clearDraft(AsyncStorage);
       // The user accepted both documents in this flow — reflect it in context
       // so the App.js consent gate doesn't re-prompt right after signup. If
       // the profile write above failed, the gate re-prompts on next cold start.
@@ -144,7 +149,9 @@ const AccountSetup =() => {
             </TouchableOpacity>
           </View>
           <Image source={require('./assets/Icons/Logo2-02.png')} style={s.headerLogo} />
-          <View style={s.headerSide} />
+          <View style={s.headerSide}>
+            <StepCounter route="AccountSetup" />
+          </View>
         </View>
         <View style={s.pageTitleBadge}>
           <Text accessibilityRole="header" style={s.pageTitle}>Create Account</Text>

@@ -31,6 +31,8 @@ describe('validateSignup', () => {
 });
 
 describe('Login fields', () => {
+  jest.mock('@react-native-async-storage/async-storage', () =>
+    require('@react-native-async-storage/async-storage/jest/async-storage-mock'));
   jest.mock('../auth', () => ({ signIn: jest.fn(async () => { throw Object.assign(new Error('x'), { code: 'auth/invalid-credential' }); }) }));
   jest.mock('../AppContext', () => ({ useAppContext: () => ({}) }));
   jest.mock('../components/PrivacyPolicyModal', () => () => null);

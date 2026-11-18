@@ -6,7 +6,12 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../AppContext';
-import { searchCourses as apiSearchCourses, getCourseSections, searchByInstructor } from '../firestore-data';
+import {
+  searchCourses as apiSearchCourses, getCourseSections, searchByInstructor,
+  addSectionToSchedule, removeSectionFromSchedule,
+} from '../firestore-data';
+import { useToast } from '../components/ui/Toast';
+import showAlert from '../alert';
 import { fetchCourses as fetchLocalCourses } from '../Database';
 import CourseDetailModal from '../CourseDetailModal';
 import Skeleton from '../components/Skeleton';
@@ -111,7 +116,9 @@ const FilterChips = ({ filters, onFilterChange }) => (
 // SECTION ROW
 // =============================================================================
 
-const SectionRow = ({ section, onPress }) => {
+// onAdd (signed-in only): the "+" that puts this section on the schedule
+// without opening two modals first.
+const SectionRow = ({ section, onPress, onAdd, courseCode }) => {
   const hasEnrollment = section.enrollment_cap > 0;
   const statusText = (section.status || '').toLowerCase();
   const isClosed = statusText.includes('closed');
@@ -134,8 +141,21 @@ const SectionRow = ({ section, onPress }) => {
     <TouchableOpacity style={[s.sectionRow, isFull && { opacity: 0.5 }]} onPress={onPress}>
       <View style={s.sectionTop}>
         <Text style={s.sectionNum}>Sec {section.section_number}</Text>
-        <View style={[s.badge, badgeStyle]}>
-          <Text style={s.badgeText}>{badgeLabel}</Text>
+        <View style={s.sectionTopRight}>
+          <View style={[s.badge, badgeStyle]}>
+            <Text style={s.badgeText}>{badgeLabel}</Text>
+          </View>
+          {onAdd ? (
+            <TouchableOpacity
+              onPress={onAdd}
+              hitSlop={slopTo(28)}
+              accessibilityRole="button"
+              accessibilityLabel={`Add ${courseCode} Sec ${section.section_number} to your schedule`}
+              style={s.addBtn}
+            >
+              <Ionicons name="add-circle-outline" size={26} color="#A30046" />
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
       {section.meeting_days || section.meeting_time_start ? (
@@ -179,7 +199,7 @@ function getFillFlag(fillStats) {
   return null;
 }
 
-const CourseCard = ({ course, sections, sectionsLoading, sectionsFailed, filters, onCoursePress, onSectionPress, onRetrySections }) => {
+const CourseCard = ({ course, sections, sectionsLoading, sectionsFailed, filters, onCoursePress, onSectionPress, onRetrySections, onAddSection }) => {
   const TERM = useRegistrationTerm();
   const [expanded, setExpanded] = useState(false);
   // Filter sections by active filters
@@ -255,7 +275,9 @@ const CourseCard = ({ course, sections, sectionsLoading, sectionsFailed, filters
               <SectionRow
                 key={sec.id || sec.class_number || i}
                 section={sec}
+                courseCode={course.code}
                 onPress={() => onSectionPress(sec, course)}
+                onAdd={onAddSection ? () => onAddSection(sec, course) : undefined}
               />
             ))}
             {filteredSections.length > SECTIONS_SHOWN ? (
@@ -333,7 +355,9 @@ const RecentSearches = ({ searches, onSelect, onRemove }) => {
 const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 1 };
 
 const SearchScreen = () => {
-  const { selectedProgram } = useAppContext();
+  const { selectedProgram, user } = useAppContext();
+  const signedIn = !!user && !user.isAnonymous; // anonymous users have no schedule
+  const toast = useToast();
   const TERM = useRegistrationTerm();
   // Callbacks read the term through a ref so a term correction never leaves
   // an old code captured in a memoized closure.
@@ -533,6 +557,36 @@ const SearchScreen = () => {
 
   const retrySections = useCallback((course) => loadSectionsForCourses([course]), [loadSectionsForCourses]);
 
+  // "+" on a section row: straight onto the registration-term schedule, with
+  // a toast to undo it. A second tap while one add is in flight is ignored.
+  const addingRef = useRef(new Set());
+  const quickAdd = async (sec, course) => {
+    const classNumber = String(sec.class_number);
+    if (!signedIn || addingRef.current.has(classNumber)) return;
+    addingRef.current.add(classNumber);
+    rememberQuery();
+    const termCode = termCodeRef.current;
+    const code = course.code || `${sec.subject} ${sec.catalog_number}`;
+    const res = await addSectionToSchedule(user.uid, termCode, classNumber);
+    addingRef.current.delete(classNumber);
+    if (res?.added) {
+      toast.show({
+        message: `${code} Sec ${sec.section_number} added to your ${TERM.label} schedule.`,
+        actionLabel: 'Undo',
+        onAction: async () => {
+          const undone = await removeSectionFromSchedule(user.uid, termCode, classNumber);
+          if (!undone) showAlert("Couldn't undo", 'The section is still on your schedule. Remove it on the Schedule tab.');
+        },
+      });
+    } else if (res?.already) {
+      toast.show({ message: `${code} Sec ${sec.section_number} is already on your schedule.` });
+    } else if (res?.full) {
+      showAlert('Schedule full', 'A schedule holds at most 40 sections. Remove one on the Schedule tab first.');
+    } else {
+      showAlert('Save failed', 'Could not update your schedule. Please try again.');
+    }
+  };
+
   // A query becomes a "recent search" only when the user commits to it:
   // submits the box, opens a result, or picks a department/recent. Saving on
   // every debounced keystroke filled the list with half-typed fragments.
@@ -685,6 +739,7 @@ const SearchScreen = () => {
               onCoursePress={handleCoursePress}
               onSectionPress={handleSectionPress}
               onRetrySections={retrySections}
+              onAddSection={signedIn ? quickAdd : undefined}
             />
           )}
           ListHeaderComponent={
@@ -880,6 +935,8 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
+  sectionTopRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  addBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   sectionNum: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 14,

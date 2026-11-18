@@ -20,6 +20,7 @@ import { resolveRegistrationTerm } from './term';
 import { afterModalDismiss } from './modal-sequencing';
 import TopBar from './components/TopBar';
 import PendingSaveBanner from './components/PendingSaveBanner';
+import { ToastProvider, ToastHost } from './components/ui/Toast';
 import MenuOverlay from './components/MenuOverlay';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
 import ProfileScreen from './screens/ProfileScreen';
@@ -382,6 +383,7 @@ const App = () => {
 
   return (
     <AppProvider>
+      <ToastProvider>
       <PushTokenGate />
       <View style={{ flex: 1, backgroundColor: '#A30046' }} onLayout={onLayoutRootView}>
         <NavigationContainer
@@ -399,7 +401,10 @@ const App = () => {
         >
           <RootNavigator />
         </NavigationContainer>
+        {/* Above the 90 pt tab bar. Modals that toast carry their own host. */}
+        <ToastHost bottom={104} />
       </View>
+      </ToastProvider>
     </AppProvider>
   );
 };

@@ -30,6 +30,7 @@ import GenerateScheduleModal from '../components/GenerateScheduleModal';
 import ScheduleMapModal from '../components/ScheduleMapModal';
 import CourseDetailModal from '../CourseDetailModal';
 import showAlert from '../alert';
+import { useToast } from '../components/ui/Toast';
 import { useRegistrationTerm, resolveRegistrationTerm, scheduleTermOptions } from '../term';
 import { afterModalDismiss } from '../modal-sequencing';
 import { writeCacheFile } from '../ics-export';
@@ -218,6 +219,10 @@ const ScheduleScreen = () => {
   const [loading, setLoading] = useState(true);
   const [sections, setSections] = useState([]);        // legacy section rows on the schedule
   const [scheduleIds, setScheduleIds] = useState([]);  // class_number strings
+  // The latest ids, for a toast's Undo that runs seconds after the change.
+  const scheduleIdsRef = useRef(scheduleIds);
+  scheduleIdsRef.current = scheduleIds;
+  const toast = useToast();
   const [buildings, setBuildings] = useState([]);
   const [saving, setSaving] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false); // read error ≠ empty schedule
@@ -571,7 +576,15 @@ const ScheduleScreen = () => {
     }
     const doAdd = async () => {
       const ok = await persistIds([...scheduleIds, classNum]);
-      if (ok) closeAddModal();
+      if (ok) {
+        closeAddModal();
+        toast.show({
+          message: `${courseCodeOf(section)} Sec ${section.section_number} added.`,
+          actionLabel: 'Undo',
+          // Against the schedule as it is then, so later changes survive.
+          onAction: () => persistIds(scheduleIdsRef.current.filter((id) => id !== classNum)),
+        });
+      }
     };
     // Conflict check against the current schedule — warn but allow.
     const candidateBlocks = sectionsToBlocks([...sections, section]);
@@ -608,7 +621,18 @@ const ScheduleScreen = () => {
         {
           text: 'Remove from schedule',
           style: 'destructive',
-          onPress: () => persistIds(scheduleIds.filter((id) => id !== classNum)),
+          onPress: async () => {
+            const ok = await persistIds(scheduleIds.filter((id) => id !== classNum));
+            if (!ok) return;
+            toast.show({
+              message: `${code} removed.`,
+              actionLabel: 'Undo',
+              onAction: () => {
+                const now = scheduleIdsRef.current;
+                if (!now.includes(classNum)) persistIds([...now, classNum]);
+              },
+            });
+          },
         },
       ]
     );

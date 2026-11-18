@@ -145,3 +145,22 @@ describe('races with background saves', () => {
     expect(await fetchSignupSaveState('u1')).toEqual({ profileKeys: ['graduationYear'], hasQuiz: true });
   });
 });
+
+describe('removeSectionFromSchedule (Undo for an add)', () => {
+  const { removeSectionFromSchedule } = require('../firestore-data');
+  const scheduleDoc = (ids) => ({ exists: () => true, data: () => ({ termCode: '1266', sectionIds: ids, name: '' }), metadata: { fromCache: false } });
+
+  test('takes the one section off and keeps the rest', async () => {
+    fs.getDoc.mockReset().mockResolvedValue(scheduleDoc(['5440', '5512', '6001']));
+    fs.setDoc.mockReset().mockResolvedValue(undefined);
+    expect(await removeSectionFromSchedule('u1', '1266', 5512)).toEqual({ removed: true });
+    expect(fs.setDoc.mock.calls[0][1].sectionIds).toEqual(['5440', '6001']);
+  });
+
+  test('a section that is not there changes nothing', async () => {
+    fs.getDoc.mockReset().mockResolvedValue(scheduleDoc(['5440']));
+    fs.setDoc.mockReset();
+    expect(await removeSectionFromSchedule('u1', '1266', '9999')).toEqual({ absent: true });
+    expect(fs.setDoc).not.toHaveBeenCalled();
+  });
+});

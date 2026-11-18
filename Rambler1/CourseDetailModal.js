@@ -3,7 +3,7 @@ import { View, Text, Modal, ScrollView, TouchableOpacity, ActivityIndicator, Dim
 import { Ionicons } from '@expo/vector-icons';
 import {
   getCourseSections, fetchCourseDetail, fetchWatches, addWatch, removeWatch,
-  addCourseToPlan, addSectionToSchedule, PLAN_TERM_CAP,
+  addCourseToPlan, removeCourseFromPlan, addSectionToSchedule, removeSectionFromSchedule, PLAN_TERM_CAP,
 } from './firestore-data';
 import { getInstructorRating, noRatingCopy, ratingsAttribution } from './ratings';
 import { FONT_ITALIC, STONE, WARN } from './theme';
@@ -14,6 +14,7 @@ import TrendChart from './components/TrendChart';
 import FeedbackModal from './components/FeedbackModal';
 import ErrorState from './components/ErrorState';
 import { seatAge, newestReadAt } from './seat-age';
+import { useToast, ToastHost } from './components/ui/Toast';
 import showAlert from './alert';
 import { useRegistrationTerm, resolveRegistrationTerm } from './term';
 import { slopTo } from './components/ui/hitSlop';
@@ -56,15 +57,25 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
   const [actionBusy, setActionBusy] = useState(false);
   // Report-a-problem (#17): pre-tagged with this course's code.
   const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const toast = useToast();
 
   const addToPlan = async (termCode, label) => {
     if (!signedIn || actionBusy) return;
     setActionBusy(true);
-    const res = await addCourseToPlan(user.uid, termCode, course.code);
+    const code = course.code;
+    const res = await addCourseToPlan(user.uid, termCode, code);
     setActionBusy(false);
     setPlanPicker(false);
-    if (res?.added) showAlert('Planned', `${course.code} added to ${label}.`);
-    else if (res?.already) showAlert('Already planned', `${course.code} is already in ${label}.`);
+    if (res?.added) {
+      toast.show({
+        message: `${code} added to ${label}.`,
+        actionLabel: 'Undo',
+        onAction: async () => {
+          const undone = await removeCourseFromPlan(user.uid, termCode, code);
+          if (!undone) showAlert("Couldn't undo", `${code} is still in ${label}. Remove it in Planning.`);
+        },
+      });
+    } else if (res?.already) toast.show({ message: `${code} is already in ${label}.` });
     else if (res?.full) showAlert('Semester full', `A semester plan holds at most ${PLAN_TERM_CAP} courses.`);
     else showAlert('Save failed', 'Could not update your plan. Please try again.');
   };
@@ -75,9 +86,17 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
     const res = await addSectionToSchedule(user.uid, TERM.code, sec.class_number);
     setActionBusy(false);
     if (res?.added) {
-      showAlert('Added to schedule', `${course.code} Sec ${sec.section_number} is on your ${TERM.label} schedule.`);
+      const termCode = TERM.code;
+      toast.show({
+        message: `${course.code} Sec ${sec.section_number} added to your ${TERM.label} schedule.`,
+        actionLabel: 'Undo',
+        onAction: async () => {
+          const undone = await removeSectionFromSchedule(user.uid, termCode, sec.class_number);
+          if (!undone) showAlert("Couldn't undo", 'The section is still on your schedule. Remove it on the Schedule tab.');
+        },
+      });
     } else if (res?.already) {
-      showAlert('Already scheduled', 'This section is already on your schedule.');
+      toast.show({ message: 'This section is already on your schedule.' });
     } else if (res?.full) {
       showAlert('Schedule full', 'A schedule holds at most 40 sections.');
     } else {
@@ -559,6 +578,8 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
             <View style={{ height: 30 }} />
           </ScrollView>
         </View>
+        {/* This modal covers the app's own toast host: show toasts here too. */}
+        <ToastHost bottom={28} />
       </View>
 
       <FeedbackModal

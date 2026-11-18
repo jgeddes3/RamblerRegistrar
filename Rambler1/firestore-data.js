@@ -841,6 +841,23 @@ export const addSectionToSchedule = async (uid, termCode, classNumber) => {
   }
 };
 
+// The inverse, for a toast's Undo: { removed } | { absent } | null (failed).
+export const removeSectionFromSchedule = async (uid, termCode, classNumber) => {
+  try {
+    const userId = resolveUid(uid);
+    if (!userId || !termCode || classNumber == null) return null;
+    const current = (await fetchSchedule(userId, termCode)) || { section_ids: [] };
+    const ids = current.section_ids.map(String);
+    const num = String(classNumber);
+    if (!ids.includes(num)) return { absent: true };
+    const res = await saveSchedule(userId, termCode, ids.filter((id) => id !== num), current.name);
+    return res ? { removed: true } : null;
+  } catch (error) {
+    logError('removeSectionFromSchedule', error);
+    return null;
+  }
+};
+
 // =============================================================================
 // WHAT-IF EXPLORER (lean program-requirement reads)
 // =============================================================================

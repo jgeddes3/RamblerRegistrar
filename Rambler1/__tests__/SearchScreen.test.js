@@ -9,9 +9,14 @@ jest.mock('../firestore-data', () => ({
   searchCourses: (...a) => mockSearchCourses(...a),
   getCourseSections: (...a) => mockGetCourseSections(...a),
   searchByInstructor: jest.fn(async () => []),
+  addSectionToSchedule: (...a) => mockAddSection(...a),
+  removeSectionFromSchedule: (...a) => mockRemoveSection(...a),
 }));
+const mockAddSection = jest.fn();
+const mockRemoveSection = jest.fn();
 jest.mock('../Database', () => ({ fetchCourses: jest.fn(async () => []) }));
-jest.mock('../AppContext', () => ({ useAppContext: () => ({ selectedProgram: null }) }));
+const mockCtx = { current: { selectedProgram: null } };
+jest.mock('../AppContext', () => ({ useAppContext: () => mockCtx.current }));
 jest.mock('../CourseDetailModal', () => () => null);
 // FlatList stand-in: renders every row and exposes its props, so a test can
 // report rows as scrolled into view (the real list needs native layout for that).
@@ -197,5 +202,39 @@ describe('lighter results', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Clear search' }));
     await new Promise((r) => setTimeout(r, 400)); // past the 250 ms debounce
     expect(mockSearchCourses).not.toHaveBeenCalled();
+  });
+});
+
+describe('"+" adds a section straight to the schedule', () => {
+  const { ToastProvider, ToastHost } = require('../components/ui/Toast');
+  const SEC = { id: '5000', class_number: '5000', section_number: '001', subject: 'COMP', catalog_number: '170', enrollment_cap: 30, enrollment_total: 10 };
+  const withToasts = () => (
+    <ToastProvider>
+      <SearchScreen />
+      <ToastHost />
+    </ToastProvider>
+  );
+  afterEach(() => { mockCtx.current = { selectedProgram: null }; });
+
+  test('signed in: one tap adds it, with a toast that can undo it', async () => {
+    mockCtx.current = { selectedProgram: null, user: { uid: 'u1', isAnonymous: false } };
+    mockGetCourseSections.mockResolvedValue([SEC]);
+    mockAddSection.mockReset().mockResolvedValue({ added: true });
+    mockRemoveSection.mockReset().mockResolvedValue({ removed: true });
+    await render(withToasts());
+    await search('COMP 170');
+    await fireEvent.press(await screen.findByRole('button', { name: 'Add COMP 170 Sec 001 to your schedule' }));
+    expect(mockAddSection).toHaveBeenCalledWith('u1', '1272', '5000');
+    expect(await screen.findByText(/COMP 170 Sec 001 added to your .* schedule\./)).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Undo' }));
+    expect(mockRemoveSection).toHaveBeenCalledWith('u1', '1272', '5000');
+  });
+
+  test('signed out: no "+" (there is no schedule to add to)', async () => {
+    mockGetCourseSections.mockResolvedValue([SEC]);
+    await render(withToasts());
+    await search('COMP 170');
+    expect(await screen.findByText('Sec 001')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /to your schedule/ })).toBeNull();
   });
 });

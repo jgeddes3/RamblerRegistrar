@@ -17,7 +17,9 @@
 
 $ErrorActionPreference = 'Stop'
 
-$healthUrl = 'http://localhost:3001/api/health'
+# 127.0.0.1, not localhost: the backend listens on IPv4 loopback only, and
+# localhost can resolve to ::1 first.
+$healthUrl = 'http://127.0.0.1:3001/api/health'
 $logFile   = 'C:\Users\LeoArkos\RamblerRegistrar\ops\health-monitor.log'
 $pm2       = 'C:\Users\LeoArkos\AppData\Roaming\npm\pm2.cmd'
 $appName   = 'rambler-backend'   # name in backend/ecosystem.config.js

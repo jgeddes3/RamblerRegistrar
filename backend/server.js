@@ -22,9 +22,11 @@ const db = require('./db');
 const { scrape } = require('./scraper-puppeteer');
 const { analyzeSchedule } = require('./walktime');
 const { buildHealth } = require('./health');
+const { bindHost } = require('./bind-host');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const HOST = bindHost(process.env);
 
 // Behind a reverse proxy in production so express-rate-limit sees the real
 // client IP. Trust the first hop.
@@ -303,8 +305,8 @@ cron.schedule('*/20 9-21 * * *', async () => {
 // =============================================================================
 
 db.initDb().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Rambler Backend running on port ${PORT}`);
+  app.listen(PORT, HOST, () => {
+    console.log(`Rambler Backend running on ${HOST}:${PORT}`);
     console.log(`Role: daily LOCUS scraper (10 AM cron -> SQLite + Firestore) + campus API proxy`);
     console.log(`\nEndpoints:`);
     console.log(`  GET  /api/health`);

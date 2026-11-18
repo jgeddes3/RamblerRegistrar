@@ -147,6 +147,14 @@ class LocusPuppeteerScraper {
     await this.waitForPeopleSoft();
   }
 
+  // Put the form on termCode unless it already is. A reloaded form comes back
+  // on LOCUS's default term, and a search there returns "no results" (or
+  // another term's sections) for the subject.
+  async ensureTerm(termCode) {
+    const current = await this.page.$eval('[id="CLASS_SRCH_WRK2_STRM$35$"]', (el) => el.value);
+    if (current !== String(termCode)) await this.selectTerm(String(termCode));
+  }
+
   // Type subject into the subject field
   async selectSubject(subject) {
     console.log(`Setting subject: ${subject}...`);
@@ -395,6 +403,7 @@ class LocusPuppeteerScraper {
   // Scrape all sections for a subject
   // fetchEnrollment: if true, clicks into each section for enrollment numbers (slow)
   async scrapeSubject(termCode, subject, fetchEnrollment = false) {
+    await this.ensureTerm(termCode);
     await this.selectSubject(subject);
     await this.selectCareer('UGRD');
     await this.uncheckOpenOnly();

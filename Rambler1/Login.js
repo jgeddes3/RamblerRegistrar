@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { AccessibilityInfo, View, Text, TouchableOpacity } from 'react-native';
 import { signIn } from './auth';
 import { useAppContext } from './AppContext';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
@@ -7,7 +7,7 @@ import { TERMS_TITLE, TERMS_SECTIONS } from './terms-content';
 import BackgroundImage from './styleComponents/BackgroundImage';
 import LogoImage from './styleComponents/LogoImage1';
 import CustomButton from './styleComponents/customButton1';
-import SearchBar from './styleComponents/SearchBar';
+import TextField from './components/ui/TextField';
 import TitleText1 from './styleComponents/TitleTextP1';
 
 const Login = ({ navigation }) => {
@@ -17,10 +17,18 @@ const Login = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [policyVisible, setPolicyVisible] = useState(false);
   const [termsVisible, setTermsVisible] = useState(false);
+  const passwordRef = useRef(null);
+
+  // Shown under the fields and read out at once (the field the user is in
+  // may be far from where the message appears).
+  const fail = (message) => {
+    setErrorMessage(message);
+    AccessibilityInfo.announceForAccessibility?.(message);
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
-      setErrorMessage('Please enter email and password');
+      fail('Please enter email and password');
       return;
     }
     setErrorMessage('');
@@ -31,15 +39,15 @@ const Login = ({ navigation }) => {
     } catch (error) {
       const code = error.code;
       if (code === 'auth/invalid-email') {
-        setErrorMessage('Invalid email address');
+        fail('Invalid email address');
       } else if (code === 'auth/user-not-found') {
-        setErrorMessage('No account found with this email');
+        fail('No account found with this email');
       } else if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
-        setErrorMessage('Incorrect password');
+        fail('Incorrect password');
       } else if (code === 'auth/too-many-requests') {
-        setErrorMessage('Too many attempts. Try again later');
+        fail('Too many attempts. Try again later');
       } else {
-        setErrorMessage('Login failed. Please try again');
+        fail('Login failed. Please try again');
       }
     } finally {
       setLoading(false);
@@ -55,23 +63,37 @@ const Login = ({ navigation }) => {
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <LogoImage source={require('./assets/Icons/Logo-02.png')} />
         <TitleText1>Rambler Registrar</TitleText1>
-        <View style={{ marginBottom: 15 }}>
-          <SearchBar
-            placeholder="Email"
-            value={email}
-            onChangeText={(text) => { setEmail(text); setErrorMessage(''); }}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-        </View>
-        <SearchBar
-          placeholder="Password"
+        <TextField
+          label="Email"
+          style={{ marginBottom: 15 }}
+          value={email}
+          onChangeText={(text) => { setEmail(text); setErrorMessage(''); }}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="email"
+          textContentType="username"
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+        />
+        <TextField
+          ref={passwordRef}
+          label="Password"
           value={password}
           onChangeText={(text) => { setPassword(text); setErrorMessage(''); }}
           secureTextEntry={true}
+          autoCapitalize="none"
+          autoComplete="current-password"
+          textContentType="password"
+          returnKeyType="go"
+          onSubmitEditing={handleLogin}
         />
         {errorMessage ? (
-          <Text style={{ color: '#A30046', marginTop: 10, fontFamily: 'CormorantGaramond-Regular', fontSize: 16 }}>
+          <Text
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+            style={{ color: '#A30046', marginTop: 10, fontFamily: 'CormorantGaramond-Regular', fontSize: 16 }}
+          >
             {errorMessage}
           </Text>
         ) : null}

@@ -52,8 +52,8 @@ import { PENDING_SIGNUP_KEY } from '../signup-save';
 const signUp = async () => {
   await render(<AccountSetup />);
   for (const picker of screen.getAllByText('pick')) await fireEvent.press(picker);
-  await fireEvent.changeText(screen.getByPlaceholderText('Email'), 'sam@example.edu');
-  await fireEvent.changeText(screen.getByPlaceholderText('Password'), 'hunter22');
+  await fireEvent.changeText(screen.getByLabelText('Email'), 'sam@example.edu');
+  await fireEvent.changeText(screen.getByLabelText('Password'), 'hunter22');
   await fireEvent.press(screen.getByLabelText('Read and agree to the Terms of Service'));
   await fireEvent.press(screen.getByText('I agree to the Terms of Service'));
   await fireEvent.press(screen.getByLabelText('Read and agree to the Privacy Policy'));
@@ -81,4 +81,18 @@ test('a clean save leaves nothing pending', async () => {
   mockSaveProfile.mockResolvedValue({ success: true });
   await signUp();
   expect(mockStore.has(PENDING_SIGNUP_KEY)).toBe(false);
+});
+
+test('Next is there from the start; pressing it early says what is missing, field by field', async () => {
+  await render(<AccountSetup />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Next' }));
+  expect(screen.getByText('Pick your expected graduation year.')).toBeTruthy();
+  expect(screen.getByText('Enter your email.')).toBeTruthy();
+  expect(screen.getByText('Agree to the Terms of Service and the Privacy Policy to continue.')).toBeTruthy();
+  expect(mockCtx.setIsLoggedIn).not.toHaveBeenCalled();
+
+  // Fixing a field clears its message while the others stay.
+  await fireEvent.changeText(screen.getByLabelText('Email'), 'sam@example.edu');
+  expect(screen.queryByText('Enter your email.')).toBeNull();
+  expect(screen.getByText('Pick your expected graduation year.')).toBeTruthy();
 });

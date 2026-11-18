@@ -3,6 +3,7 @@ import { View, Text, Image, TouchableOpacity, ScrollView, Animated, Platform, St
 import { useNavigation } from '@react-navigation/native';
 import { useAppContext } from './AppContext';
 import BackgroundImage from './styleComponents/BackgroundImage';
+import useReduceMotion from './components/ui/useReduceMotion';
 import { STONE } from './theme';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
@@ -358,6 +359,7 @@ const PreferenceQuiz = () => {
   const navigation = useNavigation();
   const scrollRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const reduceMotion = useReduceMotion();
 
   const q = QUESTIONS[currentQuestion];
   const totalQuestions = QUESTIONS.length;
@@ -395,7 +397,12 @@ const PreferenceQuiz = () => {
 
   const currentAnswered = isAnswered(currentQuestion);
 
+  // Cross-fade between questions; with Reduce Motion on, switch at once.
   const animateTransition = (callback) => {
+    if (reduceMotion) {
+      callback();
+      return;
+    }
     Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
       callback();
       Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();

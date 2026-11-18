@@ -111,6 +111,14 @@ export const AppProvider = ({ children }) => {
     if (r.failed && r.uid) runRestore(r.uid, authGenRef.current);
   }, [runRestore]);
 
+  // Re-read the saved profile even after a successful restore: signup details
+  // that saved late (PendingSaveBanner) landed after this launch's restore.
+  // No-op until a restore has run for a signed-in account.
+  const reloadProfile = useCallback(() => {
+    const r = restoreRef.current;
+    if (r.uid) runRestore(r.uid, authGenRef.current);
+  }, [runRestore]);
+
   // Coming back to the app is the likeliest moment the connection returned.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
@@ -262,6 +270,7 @@ export const AppProvider = ({ children }) => {
         setDataSaleOptOut,
         profileStatus,
         retryProfileRestore,
+        reloadProfile,
       }}
     >
       {children}

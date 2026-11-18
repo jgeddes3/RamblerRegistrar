@@ -5,8 +5,9 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from './AppContext';
 import { upgradeAnonymousAccount } from './auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveUserProfile, addUserCourse, saveQuizResults } from './firestore-data';
-import { saveCoursesConcurrently } from './course-sync';
+import { saveSignupData, storePendingSignup } from './signup-save';
 import { POLICY_VERSION } from './privacy-policy-content';
 import { TERMS_VERSION, TERMS_TITLE, TERMS_SECTIONS } from './terms-content';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
@@ -14,6 +15,7 @@ import SearchBar from './styleComponents/SearchBar';
 import BackgroundImage from './styleComponents/BackgroundImage';
 
 const CLASS_YEARS = ['Freshman', 'Sophomore', 'Junior', 'Senior'];
+const SIGNUP_SAVE_API = { saveUserProfile, saveQuizResults, addUserCourse };
 
 const AccountSetup =() => {
   const [year, setYear] = useState('');
@@ -51,9 +53,12 @@ const AccountSetup =() => {
       setIsHonors(isHonors);
       setIsAthlete(isAthlete);
 
-      // Save onboarding selections to Firestore
-      try {
-        await saveUserProfile(firebaseUser.uid, {
+      // Save onboarding selections: profile, quiz and taken courses at once,
+      // so a bad connection costs one write timeout here, not one per save.
+      // Whatever didn't save is kept on the phone; PendingSaveBanner retries
+      // it and tells the user if it still won't go through.
+      const signupData = {
+        profile: {
           selectedProgramId: selectedProgram?.id || null,
           selectedProgram2Id: selectedProgram2?.id || null,
           selectedMinors: (selectedMinors || []).map(m => m.id),
@@ -63,28 +68,21 @@ const AccountSetup =() => {
           isAthlete: isAthlete,
           privacyPolicyVersion: POLICY_VERSION,
           termsVersion: TERMS_VERSION,
-        });
-
-        // Quiz results and taken courses, all at once. Awaiting them one by
-        // one left this screen on "..." for minutes on a bad connection; each
-        // save gives up on its own, so together they take one timeout at most.
-        await Promise.allSettled([
-          quizResults
-            ? saveQuizResults(firebaseUser.uid, {
-                scores: quizResults.scores,
-                code: quizResults.code,
-                profileName: quizResults.profileName,
-                answers: quizResults.answers,
-                schedulingPrefs: quizResults.schedulingPrefs || {},
-              })
-            : null,
-          saveCoursesConcurrently(
-            (selectedCourses || []).map((course) => course.code),
-            (code) => addUserCourse(firebaseUser.uid, code, null, null)
-          ),
-        ]);
-      } catch (e) {
-        // Non-critical — profile can be saved later
+        },
+        quiz: quizResults
+          ? {
+              scores: quizResults.scores,
+              code: quizResults.code,
+              profileName: quizResults.profileName,
+              answers: quizResults.answers,
+              schedulingPrefs: quizResults.schedulingPrefs || {},
+            }
+          : null,
+        courseCodes: (selectedCourses || []).map((course) => course.code),
+      };
+      const saved = await saveSignupData(firebaseUser.uid, signupData, SIGNUP_SAVE_API);
+      if (!saved.ok) {
+        await storePendingSignup(AsyncStorage, firebaseUser.uid, saved.remaining).catch(() => {});
       }
       // linkWithCredential preserves the uid, so onAuthStateChanged does NOT
       // fire after upgrading an anonymous account — update context explicitly

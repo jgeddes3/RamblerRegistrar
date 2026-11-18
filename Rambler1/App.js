@@ -19,6 +19,7 @@ import showAlert from './alert';
 import { resolveRegistrationTerm } from './term';
 import { afterModalDismiss } from './modal-sequencing';
 import TopBar from './components/TopBar';
+import PendingSaveBanner from './components/PendingSaveBanner';
 import MenuOverlay from './components/MenuOverlay';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
 import ProfileScreen from './screens/ProfileScreen';
@@ -156,6 +157,7 @@ const MainTabs = () => {
         onMenuPress={() => setMenuVisible(true)}
         onProfilePress={() => setProfileVisible(true)}
       />
+      <PendingSaveBanner />
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,

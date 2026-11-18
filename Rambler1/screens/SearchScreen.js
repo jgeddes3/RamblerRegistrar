@@ -286,6 +286,9 @@ const RecentSearches = ({ searches, onSelect, onRemove }) => {
 // MAIN SEARCH SCREEN
 // =============================================================================
 
+// A result counts as in view once any part of its card shows.
+const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 1 };
+
 const SearchScreen = () => {
   const { selectedProgram } = useAppContext();
   const TERM = useRegistrationTerm();
@@ -470,8 +473,24 @@ const SearchScreen = () => {
       loadSectionsForCourses(finalResults);
     } catch (e) {}
     if (gen === searchGenRef.current) setLoading(false);
-    saveRecent(q);
-  }, [sortResults, saveRecent, loadSectionsForCourses]);
+  }, [sortResults, loadSectionsForCourses]);
+
+  // A query becomes a "recent search" only when the user commits to it:
+  // submits the box, opens a result, or picks a department/recent. Saving on
+  // every debounced keystroke filled the list with half-typed fragments.
+  const rememberQuery = () => {
+    const q = query.trim();
+    if (q) saveRecent(q);
+  };
+
+  // Results past the first preloaded batch get their sections as they scroll
+  // into view (they used to stay blank forever). loadSectionsForCourses skips
+  // anything already requested, so this is cheap to call repeatedly. FlatList
+  // requires this callback's identity never to change: its only dependency is
+  // itself stable.
+  const onViewableItemsChanged = useCallback(({ viewableItems }) => {
+    loadSectionsForCourses((viewableItems || []).map((v) => v.item).filter(Boolean));
+  }, [loadSectionsForCourses]);
 
   const onSearchChange = (text) => {
     setQuery(text);
@@ -491,6 +510,7 @@ const SearchScreen = () => {
   };
 
   const handleCoursePress = (course) => {
+    rememberQuery();
     setDetailModal({
       visible: true,
       course: {
@@ -506,6 +526,7 @@ const SearchScreen = () => {
   };
 
   const handleSectionPress = (section, course) => {
+    rememberQuery();
     setDetailModal({
       visible: true,
       course: {
@@ -522,6 +543,7 @@ const SearchScreen = () => {
 
   const handleDeptSelect = (code) => {
     setQuery(code);
+    saveRecent(code);
     performSearch(code);
   };
 
@@ -537,6 +559,7 @@ const SearchScreen = () => {
           placeholderTextColor="#999"
           value={query}
           onChangeText={onSearchChange}
+          onSubmitEditing={rememberQuery}
           autoCorrect={false}
           returnKeyType="search"
         />
@@ -591,6 +614,8 @@ const SearchScreen = () => {
               onSectionPress={handleSectionPress}
             />
           )}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={VIEWABILITY_CONFIG}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           contentContainerStyle={{ paddingBottom: 30 }}

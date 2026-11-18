@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from './fetch-timeout';
+
 // Legacy/alternate prefix map — RMP sometimes uses old or non-standard codes
 const PREFIX_ALIASES = {
   'CS': 'COMP',       // Old CS prefix → current COMP
@@ -33,7 +35,8 @@ const RMP_AUTH = 'Basic dGVzdDp0ZXN0';
 const LOYOLA_SCHOOL_ID = 'U2Nob29sLTU0MA=='; // School-540 (Loyola University Chicago)
 
 const rmpFetch = async (query, variables) => {
-  const response = await fetch(RMP_ENDPOINT, {
+  // With a deadline: a bare fetch() never times out in React Native.
+  const response = await fetchWithTimeout(RMP_ENDPOINT, {
     method: 'POST',
     headers: {
       'Authorization': RMP_AUTH,

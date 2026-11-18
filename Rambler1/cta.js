@@ -8,6 +8,7 @@
 // direction and stops-between math depend on it.
 
 import { haversineMeters, walkMinutesFromMeters } from './commute-utils';
+import { fetchWithTimeout } from './fetch-timeout';
 
 export const RED_LINE_STATIONS = [
   { name: 'Howard', mapId: 40900, latitude: 42.019063, longitude: -87.672892 },
@@ -172,7 +173,8 @@ export async function getTrainArrivals(mapId, max = 3) {
     const url =
       'https://lapi.transitchicago.com/api/1.0/ttarrivals.aspx' +
       `?key=${encodeURIComponent(key)}&mapid=${mapId}&max=${max}&outputType=JSON`;
-    const res = await fetch(url);
+    // With a deadline: a bare fetch() never times out in React Native.
+    const res = await fetchWithTimeout(url);
     const json = await res.json();
     const etas = Array.isArray(json?.ctatt?.eta) ? json.ctatt.eta : [];
     const rows = [];

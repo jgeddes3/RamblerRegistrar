@@ -123,6 +123,9 @@ describe('getTrainArrivals', () => {
     jest.resetModules();
   });
 
+  // Shaped like a real fetch Response (the body is read as text).
+  const okJson = (body) => ({ ok: true, status: 200, text: async () => JSON.stringify(body) });
+
   const PAYLOAD = {
     ctatt: {
       eta: [
@@ -143,7 +146,7 @@ describe('getTrainArrivals', () => {
 
   test('parses a mocked payload with a key, Red Line rows only', async () => {
     process.env.EXPO_PUBLIC_CTA_TRAIN_KEY = 'test-key';
-    global.fetch = jest.fn().mockResolvedValue({ json: async () => PAYLOAD });
+    global.fetch = jest.fn().mockResolvedValue(okJson(PAYLOAD));
     const cta = freshCta();
     const rows = await cta.getTrainArrivals(41300);
     expect(rows).toEqual([
@@ -159,7 +162,7 @@ describe('getTrainArrivals', () => {
 
   test('60s cache: second call reuses the first fetch', async () => {
     process.env.EXPO_PUBLIC_CTA_TRAIN_KEY = 'test-key';
-    global.fetch = jest.fn().mockResolvedValue({ json: async () => PAYLOAD });
+    global.fetch = jest.fn().mockResolvedValue(okJson(PAYLOAD));
     const cta = freshCta();
     const first = await cta.getTrainArrivals(41300);
     const second = await cta.getTrainArrivals(41300);
@@ -174,9 +177,27 @@ describe('getTrainArrivals', () => {
     await expect(cta.getTrainArrivals(41300)).resolves.toEqual([]);
   });
 
+  test('resolves [] when the request stalls, instead of waiting forever', async () => {
+    process.env.EXPO_PUBLIC_CTA_TRAIN_KEY = 'test-key';
+    jest.useFakeTimers();
+    try {
+      global.fetch = jest.fn((url, opts) => new Promise((resolve, reject) => {
+        // Never answers; only an abort signal (if one was passed) ends it.
+        if (opts && opts.signal) opts.signal.addEventListener('abort', () => reject(new Error('Aborted')));
+      }));
+      const cta = freshCta();
+      let rows = 'PENDING';
+      cta.getTrainArrivals(41300).then((r) => { rows = r; });
+      await jest.advanceTimersByTimeAsync(30000);
+      expect(rows).toEqual([]);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('resolves [] on a malformed payload', async () => {
     process.env.EXPO_PUBLIC_CTA_TRAIN_KEY = 'test-key';
-    global.fetch = jest.fn().mockResolvedValue({ json: async () => ({ nope: true }) });
+    global.fetch = jest.fn().mockResolvedValue(okJson({ nope: true }));
     const cta = freshCta();
     await expect(cta.getTrainArrivals(41300)).resolves.toEqual([]);
   });

@@ -36,7 +36,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   setItem: jest.fn(async () => {}),
 }));
 
-import SearchScreen from '../screens/SearchScreen';
+import SearchScreen, { PRELOAD_COURSES, SECTIONS_SHOWN } from '../screens/SearchScreen';
 import { resolveRegistrationTerm, __resetTermForTests } from '../term';
 
 const NOV_2026 = new Date(2026, 10, 18); // calendar registration term: 1272
@@ -128,7 +128,7 @@ describe('sections beyond the first batch', () => {
     mockSearchCourses.mockResolvedValue(MANY);
     await render(<SearchScreen />);
     await search('SUBJ');
-    await waitFor(() => expect(mockGetCourseSections).toHaveBeenCalledTimes(30));
+    await waitFor(() => expect(mockGetCourseSections).toHaveBeenCalledTimes(PRELOAD_COURSES));
     expect(mockGetCourseSections).not.toHaveBeenCalledWith('1272', 'SUBJ 140');
 
     await act(async () => {
@@ -138,7 +138,7 @@ describe('sections beyond the first batch', () => {
       });
     });
     await waitFor(() => expect(mockGetCourseSections).toHaveBeenCalledWith('1272', 'SUBJ 140'));
-    expect(mockGetCourseSections).toHaveBeenCalledTimes(35);
+    expect(mockGetCourseSections).toHaveBeenCalledTimes(PRELOAD_COURSES + 5);
   });
 });
 
@@ -165,5 +165,37 @@ describe('failed reads show an error with Try again', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Try again loading sections for COMP 170' }));
     await waitFor(() => expect(mockGetCourseSections).toHaveBeenCalledTimes(2));
     expect(await screen.findByText(/No sections for/)).toBeTruthy();
+  });
+});
+
+describe('lighter results', () => {
+  const SECTIONS = Array.from({ length: 5 }, (_, i) => ({
+    id: String(5000 + i), class_number: String(5000 + i), section_number: `00${i + 1}`,
+    subject: 'COMP', catalog_number: '170', enrollment_cap: 30, enrollment_total: 10,
+  }));
+
+  test('a card shows the first few sections, and Show all reveals the rest', async () => {
+    mockGetCourseSections.mockResolvedValue(SECTIONS);
+    await render(<SearchScreen />);
+    await search('COMP 170');
+    expect(await screen.findByText('Sec 001')).toBeTruthy();
+    expect(SECTIONS_SHOWN).toBe(3);
+    expect(screen.queryByText('Sec 004')).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Show all 5 sections of COMP 170' }));
+    expect(screen.getByText('Sec 005')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Show fewer sections of COMP 170' }));
+    expect(screen.queryByText('Sec 005')).toBeNull();
+  });
+
+  test('only the first results get their sections up front', () => {
+    expect(PRELOAD_COURSES).toBeLessThanOrEqual(10);
+  });
+
+  test('clearing the box cancels a search that has not started yet', async () => {
+    await render(<SearchScreen />);
+    await fireEvent.changeText(screen.getByPlaceholderText(/Search courses/), 'COMP');
+    await fireEvent.press(screen.getByRole('button', { name: 'Clear search' }));
+    await new Promise((r) => setTimeout(r, 400)); // past the 250 ms debounce
+    expect(mockSearchCourses).not.toHaveBeenCalled();
   });
 });

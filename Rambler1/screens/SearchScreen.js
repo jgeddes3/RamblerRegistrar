@@ -55,6 +55,15 @@ const DEPARTMENTS = [
 
 const RECENT_KEY = '@rambler_recent_searches';
 
+// A search used to read and draw every section of up to 30 courses at once
+// (about 50 Firestore reads). Now the first few results load their sections
+// up front and the rest load as they scroll into view, and a card draws its
+// first few sections with "Show all" for the rest. Sections are still read
+// whole per course: the filters (open only, time, days) run on the phone and
+// need every section to be right.
+export const PRELOAD_COURSES = 8;
+export const SECTIONS_SHOWN = 3;
+
 // =============================================================================
 // FILTER CHIPS
 // =============================================================================
@@ -172,6 +181,7 @@ function getFillFlag(fillStats) {
 
 const CourseCard = ({ course, sections, sectionsLoading, sectionsFailed, filters, onCoursePress, onSectionPress, onRetrySections }) => {
   const TERM = useRegistrationTerm();
+  const [expanded, setExpanded] = useState(false);
   // Filter sections by active filters
   const filteredSections = (sections || []).filter(sec => {
     if (filters.openOnly) {
@@ -240,13 +250,30 @@ const CourseCard = ({ course, sections, sectionsLoading, sectionsFailed, filters
             retryLabel={`Try again loading sections for ${course.code}`}
           />
         ) : filteredSections.length > 0 ? (
-          filteredSections.map((sec, i) => (
-            <SectionRow
-              key={sec.id || sec.class_number || i}
-              section={sec}
-              onPress={() => onSectionPress(sec, course)}
-            />
-          ))
+          <>
+            {(expanded ? filteredSections : filteredSections.slice(0, SECTIONS_SHOWN)).map((sec, i) => (
+              <SectionRow
+                key={sec.id || sec.class_number || i}
+                section={sec}
+                onPress={() => onSectionPress(sec, course)}
+              />
+            ))}
+            {filteredSections.length > SECTIONS_SHOWN ? (
+              <TouchableOpacity
+                style={s.showAll}
+                onPress={() => setExpanded((v) => !v)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded }}
+                accessibilityLabel={expanded
+                  ? `Show fewer sections of ${course.code}`
+                  : `Show all ${filteredSections.length} sections of ${course.code}`}
+              >
+                <Text style={s.showAllText}>
+                  {expanded ? 'Show fewer' : `Show all ${filteredSections.length} sections`}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </>
         ) : sections && sections.length > 0 ? (
           <Text style={s.noMatchText}>No sections match current filters</Text>
         ) : sections ? (
@@ -496,8 +523,8 @@ const SearchScreen = () => {
       setResults(finalResults);
       setSearchFailed(fetched === null);
 
-      // Pre-load sections for all results in background
-      loadSectionsForCourses(finalResults);
+      // Sections for the first results now; the rest as they scroll into view.
+      loadSectionsForCourses(finalResults.slice(0, PRELOAD_COURSES));
     } catch (e) {
       if (gen === searchGenRef.current) setSearchFailed(true);
     }
@@ -536,8 +563,13 @@ const SearchScreen = () => {
   };
 
   const clearSearch = () => {
+    // A search typed in the last 250 ms hasn't started yet: cancel it, and
+    // drop the results of one still in flight, or they'd land on a cleared box.
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    searchGenRef.current += 1;
     setQuery('');
     setResults([]);
+    setLoading(false);
     setSearchFailed(false);
     inputRef.current?.focus();
   };
@@ -825,6 +857,8 @@ const s = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
   },
+  showAll: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 14 },
+  showAllText: { fontSize: 14, fontWeight: '600', color: '#A30046' },
   noMatchText: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 14,

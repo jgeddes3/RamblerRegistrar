@@ -15,6 +15,10 @@
 //   3. termsVersion is present (accepted the Terms of Service).
 //   4. The account has an email in Firebase Auth (anonymous browsers and
 //      half-created accounts are excluded).
+//   5. That email is VERIFIED in Firebase Auth. Sign-up takes any address
+//      without proof, so an unverified account may carry a stranger's email
+//      and a consent that stranger never gave.
+// The rule itself lives in sale-eligibility.js (tests/sale-eligibility.test.js).
 //
 // Exported categories are EXACTLY the disclosed ones — name, email address,
 // and the personal data the user input into the app (profile selections, quiz
@@ -39,16 +43,20 @@ if (!admin.apps.length) {
   });
 }
 
-const SALE_DISCLOSED_SINCE = '2026-08-20';
+const { saleExclusion } = require('./sale-eligibility');
 
-// All Firebase Auth users, uid -> { email, displayName }.
+// All Firebase Auth users, uid -> { email, emailVerified, displayName }.
 async function listAuthUsers() {
   const byUid = new Map();
   let pageToken;
   do {
     const page = await admin.auth().listUsers(1000, pageToken);
     for (const u of page.users) {
-      byUid.set(u.uid, { email: u.email || null, displayName: u.displayName || null });
+      byUid.set(u.uid, {
+        email: u.email || null,
+        emailVerified: u.emailVerified === true,
+        displayName: u.displayName || null,
+      });
     }
     pageToken = page.pageToken;
   } while (pageToken);
@@ -69,16 +77,13 @@ async function subcollection(uid, name) {
   ]);
 
   const eligible = [];
-  const excluded = { optedOut: 0, preSalePolicy: 0, noTerms: 0, noEmail: 0 };
+  const excluded = { optedOut: 0, preSalePolicy: 0, noTerms: 0, noEmail: 0, unverifiedEmail: 0 };
 
   for (const doc of profilesSnap.docs) {
     const p = doc.data();
     const auth = authUsers.get(doc.id);
-    if (!auth || !auth.email) { excluded.noEmail++; continue; }
-    if (p.dataSaleOptOut === true) { excluded.optedOut++; continue; }
-    const policy = typeof p.privacyPolicyVersion === 'string' ? p.privacyPolicyVersion : '';
-    if (!policy || policy < SALE_DISCLOSED_SINCE) { excluded.preSalePolicy++; continue; }
-    if (typeof p.termsVersion !== 'string' || !p.termsVersion) { excluded.noTerms++; continue; }
+    const reason = saleExclusion(auth, p);
+    if (reason) { excluded[reason]++; continue; }
     eligible.push({ uid: doc.id, auth, profile: p });
   }
 
@@ -88,6 +93,7 @@ async function subcollection(uid, name) {
   console.log(`  excluded — pre-sale policy:    ${excluded.preSalePolicy} (never consented to any sale)`);
   console.log(`  excluded — no Terms accepted:  ${excluded.noTerms}`);
   console.log(`  excluded — no email/anonymous: ${excluded.noEmail}`);
+  console.log(`  excluded — email not verified: ${excluded.unverifiedEmail}`);
 
   if (!writeArg) {
     console.log('\nDry run — no file written. Pass --write=out.json to export.');

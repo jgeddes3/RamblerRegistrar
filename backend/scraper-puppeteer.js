@@ -40,6 +40,29 @@ function parseEnrollmentFields(raw) {
   };
 }
 
+// Close the page and browser without ever waiting forever. A Chrome that hangs
+// on close() used to leave scrape()/pollWatches() pending, which kept
+// scrapeInProgress/pollInProgress set in server.js and silently skipped every
+// later scrape and poll. After timeoutMs the browser process is killed.
+async function closeBrowserBounded(browser, page, { timeoutMs = 15000, settleMs = 2000 } = {}) {
+  const withTimeout = (promise) => new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('close timed out')), timeoutMs);
+    Promise.resolve(promise).then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+  try {
+    await withTimeout(page ? page.close() : null).catch(() => {});
+    await new Promise((r) => setTimeout(r, settleMs)); // Let Chrome release file locks
+    await withTimeout(browser.close());
+  } catch (e) {
+    // Graceful close failed or hung — force kill so the lock can be released.
+    console.error(`Browser close failed (${e.message}) — killing the browser process.`);
+    try { browser.process()?.kill('SIGKILL'); } catch (k) {}
+  }
+}
+
 class LocusPuppeteerScraper {
   constructor() {
     this.browser = null;
@@ -63,14 +86,7 @@ class LocusPuppeteerScraper {
 
   async close() {
     if (this.browser) {
-      try {
-        await this.page?.close().catch(() => {});
-        await new Promise(r => setTimeout(r, 2000)); // Let Chrome release file locks
-        await this.browser.close();
-      } catch (e) {
-        // Force kill if graceful close fails
-        try { this.browser.process()?.kill('SIGKILL'); } catch (k) {}
-      }
+      await closeBrowserBounded(this.browser, this.page);
       this.browser = null;
       this.page = null;
     }
@@ -624,7 +640,9 @@ if (require.main === module) {
   const termCode = args[0] && !args[0].startsWith('-') ? args[0] : undefined;
   const subjects = args[1] ? args[1].split(',') : undefined;
 
-  scrape(termCode, subjects, fetchEnrollment)
+  // The CLI saves the whole DB image; refuse while the server is up (--force overrides).
+  require('./cli-guard').requireServerStopped('scraper-puppeteer.js')
+    .then(() => scrape(termCode, subjects, fetchEnrollment))
     .then((sections) => {
       console.log('\nScrape complete.');
       process.exit(0);
@@ -635,4 +653,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { scrape, defaultScrapeTerm, LocusPuppeteerScraper, SUBJECTS, TERM_CODES, parseEnrollmentFields };
+module.exports = { scrape, defaultScrapeTerm, LocusPuppeteerScraper, SUBJECTS, TERM_CODES, parseEnrollmentFields, closeBrowserBounded };

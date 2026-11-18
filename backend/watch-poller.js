@@ -38,6 +38,7 @@ const STATE_REFRESH_MS = 6 * 60 * 60 * 1000; // rewrite unchanged state docs at 
 // admin-only watchPoller/_meta doc) so every subject is covered within a few
 // cycles.
 const MAX_SUBJECTS_PER_POLL = 12;
+const EXPO_TIMEOUT_MS = 15 * 1000; // exp.host must not be able to hang a poll
 
 function initFirestore() {
   const admin = require('firebase-admin');
@@ -54,6 +55,16 @@ function initFirestore() {
 function isClosedish(status) {
   if (!status) return false;
   return status === 'Closed' || /wait\s*list|waitlist/i.test(status);
+}
+
+// A scraped status is only trustworthy when it is a non-empty string. The
+// scraper yields '' when the status icon is missing from the page (partial
+// render / dropped session). Recording that as lastStatus would erase the real
+// 'Closed', so a later Closed -> Open flip would never alert.
+function usableStatus(raw) {
+  if (typeof raw !== 'string') return null;
+  const t = raw.trim();
+  return t === '' ? null : t;
 }
 
 function meetingSummary(sec) {
@@ -88,24 +99,32 @@ function redactToken(token) {
 // (Expo caps 100 messages/request — far above realistic watch volume here.)
 // Error tickets can echo the full token in their message — log only the
 // redacted token plus the ticket's error code / sanitized message.
-// Returns a boolean array aligned with `messages`: true where Expo accepted
-// the message (ticket status 'ok'). A request-level failure (network error /
-// non-2xx) returns all-false so the caller can retry on a later poll.
-async function sendExpoPushes(messages) {
+// Returns { accepted, deadTokens }. accepted is a boolean array aligned with
+// `messages`: true where Expo accepted the message (ticket status 'ok'). A
+// request-level failure (network error / timeout / non-2xx) returns all-false so
+// the caller can retry on a later poll. deadTokens lists tokens Expo reported as
+// DeviceNotRegistered (app uninstalled) so the caller can stop retrying them.
+// The request is aborted after timeoutMs so a hung exp.host cannot wedge the
+// poll lock. fetchImpl/timeoutMs are injectable for tests.
+async function sendExpoPushes(messages, { fetchImpl = fetch, timeoutMs = EXPO_TIMEOUT_MS } = {}) {
   const accepted = new Array(messages.length).fill(false);
-  if (messages.length === 0) return accepted;
+  const deadTokens = [];
+  if (messages.length === 0) return { accepted, deadTokens };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(EXPO_PUSH_URL, {
+    const res = await fetchImpl(EXPO_PUSH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(messages),
+      signal: controller.signal,
     });
     const body = await res.json().catch(() => null);
     if (!res.ok) {
       // Request-level error bodies can list full tokens in details — redact.
       const raw = String(JSON.stringify(body)).replace(/ExponentPushToken\[[^\]]*\]/g, (m) => redactToken(m));
       console.error(`[watch-poller] Expo push HTTP ${res.status}:`, raw);
-      return accepted;
+      return { accepted, deadTokens };
     }
     const tickets = (body && body.data) || [];
     tickets.forEach((t, i) => {
@@ -116,14 +135,19 @@ async function sendExpoPushes(messages) {
         console.log(`[watch-poller] push ok -> ${to} (${messages[i].title})`);
       } else {
         const errCode = (t.details && t.details.error) || t.status || 'unknown';
+        if (errCode === 'DeviceNotRegistered' && !deadTokens.includes(messages[i].to)) {
+          deadTokens.push(messages[i].to);
+        }
         const msg = String(t.message || '').split(messages[i].to).join(to);
         console.error(`[watch-poller] push error -> ${to}: ${errCode}${msg ? ` — ${msg}` : ''}`);
       }
     });
   } catch (err) {
     console.error('[watch-poller] Expo push request failed:', err.message || err);
+  } finally {
+    clearTimeout(timer);
   }
-  return accepted;
+  return { accepted, deadTokens };
 }
 
 async function pollWatches({ termCode } = {}) {
@@ -259,7 +283,14 @@ async function pollWatches({ termCode } = {}) {
       console.log(`[watch-poller] scraping term ${term}: ${subjects.join(', ')}`);
       const sections = await scraper.scrapeAll(term, subjects, false);
       for (const s of sections) {
-        statusByKey.set(`${term}_${String(s.class_number)}`, s.status);
+        // Blank status = unreadable, not "no status": leave the class out of
+        // statusByKey so its stored state is untouched this round.
+        const status = usableStatus(s.status);
+        if (status === null) {
+          console.log(`[watch-poller] ${term}_${s.class_number}: blank status in scrape — ignoring this read.`);
+          continue;
+        }
+        statusByKey.set(`${term}_${String(s.class_number)}`, status);
       }
     }
   } catch (err) {
@@ -284,6 +315,7 @@ async function pollWatches({ termCode } = {}) {
 
   const messages = [];
   const messageKeys = []; // messageKeys[i] = watchPoller key that queued messages[i]
+  const messageUids = []; // messageUids[i] = user who owns messages[i]'s token
   let notified = 0, transitions = 0, firstSightings = 0, checked = 0;
 
   for (const [key, entry] of byKey) {
@@ -353,6 +385,7 @@ async function pollWatches({ termCode } = {}) {
             data: { classNumber: entry.classNumber, termCode: entry.termCode },
           });
           messageKeys.push(key);
+          messageUids.push(uid);
           queuedForKey++;
         } else {
           console.log(`[watch-poller] ${key}: uid ${uid} has no valid expoPushToken — skipping push.`);
@@ -394,7 +427,7 @@ async function pollWatches({ termCode } = {}) {
   // Batch every queued message into ONE exp.host request, THEN record
   // notifiedAt only for classes where at least one ticket was accepted.
   // Classes whose pushes all failed keep notifyPending and retry next poll.
-  const accepted = await sendExpoPushes(messages);
+  const { accepted, deadTokens } = await sendExpoPushes(messages);
   const anyAcceptedByKey = new Map();
   accepted.forEach((ok, i) => {
     const k = messageKeys[i];
@@ -416,6 +449,27 @@ async function pollWatches({ termCode } = {}) {
     }
   }
 
+  // Drop tokens Expo says are dead so they are not retried forever. Only the
+  // user doc's expoPushToken field is touched (never users/{uid}/watches/*),
+  // and only if it still holds the dead token (the app may have re-registered).
+  let tokensCleared = 0;
+  for (const dead of deadTokens) {
+    const uids = new Set(messageUids.filter((_, i) => messages[i].to === dead));
+    for (const uid of uids) {
+      try {
+        const userRef = fdb.collection('users').doc(uid);
+        const cur = await userRef.get();
+        if (cur.exists && cur.data().expoPushToken === dead) {
+          await userRef.update({ expoPushToken: admin.firestore.FieldValue.delete() });
+          tokensCleared++;
+          console.log(`[watch-poller] removed dead push token ${redactToken(dead)} from user ${uid}.`);
+        }
+      } catch (err) {
+        console.error(`[watch-poller] dead token cleanup failed for ${uid}:`, err.message || err);
+      }
+    }
+  }
+
   const result = {
     watches: watches.length,
     resolved: resolved.length,
@@ -424,12 +478,13 @@ async function pollWatches({ termCode } = {}) {
     transitions,
     pushesQueued: messages.length,
     notified, // pushes ACCEPTED by exp.host (not merely queued)
+    tokensCleared,
   };
   console.log('[watch-poller] done:', JSON.stringify(result));
   return result;
 }
 
-module.exports = { pollWatches };
+module.exports = { pollWatches, usableStatus, sendExpoPushes };
 
 // --- CLI: node watch-poller.js [--once] [--term=1266] ------------------------
 if (require.main === module) {

@@ -370,6 +370,7 @@ async function seed() {
 
   // --- Init DB ---
   console.log('Initializing database...');
+  await require('./cli-guard').requireServerStopped('seed.js');
   await db.initDb();
 
   // Clear existing catalog data so we can reseed cleanly

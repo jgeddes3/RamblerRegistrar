@@ -76,6 +76,39 @@ function clean(obj) {
   return out;
 }
 
+// Section fields that LOCUS can legitimately empty out (instructor removed,
+// meeting time/room dropped). These are deleted from the Firestore doc when
+// empty. Everything else (identity fields, enrollment, status, recentHistory,
+// updatedAt) is never deleted.
+const CLEARABLE_FIELDS = [
+  'instructorName', 'instructorId', 'meetingDays', 'meetingTimeStart',
+  'meetingTimeEnd', 'room', 'building',
+];
+
+// Build one section's Firestore payload plus the clearable fields that are
+// empty right now. The change hash covers the cleaned payload only, so a field
+// going empty drops its key and changes the hash (the doc gets rewritten).
+function sectionDoc(s) {
+  const cap = s.enrollment_cap || 0;
+  const total = s.enrollment_total || 0;
+  const instructorId = s.instructor ? slug(s.instructor) : null;
+  const payload = clean({
+    termCode: s.term_code, subject: s.subject, catalogNumber: s.catalog_number,
+    courseCode: s.subject && s.catalog_number ? `${s.subject} ${s.catalog_number}` : null,
+    sectionNumber: s.section_number, classNumber: s.class_number, title: s.title,
+    instructorName: s.instructor, instructorId,
+    meetingDays: s.meeting_days, meetingTimeStart: s.meeting_time_start,
+    meetingTimeEnd: s.meeting_time_end, room: s.room, building: s.building,
+    enrollment: {
+      cap, total, waitlistCap: s.waitlist_cap || 0, waitlistTotal: s.waitlist_total || 0,
+      percentFull: cap > 0 ? Math.round((100 * total) / cap) : 0,
+    },
+    instructionMode: s.instruction_mode, component: s.component, status: s.status || 'active',
+  });
+  const clearFields = CLEARABLE_FIELDS.filter((f) => !(f in payload));
+  return { payload, clearFields };
+}
+
 // Key-sorted stringify so hashes don't depend on object key insertion order.
 function stableStringify(value) {
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
@@ -143,31 +176,23 @@ async function syncTermToFirestore(termCode, opts = {}) {
     const classNumber = String(s.class_number);
     const docId = sanitizeId(classNumber);
     seen.add(docId);
-    const cap = s.enrollment_cap || 0;
-    const total = s.enrollment_total || 0;
     const instructorId = s.instructor ? slug(s.instructor) : null;
     if (instructorId) instructors.set(instructorId, s.instructor);
 
-    const payload = clean({
-      termCode: s.term_code, subject: s.subject, catalogNumber: s.catalog_number,
-      courseCode: s.subject && s.catalog_number ? `${s.subject} ${s.catalog_number}` : null,
-      sectionNumber: s.section_number, classNumber: s.class_number, title: s.title,
-      instructorName: s.instructor, instructorId,
-      meetingDays: s.meeting_days, meetingTimeStart: s.meeting_time_start,
-      meetingTimeEnd: s.meeting_time_end, room: s.room, building: s.building,
-      enrollment: {
-        cap, total, waitlistCap: s.waitlist_cap || 0, waitlistTotal: s.waitlist_total || 0,
-        percentFull: cap > 0 ? Math.round((100 * total) / cap) : 0,
-      },
-      instructionMode: s.instruction_mode, component: s.component, status: s.status || 'active',
-    });
+    const { payload, clearFields } = sectionDoc(s);
 
     const hv = hashOf(payload); // recentHistory/updatedAt not part of the hash
     newShadow[docId] = hv;
     if (shadow[docId] === hv) { skipped++; continue; }
 
+    // A field that is now empty is deleted from the doc: clean() drops it from
+    // the payload and the write merges, so without this the old value (e.g. a
+    // departed instructor) would survive in Firestore forever.
+    const deletes = {};
+    for (const f of clearFields) deletes[f] = FieldValue.delete();
     await b.set(termSections.doc(docId), {
       ...payload,
+      ...deletes,
       recentHistory: historyByClass[classNumber] || [],
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
@@ -259,7 +284,7 @@ async function syncTermToFirestore(termCode, opts = {}) {
   };
 }
 
-module.exports = { syncTermToFirestore, initFirestore };
+module.exports = { syncTermToFirestore, initFirestore, sectionDoc, hashOf };
 
 // --- CLI: node firestore-sync.js [termCode] [--reconcile] --------------------
 if (require.main === module) {

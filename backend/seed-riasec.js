@@ -12,6 +12,7 @@
 const db = require('./db');
 
 async function seed() {
+  await require('./cli-guard').requireServerStopped('seed-riasec.js');
   const database = await db.initDb();
 
   // Helper to find program ID by name — prefer exact match, then partial

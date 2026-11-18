@@ -3,7 +3,36 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { usableStatus, sendExpoPushes } = require('../watch-poller');
+const { usableStatus, sendExpoPushes, capWatchesPerUser, MAX_WATCHES_PER_USER } = require('../watch-poller');
+
+// --- per-user watch cap --------------------------------------------------------
+// The rules cannot count documents, so one account can create any number of
+// watches. Past the cap they must not cost section reads, state reads or
+// LOCUS searches, or push other people's subjects out of the poll.
+
+const watch = (uid, n) => ({ uid, classNumber: String(n), termCode: '1272' });
+
+test('capWatchesPerUser: accounts at or under the cap keep every watch', () => {
+  const watches = [watch('a', 1), watch('a', 2), watch('b', 3)];
+  const { kept, overCap } = capWatchesPerUser(watches, 2);
+  assert.deepEqual(kept, watches);
+  assert.deepEqual(overCap, []);
+});
+
+test('capWatchesPerUser: an account over the cap keeps its first ones, in order', () => {
+  const watches = [watch('a', 1), watch('b', 9), watch('a', 2), watch('a', 3), watch('a', 4)];
+  const { kept, overCap } = capWatchesPerUser(watches, 2);
+  assert.deepEqual(kept, [watch('a', 1), watch('b', 9), watch('a', 2)]);
+  assert.deepEqual(overCap, [{ uid: 'a', total: 4 }]);
+});
+
+test('capWatchesPerUser: one account flooding watches does not cost anyone else theirs', () => {
+  const flood = Array.from({ length: 5000 }, (_, i) => watch('attacker', i));
+  const { kept, overCap } = capWatchesPerUser([...flood, watch('student', 77)]);
+  assert.equal(kept.filter((w) => w.uid === 'attacker').length, MAX_WATCHES_PER_USER);
+  assert.deepEqual(kept.filter((w) => w.uid === 'student'), [watch('student', 77)]);
+  assert.deepEqual(overCap, [{ uid: 'attacker', total: 5000 }]);
+});
 
 // --- blank scraped status ------------------------------------------------------
 

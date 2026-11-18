@@ -39,6 +39,25 @@ const STATE_REFRESH_MS = 6 * 60 * 60 * 1000; // rewrite unchanged state docs at 
 // cycles.
 const MAX_SUBJECTS_PER_POLL = 12;
 const EXPO_TIMEOUT_MS = 15 * 1000; // exp.host must not be able to hang a poll
+// Watches honored per account. The security rules cannot count documents, so
+// an account can create any number of them; past this many they are ignored
+// (no section/state reads, no LOCUS searches, no place in the subject rotation).
+const MAX_WATCHES_PER_USER = 25;
+
+// Keep each account's first `max` watches (query order, so the same ones every
+// poll). Returns { kept, overCap: [{ uid, total }] }.
+function capWatchesPerUser(watches, max = MAX_WATCHES_PER_USER) {
+  const counts = new Map();
+  const kept = [];
+  for (const w of watches) {
+    const n = (counts.get(w.uid) || 0) + 1;
+    counts.set(w.uid, n);
+    if (n <= max) kept.push(w);
+  }
+  const overCap = [];
+  for (const [uid, total] of counts) if (total > max) overCap.push({ uid, total });
+  return { kept, overCap };
+}
 
 function initFirestore() {
   const admin = require('firebase-admin');
@@ -174,7 +193,7 @@ async function pollWatches({ termCode } = {}) {
   }
 
   const fallbackTerm = termCode ? String(termCode) : await resolveFallbackTerm(fdb);
-  const watches = snap.docs.map((doc) => {
+  const allWatches = snap.docs.map((doc) => {
     const data = doc.data() || {};
     return {
       uid: doc.ref.parent.parent.id,
@@ -182,6 +201,13 @@ async function pollWatches({ termCode } = {}) {
       termCode: String(data.termCode || fallbackTerm),
     };
   });
+  const { kept: watches, overCap } = capWatchesPerUser(allWatches);
+  for (const { uid, total } of overCap) {
+    console.warn(
+      `[watch-poller] WARNING uid ${uid} has ${total} watches — only the first ` +
+      `${MAX_WATCHES_PER_USER} are polled.`
+    );
+  }
   console.log(`[watch-poller] ${startedAt} ${watches.length} watch(es), fallback term ${fallbackTerm}`);
 
   // --- b. Resolve each watch's section doc (subject/courseCode/meeting) ----
@@ -472,6 +498,7 @@ async function pollWatches({ termCode } = {}) {
 
   const result = {
     watches: watches.length,
+    watchesOverCap: allWatches.length - watches.length,
     resolved: resolved.length,
     classesChecked: checked,
     firstSightings,
@@ -484,7 +511,7 @@ async function pollWatches({ termCode } = {}) {
   return result;
 }
 
-module.exports = { pollWatches, usableStatus, sendExpoPushes };
+module.exports = { pollWatches, usableStatus, sendExpoPushes, capWatchesPerUser, MAX_WATCHES_PER_USER };
 
 // --- CLI: node watch-poller.js [--once] [--term=1266] ------------------------
 if (require.main === module) {

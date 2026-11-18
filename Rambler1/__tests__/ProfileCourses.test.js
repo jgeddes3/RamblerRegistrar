@@ -20,6 +20,8 @@ jest.mock('../firestore-data', () => ({
   setUserLocation: jest.fn(),
 }));
 jest.mock('../auth', () => ({ signOut: jest.fn() }));
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'));
 jest.mock('../campus-api', () => ({ geocodeAddress: jest.fn(), suggestAddresses: jest.fn(async () => []) }));
 jest.mock('../alert', () => jest.fn());
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: jest.fn() }) }));

@@ -64,7 +64,7 @@ export const POLICY_SECTIONS = [
       'Remove your address: replace or clear it in Profile at any time.',
       'Stop seat alerts: unwatch sections, or disable notifications for the app in your device settings.',
       'Opt out of selling and sharing: turn on “Do not sell or share my personal information” in Settings (Profile), or email us (address below); either way we stop selling and sharing your personal information with third parties.',
-      'Delete your account and data: email us (address below) from your account email and we will delete your account and all associated data within 30 days. (In-app account deletion is planned.)',
+      'Delete your account and data: in the app, open Profile and choose Delete account. Your account and all data saved with it, including any feedback you sent, are deleted right away. You can also email us (address below) from your account email and we will delete your account and all associated data within 30 days.',
     ],
   },
   {

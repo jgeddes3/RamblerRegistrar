@@ -123,8 +123,9 @@ service cloud.firestore {
     }
 
     // In-app feedback (#17): write-only mailbox. Any authed user (anonymous
-    // counts — bug reports before signup are welcome) can CREATE; nobody can
-    // read/update/delete from the client (admin reads via backend script).
+    // counts — bug reports before signup are welcome) can CREATE; the client
+    // can't read or edit reports (admin reads via backend script), except
+    // that an author can list and delete their own to delete their account.
     // uid must match the caller so reports are attributable and not forgeable.
     function validFeedback(d) {
       return d.keys().hasOnly(['uid','type','message','context','createdAt'])
@@ -223,7 +224,12 @@ service cloud.firestore {
     // ============================ FEEDBACK ============================
     match /feedback/{id} {
       allow create: if isAuthed() && validFeedback(incoming());
-      allow read, update, delete: if false;
+      // Account deletion (Profile > Delete account): the author can find and
+      // delete their OWN reports, nothing else. `list` serves the client's
+      // where('uid', '==', uid) query; a query not bound to the caller's uid
+      // is denied. Single-doc reads and edits stay closed.
+      allow list, delete: if isAuthed() && existing().uid == request.auth.uid;
+      allow get, update: if false;
     }
 
     // Default deny for anything not matched above.

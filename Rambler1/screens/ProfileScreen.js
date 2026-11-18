@@ -3,16 +3,24 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, ActivityInd
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppContext } from '../AppContext';
-import { signOut } from '../auth';
-import { fetchPrograms, fetchCourses, addUserCourse, removeUserCourse, saveUserProfile, fetchEnrichedRecommendations, fetchQuizFocusAreas, setUserLocation } from '../firestore-data';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { signOut, reauthenticate, deleteCurrentAccount } from '../auth';
+import { fetchPrograms, fetchCourses, addUserCourse, removeUserCourse, saveUserProfile, fetchEnrichedRecommendations, fetchQuizFocusAreas, setUserLocation, deleteAllUserData } from '../firestore-data';
+import { eraseAccountData, deletionErrorMessage } from '../account-deletion';
+import { PENDING_SIGNUP_KEY } from '../signup-save';
 import { geocodeAddress, suggestAddresses } from '../campus-api';
 import showAlert from '../alert';
 import { canEditProfile, programEdit, minorToggleEdit, priorityEdit } from '../profile-edits';
 import { filterCourses, setCourseSelected } from '../course-list';
 import { afterModalDismiss } from '../modal-sequencing';
-import { STONE } from '../theme';
+import { STONE, INK, DANGER } from '../theme';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
+
+// What this phone keeps for an account, removed when the account is deleted:
+// Search's recent searches and any signup details still waiting to save.
+const LOCAL_ACCOUNT_KEYS = ['@rambler_recent_searches', PENDING_SIGNUP_KEY];
+const clearAccountLocalData = () => AsyncStorage.multiRemove(LOCAL_ACCOUNT_KEYS);
 
 // One row of the Courses Taken list. Memoized: with ~2,000 courses a tap
 // must re-render the row that changed, not the whole list.
@@ -42,7 +50,10 @@ const ProfileScreen = ({ visible, onClose }) => {
   } = useAppContext();
 
   const isUndecided = !selectedProgram || selectedProgram.id === 'undecided';
-  const [mode, setMode] = useState('profile'); // 'profile', 'selectProgram', 'selectMinor', 'selectCourses'
+  const [mode, setMode] = useState('profile'); // 'profile', 'selectProgram', 'selectMinor', 'selectCourses', 'deleteAccount'
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [programs, setPrograms] = useState([]);
   const [minorsList, setMinorsList] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -187,7 +198,7 @@ const ProfileScreen = ({ visible, onClose }) => {
     }
   }, [visible, selectedProgram, user]);
 
-  const handleSignOut = () => {
+  const signOutNow = () => {
     onClose();
     setMode('profile');
     // Signing out swaps the whole signed-in tree (this modal included) for the
@@ -195,6 +206,52 @@ const ProfileScreen = ({ visible, onClose }) => {
     // Modal that is still presented is the iOS dead-overlay freeze (see
     // modal-sequencing.js).
     afterModalDismiss(() => { signOut().catch(() => {}); });
+  };
+
+  const handleSignOut = () => {
+    showAlert('Sign out?', "You'll need your email and password to sign back in.", [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign Out', style: 'destructive', onPress: signOutNow },
+    ]);
+  };
+
+  const leaveDeletePanel = () => {
+    if (deleteBusy) return;
+    setMode('profile');
+    setDeletePassword('');
+    setDeleteError('');
+  };
+
+  // Password check and data deletion run with the panel open, so a failure
+  // shows here. Deleting the sign-in waits for the modal to close: like
+  // sign-out, it swaps the whole signed-in tree.
+  const handleDeleteAccount = async () => {
+    if (deleteBusy || !deletePassword) return;
+    setDeleteBusy(true);
+    setDeleteError('');
+    const res = await eraseAccountData(deletePassword, user?.uid, {
+      reauthenticate,
+      deleteAllUserData,
+      clearLocalData: clearAccountLocalData,
+    });
+    setDeleteBusy(false);
+    if (!res.ok) {
+      setDeleteError(deletionErrorMessage(res));
+      return;
+    }
+    setDeletePassword('');
+    onClose();
+    setMode('profile');
+    afterModalDismiss(async () => {
+      try {
+        await deleteCurrentAccount();
+      } catch (e) {
+        showAlert(
+          'Account not fully deleted',
+          "Your data was deleted, but your sign-in wasn't. Open Profile and choose Delete account again to finish.",
+        );
+      }
+    });
   };
 
   // Profile edits (major / minors / priority flags) share three rules:
@@ -344,6 +401,63 @@ const ProfileScreen = ({ visible, onClose }) => {
   const renderTakenCourse = useCallback(({ item }) => (
     <TakenCourseRow course={item} selected={selectedCodes.has(item.code)} onPress={handleToggleCourse} />
   ), [selectedCodes, handleToggleCourse]);
+
+  // ==================== DELETE ACCOUNT MODE ====================
+  if (mode === 'deleteAccount') {
+    const canDelete = !!deletePassword && !deleteBusy;
+    return (
+      <Modal visible={visible} animationType="slide" transparent onRequestClose={leaveDeletePanel}>
+        <View accessibilityViewIsModal style={s.overlay}>
+          <View style={s.panelFull}>
+            <View style={s.headerRow}>
+              <TouchableOpacity onPress={leaveDeletePanel} disabled={deleteBusy} accessibilityRole="button">
+                <Text style={s.backText}>Back</Text>
+              </TouchableOpacity>
+              <Text accessibilityRole="header" style={s.headerTitle}>Delete account</Text>
+              <View style={{ width: 50 }} />
+            </View>
+            <ScrollView contentContainerStyle={s.deleteContent} keyboardShouldPersistTaps="handled">
+              <Text style={s.deleteBody}>
+                This permanently deletes your account and everything saved with it: your profile and
+                quiz results, courses taken, schedules and plans, seat watches, home address, and any
+                feedback you sent.
+              </Text>
+              <Text style={s.deleteBody}>It can't be undone.</Text>
+              <Text style={s.deleteLabel}>Enter your password to confirm</Text>
+              <TextInput
+                style={s.searchInput}
+                value={deletePassword}
+                onChangeText={(t) => { setDeletePassword(t); setDeleteError(''); }}
+                placeholder="Password"
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="current-password"
+                textContentType="password"
+                accessibilityLabel="Password"
+                editable={!deleteBusy}
+                onSubmitEditing={handleDeleteAccount}
+              />
+              {deleteError ? (
+                <Text style={s.deleteError} accessibilityRole="alert" accessibilityLiveRegion="polite">
+                  {deleteError}
+                </Text>
+              ) : null}
+              <TouchableOpacity
+                style={[s.deleteButton, !canDelete && s.deleteButtonDisabled]}
+                onPress={handleDeleteAccount}
+                disabled={!canDelete}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !canDelete, busy: deleteBusy }}
+              >
+                <Text style={s.deleteButtonText}>{deleteBusy ? 'Deleting…' : 'Delete my account'}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 
   // ==================== SELECT PROGRAM MODE ====================
   if (mode === 'selectProgram') {
@@ -853,8 +967,15 @@ const ProfileScreen = ({ visible, onClose }) => {
             <View style={s.divider} />
 
             {/* Sign Out */}
-            <TouchableOpacity style={s.signOutButton} onPress={handleSignOut}>
+            <TouchableOpacity style={s.signOutButton} onPress={handleSignOut} accessibilityRole="button">
               <Text style={s.signOutText}>Sign Out</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.deleteLink}
+              onPress={() => setMode('deleteAccount')}
+              accessibilityRole="button"
+            >
+              <Text style={s.deleteLinkText}>Delete account</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -1329,6 +1450,19 @@ const s = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
+  // Delete account: a quiet link under Sign Out, and its own panel.
+  deleteLink: { marginTop: 14, minHeight: 44, paddingHorizontal: 16, justifyContent: 'center' },
+  deleteLinkText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 17, color: DANGER.fg },
+  deleteContent: { padding: 20 },
+  deleteBody: { fontFamily: 'CormorantGaramond-Regular', fontSize: 17, color: INK, lineHeight: 24, marginBottom: 12 },
+  deleteLabel: { fontFamily: 'CormorantGaramond-Medium', fontSize: 16, color: INK, marginTop: 8 },
+  deleteError: { fontSize: 15, color: DANGER.fg, marginTop: 10 },
+  deleteButton: {
+    backgroundColor: DANGER.fg, borderRadius: 8, minHeight: 48,
+    alignItems: 'center', justifyContent: 'center', marginTop: 20,
+  },
+  deleteButtonDisabled: { opacity: 0.45 },
+  deleteButtonText: { fontFamily: 'CormorantGaramond-SemiBold', fontSize: 18, color: '#FFFFFF' },
   // Select program / courses mode
   headerRow: {
     flexDirection: 'row',

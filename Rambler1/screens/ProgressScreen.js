@@ -6,6 +6,7 @@ import { computeGraduationOutlook, OUTLOOK_DISCLAIMER } from '../graduation-outl
 import { getIdToken } from '../auth';
 import { saveCoursesConcurrently } from '../course-sync';
 import { afterModalDismiss } from '../modal-sequencing';
+import { programProgressSummary } from '../progress-summary';
 import CourseDetailModal from '../CourseDetailModal';
 
 // Graduation Outlook banner design tokens (status -> colors)
@@ -312,9 +313,7 @@ const ProgressScreen = () => {
         <TouchableOpacity onPress={() => setView(String(selectedProgram2.id))}>
           <ProgressBar
             label={`${selectedProgram2.name} (${selectedProgram2.degree})`}
-            percent={0}
-            completed={0}
-            total={selectedProgram2.min_credits || 60}
+            {...programProgressSummary(otherProgress, selectedProgram2, 60)}
             unit="credits"
             color="#2563eb"
           />
@@ -326,9 +325,7 @@ const ProgressScreen = () => {
         <TouchableOpacity key={minor.id} onPress={() => setView(String(minor.id))}>
           <ProgressBar
             label={`${minor.name} (Minor)`}
-            percent={0}
-            completed={0}
-            total={minor.min_credits || 18}
+            {...programProgressSummary(otherProgress, minor, 18)}
             unit="credits"
             color="#059669"
           />
@@ -563,7 +560,7 @@ const ProgressScreen = () => {
     tabs.push({
       key: String(selectedProgram2.id),
       label: selectedProgram2.name.length > 12 ? selectedProgram2.name.substring(0, 12) + '...' : selectedProgram2.name,
-      percent: 0,
+      percent: programProgressSummary(otherProgress, selectedProgram2, 60).percent,
       color: '#2563eb',
     });
   }
@@ -573,7 +570,7 @@ const ProgressScreen = () => {
       tabs.push({
         key: String(minor.id),
         label: minor.name.length > 12 ? minor.name.substring(0, 12) + '...' : minor.name,
-        percent: 0,
+        percent: programProgressSummary(otherProgress, minor, 18).percent,
         color: '#059669',
       });
     }

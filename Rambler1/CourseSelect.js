@@ -119,7 +119,7 @@ const CourseSelect =() => {
           <View style={s.headerSide} />
         </View>
         <View style={s.pageTitleBadge}>
-          <Text style={s.pageTitle}>Select Courses You've Taken</Text>
+          <Text accessibilityRole="header" style={s.pageTitle}>Select Courses You've Taken</Text>
         </View>
         <View style={{ alignItems: 'center', marginTop: 10, marginBottom: 10 }}>
           <TextInput

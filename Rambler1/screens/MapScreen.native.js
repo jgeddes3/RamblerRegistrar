@@ -300,7 +300,7 @@ const MapScreen = () => {
 
       {/* Title overlay */}
       <View style={s.titleCard} pointerEvents="none">
-        <Text style={s.title}>Campus Map</Text>
+        <Text accessibilityRole="header" style={s.title}>Campus Map</Text>
         <Text style={s.subtitle}>{TERM.label}</Text>
       </View>
 

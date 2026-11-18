@@ -216,7 +216,7 @@ const LibraryScreen = () => {
         <>
           {todayLocations.length > 0 && (
             <>
-              <Text style={s.sectionTitle}>Today</Text>
+              <Text accessibilityRole="header" style={s.sectionTitle}>Today</Text>
               {todayLocations.map((loc) => {
                 const key = String(loc.id ?? loc.name);
                 return (
@@ -234,7 +234,7 @@ const LibraryScreen = () => {
           {/* Study rooms (F-Q8): deep-link into LibCal's official booking
               picker per location — booking itself requires the Loyola login,
               so the browser flow is the supported path. */}
-          <Text style={[s.sectionTitle, { marginTop: 18 }]}>Book a study room</Text>
+          <Text accessibilityRole="header" style={[s.sectionTitle, { marginTop: 18 }]}>Book a study room</Text>
           {STUDY_ROOM_LOCATIONS.map((loc) => (
             <TouchableOpacity
               key={loc.lid}
@@ -258,7 +258,7 @@ const LibraryScreen = () => {
 
           {weeklyLocations.length > 0 && (
             <>
-              <Text style={[s.sectionTitle, { marginTop: 18 }]}>This week</Text>
+              <Text accessibilityRole="header" style={[s.sectionTitle, { marginTop: 18 }]}>This week</Text>
               {weeklyLocations.map((loc) => (
                 <WeeklyLocation key={String(loc.lid ?? loc.name)} loc={loc} />
               ))}

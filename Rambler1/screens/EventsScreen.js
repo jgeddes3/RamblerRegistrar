@@ -145,7 +145,7 @@ const EventsScreen = () => {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={MAROON} colors={[MAROON]} />
       }
       ListHeaderComponent={
-        sorted.length > 0 ? <Text style={s.sectionTitle}>Next {DAYS_AHEAD} days</Text> : null
+        sorted.length > 0 ? <Text accessibilityRole="header" style={s.sectionTitle}>Next {DAYS_AHEAD} days</Text> : null
       }
       ListEmptyComponent={
         <View style={s.centerWrap}>

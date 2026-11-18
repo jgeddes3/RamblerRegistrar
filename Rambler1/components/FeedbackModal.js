@@ -54,7 +54,7 @@ const FeedbackModal = ({ visible, onClose, context = '' }) => {
       <KeyboardAvoidingView accessibilityViewIsModal style={s.overlay} behavior={KAV_BEHAVIOR}>
         <View style={s.panel}>
           <View style={s.header}>
-            <Text style={s.title}>Send Feedback</Text>
+            <Text accessibilityRole="header" style={s.title}>Send Feedback</Text>
             <TouchableOpacity onPress={close} style={s.closeBtn} accessibilityLabel="Close feedback">
               <Text style={s.closeText}>Cancel</Text>
             </TouchableOpacity>

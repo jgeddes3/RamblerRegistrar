@@ -30,7 +30,7 @@ const MenuOverlay = ({ visible, onClose, onNavigate }) => {
         <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={onClose} accessible={false} importantForAccessibility="no" />
         <View style={s.panel} accessibilityViewIsModal>
           {/* Close */}
-          <TouchableOpacity onPress={onClose} style={s.closeButton}>
+          <TouchableOpacity onPress={onClose} style={s.closeButton} accessibilityRole="button" accessibilityLabel="Close menu">
             <Text style={s.closeText}>X</Text>
           </TouchableOpacity>
 
@@ -47,6 +47,7 @@ const MenuOverlay = ({ visible, onClose, onNavigate }) => {
             <TouchableOpacity
               key={item.label}
               style={s.menuItem}
+              accessibilityRole="button"
               onPress={() => handleItemPress(item.tab)}
             >
               <Text style={s.menuItemText}>{item.label}</Text>
@@ -60,6 +61,7 @@ const MenuOverlay = ({ visible, onClose, onNavigate }) => {
             <TouchableOpacity
               key={item.label}
               style={s.menuItem}
+              accessibilityRole="button"
               onPress={() => handleItemPress(item.tab, item.params)}
             >
               <Text style={s.menuItemTextSecondary}>{item.label}</Text>

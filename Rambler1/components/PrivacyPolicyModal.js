@@ -35,7 +35,7 @@ const PrivacyPolicyModal = ({
     >
       <View accessibilityViewIsModal style={s.page}>
         <View style={s.header}>
-          <Text style={s.headerTitle}>{title}</Text>
+          <Text accessibilityRole="header" style={s.headerTitle}>{title}</Text>
           {!consent ? (
             <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel={`Close ${title}`}>
               <Ionicons name="close" size={26} color={MAROON} />
@@ -46,7 +46,7 @@ const PrivacyPolicyModal = ({
         <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
           {sections.map((section, i) => (
             <View key={i} style={s.section}>
-              {section.title ? <Text style={s.sectionTitle}>{section.title}</Text> : null}
+              {section.title ? <Text accessibilityRole="header" style={s.sectionTitle}>{section.title}</Text> : null}
               {section.paragraphs.map((p, j) => (
                 <Text key={j} style={s.paragraph}>{p}</Text>
               ))}

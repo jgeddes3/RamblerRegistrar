@@ -684,7 +684,7 @@ const ScheduleScreen = () => {
   if (!signedIn) {
     return (
       <View style={s.centerWrap}>
-        <Text style={s.title}>My Schedule</Text>
+        <Text accessibilityRole="header" style={s.title}>My Schedule</Text>
         <Text style={s.emptyTitle}>Sign in to build your schedule</Text>
         <Text style={s.emptyHint}>Your saved classes will appear here.</Text>
       </View>
@@ -696,7 +696,7 @@ const ScheduleScreen = () => {
       {/* Header */}
       <View style={s.header}>
         <View style={{ flex: 1 }}>
-          <Text style={s.title}>My Schedule</Text>
+          <Text accessibilityRole="header" style={s.title}>My Schedule</Text>
           {termOptions.length > 1 ? (
             <View style={s.termRow}>
               {termOptions.map((t) => {
@@ -807,7 +807,7 @@ const ScheduleScreen = () => {
           {/* Unscheduled (TBA) sections */}
           {unscheduled.length > 0 && (
             <View style={s.unschedWrap}>
-              <Text style={s.unschedTitle}>Unscheduled</Text>
+              <Text accessibilityRole="header" style={s.unschedTitle}>Unscheduled</Text>
               <ScrollView style={{ maxHeight: 140 }}>
                 {unscheduled.map((sec) => (
                   <TouchableOpacity
@@ -831,7 +831,7 @@ const ScheduleScreen = () => {
           the schedule itself is empty, since watches live independently. */}
       {!loading && !loadFailed && watchRows.length > 0 && (
         <View style={s.watchWrap}>
-          <Text style={s.watchTitle}>Watching</Text>
+          <Text accessibilityRole="header" style={s.watchTitle}>Watching</Text>
           {watchHintVisible && (
             <Text style={s.watchHintText}>
               You'll get a push when a seat opens (requires the mobile app build).
@@ -907,7 +907,7 @@ const ScheduleScreen = () => {
       <Modal visible={addVisible} animationType="slide" onRequestClose={closeAddModal}>
         <View accessibilityViewIsModal style={s.modalContainer}>
           <View style={s.modalHeader}>
-            <Text style={s.modalTitle}>Add a Class</Text>
+            <Text accessibilityRole="header" style={s.modalTitle}>Add a Class</Text>
             <TouchableOpacity onPress={closeAddModal} style={s.modalClose}>
               <Text style={s.modalCloseText}>Done</Text>
             </TouchableOpacity>
@@ -1038,7 +1038,7 @@ const ScheduleScreen = () => {
             <ScrollView keyboardShouldPersistTaps="handled">
               {recommendedCourses.length > 0 ? (
                 <View style={s.recWrap}>
-                  <Text style={s.recTitle}>Recommended for you</Text>
+                  <Text accessibilityRole="header" style={s.recTitle}>Recommended for you</Text>
                   <Text style={s.recSub}>Your remaining requirements and focus courses</Text>
                   {recommendedCourses.map((c) => (
                     <TouchableOpacity

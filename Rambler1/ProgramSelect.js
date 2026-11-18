@@ -205,7 +205,7 @@ const ProgramSelect =() => {
         <View style={{ flex: 1 }}>
           {renderHeader()}
           {renderProgress()}
-          <Text style={s.pageTitle}>{getTitle()}</Text>
+          <Text accessibilityRole="header" style={s.pageTitle}>{getTitle()}</Text>
           <View style={s.choiceContainer}>
             <TouchableOpacity style={s.choiceButton} onPress={() => handleMinorChoice(true)}>
               <Text style={s.choiceButtonText}>Minor</Text>
@@ -225,7 +225,7 @@ const ProgramSelect =() => {
       <View style={{ flex: 1 }}>
         {renderHeader()}
         {renderProgress()}
-        <Text style={s.pageTitle}>{getTitle()}</Text>
+        <Text accessibilityRole="header" style={s.pageTitle}>{getTitle()}</Text>
 
         {/* Major phase: show selected major with remove */}
         {phase === 'major' && selectedProgram && (

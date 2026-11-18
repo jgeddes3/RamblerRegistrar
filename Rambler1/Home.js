@@ -373,7 +373,7 @@ const Home = () => {
       <ScrollView contentContainerStyle={s.scrollContent}>
         {/* ------------------------------ Masthead --------------------------- */}
         <Text style={s.mastheadDate}>{mastheadDate}</Text>
-        <Text style={s.greeting}>
+        <Text accessibilityRole="header" style={s.greeting}>
           {firstName ? `Good ${now.getHours() < 12 ? 'morning' : now.getHours() < 17 ? 'afternoon' : 'evening'}, ${firstName}` : 'Welcome'}
         </Text>
         {identityBits.length > 0 ? (
@@ -382,7 +382,7 @@ const Home = () => {
         <View style={s.mastheadRule} />
 
         {/* ------------------------------- Today's Schedule ------------------ */}
-        <Text style={s.eyebrow}>Today's classes</Text>
+        <Text accessibilityRole="header" style={s.eyebrow}>Today's classes</Text>
         <View style={s.card}>
           {schedState === 'loading' ? (
             <View>
@@ -472,7 +472,7 @@ const Home = () => {
         {/* -------------------------------- Your train ----------------------- */}
         {train ? (
           <>
-            <Text style={s.eyebrow}>Your train</Text>
+            <Text accessibilityRole="header" style={s.eyebrow}>Your train</Text>
             <View style={s.card}>
               <View style={[s.trainHeaderRow, train.arrivalGroups.length > 0 && s.rowBorder]}>
                 <Ionicons name="train-outline" size={15} color={MAROON} />
@@ -508,7 +508,7 @@ const Home = () => {
         {/* ---------------------------- Happening on campus ------------------ */}
         {todayEvents.length > 0 ? (
           <>
-            <Text style={s.eyebrow}>Happening on campus</Text>
+            <Text accessibilityRole="header" style={s.eyebrow}>Happening on campus</Text>
             <View style={s.card}>
               {todayEvents.map((ev, i) => (
                 <View
@@ -539,7 +539,7 @@ const Home = () => {
         {/* ----------------------------- From the Phoenix -------------------- */}
         {phoenixToday.length > 0 ? (
           <>
-            <Text style={s.eyebrow}>From the Phoenix</Text>
+            <Text accessibilityRole="header" style={s.eyebrow}>From the Phoenix</Text>
             <View style={s.card}>
               {phoenixToday.map((story, i) => (
                 <TouchableOpacity
@@ -573,7 +573,7 @@ const Home = () => {
         {/* ----------------------------- Graduation Outlook ------------------ */}
         {outlook ? (
           <>
-            <Text style={s.eyebrow}>Graduation outlook</Text>
+            <Text accessibilityRole="header" style={s.eyebrow}>Graduation outlook</Text>
             <View
               style={[
                 s.card,
@@ -611,7 +611,7 @@ const Home = () => {
         ) : null}
 
         {/* -------------------------------- Library Hours -------------------- */}
-        <Text style={s.eyebrow}>Library hours</Text>
+        <Text accessibilityRole="header" style={s.eyebrow}>Library hours</Text>
         <View style={s.card}>
           {libLoading ? (
             <View>

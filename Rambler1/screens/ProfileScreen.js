@@ -355,7 +355,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }}>
                 <Text style={s.backText}>Back</Text>
               </TouchableOpacity>
-              <Text style={s.headerTitle}>Select Major</Text>
+              <Text accessibilityRole="header" style={s.headerTitle}>Select Major</Text>
               <View style={{ width: 50 }} />
             </View>
             <TextInput
@@ -371,7 +371,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                 {/* Recommendations section for undecided users */}
                 {isUndecided && recommendations.length > 0 && !search && (
                   <View style={s.recsSection}>
-                    <Text style={s.recsSectionTitle}>Recommended For You</Text>
+                    <Text accessibilityRole="header" style={s.recsSectionTitle}>Recommended For You</Text>
                     {quizResults && (
                       <Text style={s.recsSectionSub}>
                         Based on your {quizResults.code} · {quizResults.profileName} profile
@@ -451,7 +451,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }}>
                 <Text style={s.backText}>Back</Text>
               </TouchableOpacity>
-              <Text style={s.headerTitle}>Select Minors</Text>
+              <Text accessibilityRole="header" style={s.headerTitle}>Select Minors</Text>
               <Text style={s.countBadge}>{(selectedMinors || []).length}/3</Text>
             </View>
             <TextInput
@@ -497,7 +497,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }}>
                 <Text style={s.backText}>Back</Text>
               </TouchableOpacity>
-              <Text style={s.headerTitle}>Courses Taken</Text>
+              <Text accessibilityRole="header" style={s.headerTitle}>Courses Taken</Text>
               <Text style={s.countBadge}>{(selectedCourses || []).length}</Text>
             </View>
             <TextInput
@@ -534,7 +534,7 @@ const ProfileScreen = ({ visible, onClose }) => {
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <View accessibilityViewIsModal style={s.overlay}>
         <View style={s.panel}>
-          <TouchableOpacity onPress={handleClose} style={s.closeButton}>
+          <TouchableOpacity onPress={handleClose} style={s.closeButton} accessibilityRole="button" accessibilityLabel="Close profile">
             <Text style={s.closeText}>X</Text>
           </TouchableOpacity>
 
@@ -627,7 +627,7 @@ const ProfileScreen = ({ visible, onClose }) => {
 
             {/* Registration Priority */}
             <View style={s.infoBlock}>
-              <Text style={s.prioritySectionTitle}>Registration Priority</Text>
+              <Text accessibilityRole="header" style={s.prioritySectionTitle}>Registration Priority</Text>
               <View style={s.priorityRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.priorityRowLabel}>Honors student</Text>
@@ -660,7 +660,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                 describe. ON = excluded from every third-party sale/share
                 export (enforced in backend/export-sale-data.js). */}
             <View style={s.infoBlock}>
-              <Text style={s.prioritySectionTitle}>Privacy</Text>
+              <Text accessibilityRole="header" style={s.prioritySectionTitle}>Privacy</Text>
               <View style={s.priorityRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.priorityRowLabel}>Do not sell or share my personal information</Text>

@@ -449,7 +449,7 @@ const PreferenceQuiz = () => {
           <View style={s.progressBarBg}>
             <View style={[s.progressBarFill, { width: `${((currentQuestion + 1) / totalQuestions) * 100}%` }]} />
           </View>
-          <Text style={s.progressText}>
+          <Text style={s.progressText} accessibilityLabel={`Question ${currentQuestion + 1} of ${totalQuestions}`}>
             {currentQuestion + 1} / {totalQuestions}
           </Text>
         </View>
@@ -469,7 +469,7 @@ const PreferenceQuiz = () => {
             showsVerticalScrollIndicator={false}
           >
             <View style={s.questionCard}>
-              <Text style={s.question}>{q.question}</Text>
+              <Text style={s.question} accessibilityRole="header">{q.question}</Text>
 
               {q.multiSelect && (
                 <Text style={s.multiHint}>Select {q.maxSelections || 3} topics</Text>
@@ -481,6 +481,8 @@ const PreferenceQuiz = () => {
                   <TouchableOpacity
                     key={optIndex}
                     style={[s.option, selected ? s.optionSelected : s.optionUnselected]}
+                    accessibilityRole={q.multiSelect ? 'checkbox' : 'radio'}
+                    accessibilityState={{ checked: selected }}
                     onPress={() => handleOptionPress(optIndex)}
                     activeOpacity={0.7}
                   >
@@ -501,6 +503,9 @@ const PreferenceQuiz = () => {
             {QUESTIONS.map((_, i) => (
               <TouchableOpacity
                 key={i}
+                accessibilityRole="button"
+                accessibilityLabel={`Question ${i + 1}${isAnswered(i) ? ', answered' : ''}`}
+                accessibilityState={{ selected: i === currentQuestion }}
                 onPress={() => animateTransition(() => setCurrentQuestion(i))}
               >
                 <View

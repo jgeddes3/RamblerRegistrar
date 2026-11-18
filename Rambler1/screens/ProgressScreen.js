@@ -281,7 +281,7 @@ const ProgressScreen = () => {
   // ==================== ALL VIEW ====================
   const renderAllView = () => (
     <ScrollView contentContainerStyle={s.scrollContent}>
-      <Text style={s.heading}>Degree Overview</Text>
+      <Text accessibilityRole="header" style={s.heading}>Degree Overview</Text>
 
       {renderOutlookBanner()}
 
@@ -350,7 +350,7 @@ const ProgressScreen = () => {
       {/* Electives or Added Classes */}
       {overflows ? (
         <View style={s.addedClassesCard}>
-          <Text style={s.addedClassesTitle}>Added Classes</Text>
+          <Text accessibilityRole="header" style={s.addedClassesTitle}>Added Classes</Text>
           <Text style={s.addedClassesDetail}>
             Your major ({majorCreditsRequired}cr) + core ({coreCreditsRequired}cr) = {accountedFor} credits, {addedCredits} more than the standard 120. No electives needed.
           </Text>
@@ -380,7 +380,7 @@ const ProgressScreen = () => {
     }
     return (
       <ScrollView contentContainerStyle={s.scrollContent}>
-        <Text style={s.heading}>{selectedProgram.name} ({selectedProgram.degree})</Text>
+        <Text accessibilityRole="header" style={s.heading}>{selectedProgram.name} ({selectedProgram.degree})</Text>
         {selectedProgram.school && <Text style={s.subheading}>{selectedProgram.school}</Text>}
 
         {progress.requirementsUnknown ? (
@@ -403,7 +403,7 @@ const ProgressScreen = () => {
 
         {progress.completed && progress.completed.length > 0 && (
           <View style={s.section}>
-            <Text style={s.sectionHeader}>Completed</Text>
+            <Text accessibilityRole="header" style={s.sectionHeader}>Completed</Text>
             {progress.completed.map((c) => (
               <CourseRow key={c.code || c.id} icon="✓" iconColor="#2d6a4f" code={c.code} name={c.name} onPress={() => openCourseModal(c)} />
             ))}
@@ -412,7 +412,7 @@ const ProgressScreen = () => {
 
         {upNext.length > 0 && (
           <View style={s.section}>
-            <Text style={s.sectionHeader}>Up Next</Text>
+            <Text accessibilityRole="header" style={s.sectionHeader}>Up Next</Text>
             <Text style={s.sectionSub}>Prerequisites met, ready to take</Text>
             {upNext.map((c) => (
               <CourseRow key={c.code || c.id} icon="○" iconColor="#A30046" code={c.code} name={c.name} onPress={() => openCourseModal(c)} />
@@ -422,7 +422,7 @@ const ProgressScreen = () => {
 
         {needsPrereqs.length > 0 && (
           <View style={s.section}>
-            <Text style={s.sectionHeader}>Remaining</Text>
+            <Text accessibilityRole="header" style={s.sectionHeader}>Remaining</Text>
             <Text style={s.sectionSub}>Need prerequisites first</Text>
             {needsPrereqs.map((c) => (
               <TouchableOpacity key={c.code || c.id} onPress={() => openCourseModal(c)}>
@@ -472,7 +472,7 @@ const ProgressScreen = () => {
 
     return (
       <ScrollView contentContainerStyle={s.scrollContent}>
-        <Text style={s.heading}>University Core Curriculum</Text>
+        <Text accessibilityRole="header" style={s.heading}>University Core Curriculum</Text>
         <Text style={s.subheading}>Required for all undergraduates</Text>
 
         <ProgressBar
@@ -486,7 +486,7 @@ const ProgressScreen = () => {
 
         {/* One-course areas */}
         <View style={s.section}>
-          <Text style={s.sectionHeader}>One-Course Requirements</Text>
+          <Text accessibilityRole="header" style={s.sectionHeader}>One-Course Requirements</Text>
           {singleAreas.map((a) => {
             const done = a.status === 'completed' || a.status === 'satisfied';
             const waived = a.status === 'waived';
@@ -504,7 +504,7 @@ const ProgressScreen = () => {
 
         {/* Tiered areas */}
         <View style={s.section}>
-          <Text style={s.sectionHeader}>Tiered Requirements</Text>
+          <Text accessibilityRole="header" style={s.sectionHeader}>Tiered Requirements</Text>
           <Text style={s.sectionSub}>Complete Tier 1 before Tier 2</Text>
           {Object.entries(tieredGroups).map(([baseName, tiers]) => (
             <View key={baseName} style={s.tieredGroup}>
@@ -530,7 +530,7 @@ const ProgressScreen = () => {
         {/* Other requirements */}
         {otherAreas.length > 0 && (
           <View style={s.section}>
-            <Text style={s.sectionHeader}>Other Requirements</Text>
+            <Text accessibilityRole="header" style={s.sectionHeader}>Other Requirements</Text>
             {otherAreas.map((a) => {
               const icon = a.status === 'completed' ? '✓' : '○';
               const iconColor = a.status === 'completed' ? '#2d6a4f' : '#A30046';
@@ -643,7 +643,7 @@ const ProgressScreen = () => {
         if (overflows) {
           return (
             <ScrollView contentContainerStyle={s.scrollContent}>
-              <Text style={s.heading}>Added Classes</Text>
+              <Text accessibilityRole="header" style={s.heading}>Added Classes</Text>
               <Text style={s.subheading}>Your major requires more than 120 credits</Text>
               <View style={s.addedClassesCard}>
                 <Text style={s.addedClassesDetail}>
@@ -652,7 +652,7 @@ const ProgressScreen = () => {
               </View>
               {electiveCourses.length > 0 && (
                 <View style={s.section}>
-                  <Text style={s.sectionHeader}>Additional Courses Taken</Text>
+                  <Text accessibilityRole="header" style={s.sectionHeader}>Additional Courses Taken</Text>
                   {electiveCourses.map((c) => (
                     <CourseRow key={c.code || c.id} icon="✓" iconColor="#d97706" code={c.code} name={c.name}
                       detail={`${c.credits || 3} credits`} onPress={() => openCourseModal(c)} />
@@ -666,7 +666,7 @@ const ProgressScreen = () => {
 
         return (
           <ScrollView contentContainerStyle={s.scrollContent}>
-            <Text style={s.heading}>Electives / Free Credits</Text>
+            <Text accessibilityRole="header" style={s.heading}>Electives / Free Credits</Text>
             <Text style={s.subheading}>Credits outside of major and core requirements</Text>
             <ProgressBar
               label="Elective Progress"
@@ -681,7 +681,7 @@ const ProgressScreen = () => {
             </Text>
             {electiveCourses.length > 0 && (
               <View style={s.section}>
-                <Text style={s.sectionHeader}>Your Elective Courses</Text>
+                <Text accessibilityRole="header" style={s.sectionHeader}>Your Elective Courses</Text>
                 {electiveCourses.map((c) => (
                   <CourseRow key={c.code || c.id} icon="✓" iconColor="#d97706" code={c.code} name={c.name}
                     detail={`${c.credits || 3} credits`} onPress={() => openCourseModal(c)} />
@@ -709,7 +709,7 @@ const ProgressScreen = () => {
         const isMinor = (prog?.program?.type || meta?.type) === 'minor';
         return (
           <ScrollView contentContainerStyle={s.scrollContent}>
-            <Text style={s.heading}>{title}{isMinor ? ' (Minor)' : ''}</Text>
+            <Text accessibilityRole="header" style={s.heading}>{title}{isMinor ? ' (Minor)' : ''}</Text>
             {!prog ? (
               <Text style={s.emptyText}>Progress unavailable for this program.</Text>
             ) : prog.requirementsUnknown ? (
@@ -736,7 +736,7 @@ const ProgressScreen = () => {
                 </Text>
                 {prog.completed && prog.completed.length > 0 && (
                   <View style={s.section}>
-                    <Text style={s.sectionHeader}>Completed</Text>
+                    <Text accessibilityRole="header" style={s.sectionHeader}>Completed</Text>
                     {prog.completed.map((c) => (
                       <CourseRow key={c.code || c.id} icon="✓" iconColor="#2d6a4f" code={c.code} name={c.name} onPress={() => openCourseModal(c)} />
                     ))}
@@ -744,7 +744,7 @@ const ProgressScreen = () => {
                 )}
                 {prog.remaining && prog.remaining.length > 0 && (
                   <View style={s.section}>
-                    <Text style={s.sectionHeader}>Remaining</Text>
+                    <Text accessibilityRole="header" style={s.sectionHeader}>Remaining</Text>
                     {prog.remaining.map((c, i) => (
                       <React.Fragment key={`${c.choice_group ?? 'req'}-${c.code || c.id}-${i}`}>
                         {c.choice_note && c.choice_group !== prog.remaining[i - 1]?.choice_group && (
@@ -774,10 +774,10 @@ const ProgressScreen = () => {
           <View style={s.modalPanel}>
             <View style={s.modalHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={s.modalTitle}>{coreAreaModal?.name}</Text>
+                <Text accessibilityRole="header" style={s.modalTitle}>{coreAreaModal?.name}</Text>
                 <Text style={s.modalSubtitle}>{coreAreaModal?.credits} credits required</Text>
               </View>
-              <TouchableOpacity onPress={() => setCoreAreaModal(null)} style={s.modalClose}>
+              <TouchableOpacity onPress={() => setCoreAreaModal(null)} style={s.modalClose} accessibilityRole="button" accessibilityLabel="Close">
                 <Text style={s.modalCloseText}>X</Text>
               </TouchableOpacity>
             </View>

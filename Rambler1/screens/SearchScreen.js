@@ -248,7 +248,7 @@ const CourseCard = ({ course, sections, sectionsLoading, filters, onCoursePress,
 
 const DepartmentGrid = ({ onSelect }) => (
   <View style={s.deptSection}>
-    <Text style={s.deptTitle}>Browse by Department</Text>
+    <Text accessibilityRole="header" style={s.deptTitle}>Browse by Department</Text>
     <View style={s.deptGrid}>
       {DEPARTMENTS.map((dept) => (
         <TouchableOpacity key={dept.code} style={s.deptCard} onPress={() => onSelect(dept.code)}>
@@ -268,13 +268,13 @@ const RecentSearches = ({ searches, onSelect, onRemove }) => {
   if (!searches || searches.length === 0) return null;
   return (
     <View style={s.recentSection}>
-      <Text style={s.recentTitle}>Recent Searches</Text>
+      <Text accessibilityRole="header" style={s.recentTitle}>Recent Searches</Text>
       {searches.map((term, i) => (
         <View key={`${term}-${i}`} style={s.recentRow}>
           <TouchableOpacity style={s.recentTerm} onPress={() => onSelect(term)}>
             <Text style={s.recentText}>{term}</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => onRemove(term)} style={s.recentX}>
+          <TouchableOpacity onPress={() => onRemove(term)} style={s.recentX} accessibilityRole="button" accessibilityLabel={`Remove ${term} from recent searches`}>
             <Text style={s.recentXText}>X</Text>
           </TouchableOpacity>
         </View>
@@ -565,7 +565,7 @@ const SearchScreen = () => {
           returnKeyType="search"
         />
         {query.length > 0 && (
-          <TouchableOpacity style={s.clearBtn} onPress={clearSearch}>
+          <TouchableOpacity style={s.clearBtn} onPress={clearSearch} accessibilityRole="button" accessibilityLabel="Clear search">
             <Text style={s.clearBtnText}>X</Text>
           </TouchableOpacity>
         )}

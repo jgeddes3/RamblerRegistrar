@@ -22,7 +22,7 @@ const MAROON = '#A30046';
 
 const MapScreen = () => (
   <View style={s.centerWrap}>
-    <Text style={s.title}>Campus Map</Text>
+    <Text accessibilityRole="header" style={s.title}>Campus Map</Text>
     <Ionicons name="map-outline" size={54} color={STONE} style={{ marginTop: 18 }} />
     <Text style={s.emptyTitle}>The campus map is available in the mobile app</Text>
     <Text style={s.emptyHint}>Open Rambler Registrar on your phone to explore campus.</Text>

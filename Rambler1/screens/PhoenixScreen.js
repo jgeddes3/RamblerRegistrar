@@ -124,7 +124,7 @@ const PhoenixScreen = () => {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={MAROON} colors={[MAROON]} />
       }
       ListHeaderComponent={
-        items ? <Text style={s.sectionTitle}>Latest from the Phoenix</Text> : null
+        items ? <Text accessibilityRole="header" style={s.sectionTitle}>Latest from the Phoenix</Text> : null
       }
       ListEmptyComponent={
         <View style={s.centerWrap}>

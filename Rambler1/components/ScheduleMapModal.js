@@ -93,7 +93,7 @@ const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View accessibilityViewIsModal style={s.container}>
         <View style={s.header}>
-          <Text style={s.title}>Day Map</Text>
+          <Text accessibilityRole="header" style={s.title}>Day Map</Text>
           <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel="Close day map">
             <Text style={s.closeText}>Done</Text>
           </TouchableOpacity>
@@ -126,7 +126,7 @@ const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
                   <View style={s.commuteCard}>
                     <View style={s.commuteTitleRow}>
                       <Ionicons name="home-outline" size={15} color="#1e40af" />
-                      <Text style={s.commuteTitle}>
+                      <Text accessibilityRole="header" style={s.commuteTitle}>
                         Leave home by {formatMinutes(commute.leaveByMin)}
                       </Text>
                     </View>
@@ -139,7 +139,7 @@ const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
                   <View style={s.commuteCard}>
                     <View style={s.commuteTitleRow}>
                       <Ionicons name="train-outline" size={15} color="#1e40af" />
-                      <Text style={s.commuteTitle}>
+                      <Text accessibilityRole="header" style={s.commuteTitle}>
                         {transit.rideMin > 0
                           ? `About ${transit.totalMin} min by Red Line`
                           : `About ${transit.totalMin} min on foot via ${transit.fromStation.name}`}
@@ -168,7 +168,7 @@ const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
                   <View style={s.commuteCard}>
                     <View style={s.commuteTitleRow}>
                       <Ionicons name="home-outline" size={15} color="#1e40af" />
-                      <Text style={s.commuteTitle}>
+                      <Text accessibilityRole="header" style={s.commuteTitle}>
                         Home is about {(commute.meters / 1609).toFixed(1)} mi from your first class
                       </Text>
                     </View>

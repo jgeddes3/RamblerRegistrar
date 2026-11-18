@@ -32,7 +32,7 @@ const PhoenixPreviewModal = ({ item, visible, onClose }) => {
       <View accessibilityViewIsModal style={s.overlay}>
         <View style={s.panel}>
           <View style={s.headerRow}>
-            <Text style={s.masthead}>The Loyola Phoenix</Text>
+            <Text accessibilityRole="header" style={s.masthead}>The Loyola Phoenix</Text>
             <TouchableOpacity
               onPress={onClose}
               style={s.closeBtn}
@@ -43,7 +43,7 @@ const PhoenixPreviewModal = ({ item, visible, onClose }) => {
           </View>
 
           <ScrollView contentContainerStyle={s.content}>
-            <Text style={s.title}>{item.title}</Text>
+            <Text accessibilityRole="header" style={s.title}>{item.title}</Text>
             {metaParts.length > 0 || when ? (
               <Text style={s.meta}>
                 {[metaParts.join(' · '), when].filter(Boolean).join(' · ')}

@@ -314,7 +314,7 @@ const PlanningScreen = () => {
         return (
           <View key={sem.code} style={s.semCard}>
             <View style={s.semHeader}>
-              <Text style={s.semTitle}>{sem.label}</Text>
+              <Text accessibilityRole="header" style={s.semTitle}>{sem.label}</Text>
               <TouchableOpacity
                 style={s.addBtn}
                 onPress={() => openAdd(sem.code)}
@@ -357,7 +357,7 @@ const PlanningScreen = () => {
         <KeyboardAvoidingView accessibilityViewIsModal style={s.modalOverlay} behavior={KAV_BEHAVIOR}>
           <View style={s.modalPanel}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>
+              <Text accessibilityRole="header" style={s.modalTitle}>
                 Add to {semesters.find((x) => x.code === addTarget)?.label || 'semester'}
               </Text>
               <TouchableOpacity onPress={closeAdd} style={s.modalClose} accessibilityLabel="Close add course">
@@ -378,7 +378,7 @@ const PlanningScreen = () => {
               {/* Empty query → surface remaining requirements, focus-first. */}
               {!query.trim() && recommendations.length > 0 ? (
                 <>
-                  <Text style={s.recHeading}>Recommended for you</Text>
+                  <Text accessibilityRole="header" style={s.recHeading}>Recommended for you</Text>
                   {recommendations.map((rec) => (
                     <TouchableOpacity
                       key={rec.code}

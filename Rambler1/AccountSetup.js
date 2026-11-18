@@ -130,7 +130,7 @@ const AccountSetup =() => {
           <View style={s.headerSide} />
         </View>
         <View style={s.pageTitleBadge}>
-          <Text style={s.pageTitle}>Create Account</Text>
+          <Text accessibilityRole="header" style={s.pageTitle}>Create Account</Text>
         </View>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={s.content}>

@@ -18,7 +18,7 @@ const TopBar = ({ onMenuPress, onProfilePress }) => {
 
       <View style={styles.content}>
         {/* Menu button (left) */}
-        <TouchableOpacity onPress={onMenuPress} style={styles.iconButton}>
+        <TouchableOpacity onPress={onMenuPress} style={styles.iconButton} accessibilityRole="button" accessibilityLabel="Open menu">
           <View style={styles.menuIcon}>
             <View style={styles.menuLine} />
             <View style={styles.menuLine} />
@@ -33,7 +33,7 @@ const TopBar = ({ onMenuPress, onProfilePress }) => {
         />
 
         {/* Profile button (right) */}
-        <TouchableOpacity onPress={onProfilePress} style={styles.iconButton}>
+        <TouchableOpacity onPress={onProfilePress} style={styles.iconButton} accessibilityRole="button" accessibilityLabel="Profile">
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{initial}</Text>
           </View>

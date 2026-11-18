@@ -73,7 +73,7 @@ const MoreScreen = ({ navigation }) => {
   const [termsVisible, setTermsVisible] = useState(false);
   return (
   <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-    <Text style={styles.title}>More</Text>
+    <Text accessibilityRole="header" style={styles.title}>More</Text>
     <Text style={styles.subtitle}>Campus tools and resources</Text>
 
     <View style={styles.card}>

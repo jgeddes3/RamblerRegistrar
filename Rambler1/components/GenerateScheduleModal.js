@@ -441,7 +441,7 @@ const GenerateScheduleModal = ({
     <Modal visible={visible} animationType="slide" onRequestClose={close}>
       <View accessibilityViewIsModal style={st.container}>
         <View style={st.header}>
-          <Text style={st.title}>
+          <Text accessibilityRole="header" style={st.title}>
             {preview ? 'Preview' : phase === 'results' ? 'Suggested Schedules' : 'Generate Schedule'}
           </Text>
           <TouchableOpacity onPress={close} style={st.closeBtn} accessibilityLabel="Close generator">

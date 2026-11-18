@@ -196,7 +196,7 @@ const WhatIfModal = ({
   const content = (
       <View style={s.container}>
         <View style={s.header}>
-          <Text style={s.title}>What If?</Text>
+          <Text accessibilityRole="header" style={s.title}>What If?</Text>
           <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel="Close what-if explorer">
             <Text style={s.closeText}>Done</Text>
           </TouchableOpacity>
@@ -227,7 +227,7 @@ const WhatIfModal = ({
           <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 8 }}>
             {fitting.length > 0 && (
               <>
-                <Text style={s.groupTitle}>Fits your timeline</Text>
+                <Text accessibilityRole="header" style={s.groupTitle}>Fits your timeline</Text>
                 {fitting.map((r) => (
                   <Row key={r.program.id} entry={r} badgeText="Fits" badgeStyle={s.badgeFits} />
                 ))}
@@ -235,7 +235,7 @@ const WhatIfModal = ({
             )}
             {stretching.length > 0 && (
               <>
-                <Text style={s.groupTitle}>Would extend your time</Text>
+                <Text accessibilityRole="header" style={s.groupTitle}>Would extend your time</Text>
                 {stretching.map((r) => (
                   <Row
                     key={r.program.id}
@@ -248,7 +248,7 @@ const WhatIfModal = ({
             )}
             {unknowns.length > 0 && (
               <>
-                <Text style={s.groupTitle}>Requirements not loaded yet</Text>
+                <Text accessibilityRole="header" style={s.groupTitle}>Requirements not loaded yet</Text>
                 {unknowns.map((r) => (
                   <Row key={r.program.id} entry={r} badgeText="?" badgeStyle={s.badgeUnknown} />
                 ))}

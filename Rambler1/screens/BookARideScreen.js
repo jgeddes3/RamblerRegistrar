@@ -13,7 +13,7 @@ const open = (url) => Linking.openURL(url).catch(() => {});
 const BookARideScreen = () => (
   <ScrollView style={s.container} contentContainerStyle={s.content}>
     {/* ------------------------------ 8-RIDE ------------------------------- */}
-    <Text style={s.eyebrow}>Evening safety rides</Text>
+    <Text accessibilityRole="header" style={s.eyebrow}>Evening safety rides</Text>
     <View style={s.card}>
       <View style={s.cardTitleRow}>
         <Ionicons name="bus-outline" size={18} color={MAROON} />
@@ -57,7 +57,7 @@ const BookARideScreen = () => (
     </View>
 
     {/* ------------------------- Intercampus shuttle ----------------------- */}
-    <Text style={s.eyebrow}>Between campuses</Text>
+    <Text accessibilityRole="header" style={s.eyebrow}>Between campuses</Text>
     <View style={s.card}>
       <View style={s.cardTitleRow}>
         <Ionicons name="swap-horizontal-outline" size={18} color={MAROON} />

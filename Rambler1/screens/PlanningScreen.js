@@ -24,7 +24,7 @@ import {
 import { planSemesters, allPlannedCodes, planOrderingIssues, termLabelFor } from '../plan-utils';
 import { requirementCoverage } from '../planning-insights';
 import { buildRecommendations } from '../recommend';
-import { FONT, MAROON, EYEBROW } from '../theme';
+import { FONT, MAROON, EYEBROW, STONE } from '../theme';
 import showAlert from '../alert';
 import WhatIfModal from '../components/WhatIfModal';
 
@@ -314,7 +314,7 @@ const PlanningScreen = () => {
         return (
           <View key={sem.code} style={s.semCard}>
             <View style={s.semHeader}>
-              <Text style={s.semTitle}>{sem.label}</Text>
+              <Text accessibilityRole="header" style={s.semTitle}>{sem.label}</Text>
               <TouchableOpacity
                 style={s.addBtn}
                 onPress={() => openAdd(sem.code)}
@@ -354,10 +354,10 @@ const PlanningScreen = () => {
 
       {/* ------------------------- ADD-COURSE MODAL ------------------------- */}
       <Modal visible={!!addTarget} animationType="slide" transparent onRequestClose={closeAdd}>
-        <KeyboardAvoidingView style={s.modalOverlay} behavior={KAV_BEHAVIOR}>
+        <KeyboardAvoidingView accessibilityViewIsModal style={s.modalOverlay} behavior={KAV_BEHAVIOR}>
           <View style={s.modalPanel}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>
+              <Text accessibilityRole="header" style={s.modalTitle}>
                 Add to {semesters.find((x) => x.code === addTarget)?.label || 'semester'}
               </Text>
               <TouchableOpacity onPress={closeAdd} style={s.modalClose} accessibilityLabel="Close add course">
@@ -367,7 +367,7 @@ const PlanningScreen = () => {
             <TextInput
               style={s.searchInput}
               placeholder="Search courses (e.g. PHIL 181)"
-              placeholderTextColor="#999"
+              placeholderTextColor={STONE}
               value={query}
               onChangeText={onSearchChange}
               autoCorrect={false}
@@ -378,7 +378,7 @@ const PlanningScreen = () => {
               {/* Empty query → surface remaining requirements, focus-first. */}
               {!query.trim() && recommendations.length > 0 ? (
                 <>
-                  <Text style={s.recHeading}>Recommended for you</Text>
+                  <Text accessibilityRole="header" style={s.recHeading}>Recommended for you</Text>
                   {recommendations.map((rec) => (
                     <TouchableOpacity
                       key={rec.code}
@@ -428,9 +428,9 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FBF9F4' },
   content: { padding: 16, paddingBottom: 32 },
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FBF9F4', padding: 24 },
-  loadingText: { fontFamily: FONT, fontSize: 16, color: '#999', marginTop: 12 },
-  emptyTitle: { fontFamily: FONT, fontSize: 22, color: '#999', textAlign: 'center' },
-  introText: { fontFamily: FONT, fontSize: 15, color: '#777', marginBottom: 14, lineHeight: 21 },
+  loadingText: { fontFamily: FONT, fontSize: 16, color: STONE, marginTop: 12 },
+  emptyTitle: { fontFamily: FONT, fontSize: 22, color: STONE, textAlign: 'center' },
+  introText: { fontFamily: FONT, fontSize: 15, color: STONE, marginBottom: 14, lineHeight: 21 },
 
   coverageBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -460,7 +460,7 @@ const s = StyleSheet.create({
     paddingVertical: 4, paddingHorizontal: 12,
   },
   addBtnText: { fontFamily: FONT, fontSize: 15, color: MAROON, fontWeight: '600' },
-  semEmpty: { fontFamily: FONT, fontSize: 14, color: '#AAA' },
+  semEmpty: { fontFamily: FONT, fontSize: 14, color: STONE },
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap' },
   chip: {
     backgroundColor: '#FBF0F5', borderRadius: 14, paddingVertical: 5, paddingHorizontal: 11,

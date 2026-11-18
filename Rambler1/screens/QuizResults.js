@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAppContext } from '../AppContext';
 import { fetchQuizRecommendations, fetchQuizFocusAreas } from '../firestore-data';
 import BackgroundImage from '../styleComponents/BackgroundImage';
+import { STONE } from '../theme';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -268,7 +269,7 @@ const s = StyleSheet.create({
   cardSubtitle: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 14,
-    color: '#888',
+    color: STONE,
     marginBottom: 12,
   },
   scoreRow: {
@@ -292,7 +293,7 @@ const s = StyleSheet.create({
   scoreDimName: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
-    color: '#888',
+    color: STONE,
   },
   scoreBarBg: {
     flex: 1,
@@ -355,7 +356,7 @@ const s = StyleSheet.create({
   recDegree: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 14,
-    color: '#888',
+    color: STONE,
   },
   recRationale: {
     fontFamily: 'CormorantGaramond-Regular',

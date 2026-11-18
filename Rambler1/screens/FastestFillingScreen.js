@@ -14,7 +14,7 @@ import { useAppContext } from '../AppContext';
 import { fetchFastestFilling, fetchDegreeProgress, fetchPlans } from '../firestore-data';
 import { allPlannedCodes, normCode } from '../plan-utils';
 import CourseDetailModal from '../CourseDetailModal';
-import { FONT, MAROON, EYEBROW } from '../theme';
+import { FONT, MAROON, EYEBROW, STONE } from '../theme';
 
 const CLASS_LABELS = {
   'day1-2': 'Filled in 1–2 days',
@@ -163,12 +163,12 @@ const FastestFillingScreen = () => {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FBF9F4' },
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  loadingText: { fontFamily: FONT, fontSize: 16, color: '#999', marginTop: 12 },
-  emptyTitle: { fontFamily: FONT, fontSize: 22, color: '#999', textAlign: 'center' },
-  emptyHint: { fontFamily: FONT, fontSize: 15, color: '#CCC', marginTop: 6, textAlign: 'center' },
+  loadingText: { fontFamily: FONT, fontSize: 16, color: STONE, marginTop: 12 },
+  emptyTitle: { fontFamily: FONT, fontSize: 22, color: STONE, textAlign: 'center' },
+  emptyHint: { fontFamily: FONT, fontSize: 15, color: STONE, marginTop: 6, textAlign: 'center' },
 
   headerWrap: { padding: 16, paddingBottom: 8 },
-  headerText: { fontFamily: FONT, fontSize: 15, color: '#777', lineHeight: 21 },
+  headerText: { fontFamily: FONT, fontSize: 15, color: STONE, lineHeight: 21 },
   sectionLabel: { ...EYEBROW, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 },
   noteBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -188,9 +188,9 @@ const s = StyleSheet.create({
   daysBadgeNum: { fontFamily: FONT, fontSize: 20, fontWeight: '700', color: MAROON },
   daysBadgeUnit: { fontFamily: FONT, fontSize: 11, color: MAROON, marginTop: -3 },
   rowCode: { fontFamily: FONT, fontSize: 17, fontWeight: '700', color: '#333' },
-  rowName: { fontFamily: FONT, fontSize: 14, color: '#777' },
+  rowName: { fontFamily: FONT, fontSize: 14, color: STONE },
   rowClass: { fontFamily: FONT, fontSize: 13, color: '#B45309', marginTop: 1 },
-  chevron: { fontFamily: FONT, fontSize: 24, color: '#CCC' },
+  chevron: { fontFamily: FONT, fontSize: 24, color: STONE },
 });
 
 export default FastestFillingScreen;

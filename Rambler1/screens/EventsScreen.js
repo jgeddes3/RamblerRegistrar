@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getEvents } from '../campus-api';
+import { STONE } from '../theme';
 
 const MAROON = '#A30046';
 const DAYS_AHEAD = 14;
@@ -63,17 +64,17 @@ const EventCard = ({ event, onPress }) => {
       <View style={s.cardBody}>
         <Text style={s.cardTitle} numberOfLines={2}>{event.title || 'Untitled event'}</Text>
         <View style={s.metaRow}>
-          <Ionicons name="time-outline" size={13} color="#888" />
+          <Ionicons name="time-outline" size={13} color={STONE} />
           <Text style={s.metaText} numberOfLines={1}>{timeText(event)}</Text>
         </View>
         {event.location ? (
           <View style={s.metaRow}>
-            <Ionicons name="location-outline" size={13} color="#888" />
+            <Ionicons name="location-outline" size={13} color={STONE} />
             <Text style={s.metaText} numberOfLines={1}>{event.location}</Text>
           </View>
         ) : null}
       </View>
-      {hasUrl ? <Ionicons name="chevron-forward" size={18} color="#CCC" /> : null}
+      {hasUrl ? <Ionicons name="chevron-forward" size={18} color={STONE} /> : null}
     </TouchableOpacity>
   );
 };
@@ -144,7 +145,7 @@ const EventsScreen = () => {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={MAROON} colors={[MAROON]} />
       }
       ListHeaderComponent={
-        sorted.length > 0 ? <Text style={s.sectionTitle}>Next {DAYS_AHEAD} days</Text> : null
+        sorted.length > 0 ? <Text accessibilityRole="header" style={s.sectionTitle}>Next {DAYS_AHEAD} days</Text> : null
       }
       ListEmptyComponent={
         <View style={s.centerWrap}>
@@ -169,12 +170,12 @@ const s = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#FBF9F4', paddingHorizontal: 24,
   },
-  loadingText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 16, color: '#999', marginTop: 12 },
+  loadingText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 16, color: STONE, marginTop: 12 },
   emptyTitle: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 22, color: '#999',
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 22, color: STONE,
     textAlign: 'center', marginTop: 10,
   },
-  emptyHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: '#CCC', marginTop: 6, textAlign: 'center' },
+  emptyHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: STONE, marginTop: 6, textAlign: 'center' },
 
   sectionTitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 24, color: MAROON, marginBottom: 10 },
 
@@ -192,7 +193,7 @@ const s = StyleSheet.create({
   cardBody: { flex: 1 },
   cardTitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 18, color: '#333' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
-  metaText: { flex: 1, fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: '#777' },
+  metaText: { flex: 1, fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: STONE },
 });
 
 export default EventsScreen;

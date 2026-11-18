@@ -210,7 +210,7 @@ const GenerateScheduleModal = ({
       <TextInput
         style={st.searchInput}
         placeholder="Search courses to include (e.g. COMP 170)"
-        placeholderTextColor="#999"
+        placeholderTextColor={STONE}
         value={query}
         onChangeText={onSearchChange}
         autoCorrect={false}
@@ -439,9 +439,9 @@ const GenerateScheduleModal = ({
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={close}>
-      <View style={st.container}>
+      <View accessibilityViewIsModal style={st.container}>
         <View style={st.header}>
-          <Text style={st.title}>
+          <Text accessibilityRole="header" style={st.title}>
             {preview ? 'Preview' : phase === 'results' ? 'Suggested Schedules' : 'Generate Schedule'}
           </Text>
           <TouchableOpacity onPress={close} style={st.closeBtn} accessibilityLabel="Close generator">
@@ -541,8 +541,8 @@ const st = StyleSheet.create({
   candScoreText: { fontFamily: FONT, color: '#fff', fontWeight: '700', fontSize: 16 },
   candTitle: { fontFamily: FONT, fontWeight: '700', color: '#1a1a1a', fontSize: 17 },
   candStats: { fontFamily: FONT, color: '#666', fontSize: 15, marginTop: 2 },
-  candCourses: { fontFamily: FONT, color: '#888', fontSize: 14, marginTop: 3 },
-  candChevron: { color: '#bbb', fontSize: 24, paddingLeft: 8 },
+  candCourses: { fontFamily: FONT, color: STONE, fontSize: 14, marginTop: 3 },
+  candChevron: { color: STONE, fontSize: 24, paddingLeft: 8 },
 
   adjustBtn: { padding: 14, alignItems: 'center' },
   adjustBtnText: { fontFamily: FONT, fontSize: 16, color: '#A30046', fontWeight: '600' },

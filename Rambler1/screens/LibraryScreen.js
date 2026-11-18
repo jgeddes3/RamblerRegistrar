@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getLibraryHours, getLibraryHoursWeekly } from '../campus-api';
+import { STONE, OK, NEUTRAL } from '../theme';
 
 const MAROON = '#A30046';
 
@@ -85,7 +86,7 @@ const TodayCard = ({ loc, expanded, onToggle }) => {
         <Text style={s.cardName} numberOfLines={2}>{loc.name}</Text>
         <View style={[s.statusPill, open ? s.statusOpen : s.statusClosed]}>
           <View style={[s.statusDot, { backgroundColor: open ? '#059669' : '#9CA3AF' }]} />
-          <Text style={[s.statusText, { color: open ? '#065F46' : '#6B7280' }]}>
+          <Text style={[s.statusText, { color: open ? OK.fg : NEUTRAL.fg }]}>
             {open ? 'Open' : 'Closed'}
           </Text>
         </View>
@@ -97,7 +98,7 @@ const TodayCard = ({ loc, expanded, onToggle }) => {
         />
       </View>
       <View style={s.hoursRow}>
-        <Ionicons name="time-outline" size={14} color="#888" style={{ marginTop: 1 }} />
+        <Ionicons name="time-outline" size={14} color={STONE} style={{ marginTop: 1 }} />
         <Text style={s.hoursText}>{hoursText(loc)}</Text>
       </View>
       {loc.note ? <Text style={s.noteText}>{loc.note}</Text> : null}
@@ -215,7 +216,7 @@ const LibraryScreen = () => {
         <>
           {todayLocations.length > 0 && (
             <>
-              <Text style={s.sectionTitle}>Today</Text>
+              <Text accessibilityRole="header" style={s.sectionTitle}>Today</Text>
               {todayLocations.map((loc) => {
                 const key = String(loc.id ?? loc.name);
                 return (
@@ -233,7 +234,7 @@ const LibraryScreen = () => {
           {/* Study rooms (F-Q8): deep-link into LibCal's official booking
               picker per location — booking itself requires the Loyola login,
               so the browser flow is the supported path. */}
-          <Text style={[s.sectionTitle, { marginTop: 18 }]}>Book a study room</Text>
+          <Text accessibilityRole="header" style={[s.sectionTitle, { marginTop: 18 }]}>Book a study room</Text>
           {STUDY_ROOM_LOCATIONS.map((loc) => (
             <TouchableOpacity
               key={loc.lid}
@@ -257,7 +258,7 @@ const LibraryScreen = () => {
 
           {weeklyLocations.length > 0 && (
             <>
-              <Text style={[s.sectionTitle, { marginTop: 18 }]}>This week</Text>
+              <Text accessibilityRole="header" style={[s.sectionTitle, { marginTop: 18 }]}>This week</Text>
               {weeklyLocations.map((loc) => (
                 <WeeklyLocation key={String(loc.lid ?? loc.name)} loc={loc} />
               ))}
@@ -279,12 +280,12 @@ const s = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#FBF9F4', paddingHorizontal: 24,
   },
-  loadingText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 16, color: '#999', marginTop: 12 },
+  loadingText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 16, color: STONE, marginTop: 12 },
   emptyTitle: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 22, color: '#999',
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 22, color: STONE,
     textAlign: 'center', marginTop: 10,
   },
-  emptyHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: '#CCC', marginTop: 6, textAlign: 'center' },
+  emptyHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: STONE, marginTop: 6, textAlign: 'center' },
 
   sectionTitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 24, color: MAROON, marginBottom: 8 },
 
@@ -300,12 +301,12 @@ const s = StyleSheet.create({
     borderRadius: 10, paddingVertical: 2, paddingHorizontal: 9,
   },
   statusOpen: { backgroundColor: '#d1fae5' },
-  statusClosed: { backgroundColor: '#F3F4F6' },
+  statusClosed: { backgroundColor: NEUTRAL.bg },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 11, fontWeight: 'bold' },
   hoursRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 6 },
   hoursText: { flex: 1, fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#555' },
-  noteText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: '#999', marginTop: 4, fontStyle: 'italic' },
+  noteText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: STONE, marginTop: 4, fontStyle: 'italic' },
 
   // Expanded booking detail (accordion)
   detailWrap: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F0F0F0' },
@@ -314,7 +315,7 @@ const s = StyleSheet.create({
     backgroundColor: MAROON, borderRadius: 10, paddingVertical: 10, marginBottom: 8,
   },
   bookButtonText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, fontWeight: 'bold', color: '#FFFFFF' },
-  detailHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#999', fontStyle: 'italic' },
+  detailHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: STONE, fontStyle: 'italic' },
 
   // Study-room booking rows (F-Q8)
   bookRow: {
@@ -327,8 +328,8 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   bookName: { fontFamily: 'CormorantGaramond-Regular', fontSize: 17, color: '#333' },
-  bookCampus: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: '#999' },
-  bookHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: '#AAA', fontStyle: 'italic', marginBottom: 4 },
+  bookCampus: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: STONE },
+  bookHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: STONE, fontStyle: 'italic', marginBottom: 4 },
 
   // Weekly grid
   weekCard: {

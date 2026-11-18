@@ -24,7 +24,7 @@ import { useAppContext } from '../AppContext';
 import showAlert from '../alert';
 import { canEditProfile } from '../profile-edits';
 import { afterModalDismiss } from '../modal-sequencing';
-import { FONT, MAROON } from '../theme';
+import { FONT, MAROON, STONE } from '../theme';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 const MAX_MINORS = 3;
@@ -196,7 +196,7 @@ const WhatIfModal = ({
   const content = (
       <View style={s.container}>
         <View style={s.header}>
-          <Text style={s.title}>What If?</Text>
+          <Text accessibilityRole="header" style={s.title}>What If?</Text>
           <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel="Close what-if explorer">
             <Text style={s.closeText}>Done</Text>
           </TouchableOpacity>
@@ -227,7 +227,7 @@ const WhatIfModal = ({
           <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 8 }}>
             {fitting.length > 0 && (
               <>
-                <Text style={s.groupTitle}>Fits your timeline</Text>
+                <Text accessibilityRole="header" style={s.groupTitle}>Fits your timeline</Text>
                 {fitting.map((r) => (
                   <Row key={r.program.id} entry={r} badgeText="Fits" badgeStyle={s.badgeFits} />
                 ))}
@@ -235,7 +235,7 @@ const WhatIfModal = ({
             )}
             {stretching.length > 0 && (
               <>
-                <Text style={s.groupTitle}>Would extend your time</Text>
+                <Text accessibilityRole="header" style={s.groupTitle}>Would extend your time</Text>
                 {stretching.map((r) => (
                   <Row
                     key={r.program.id}
@@ -248,7 +248,7 @@ const WhatIfModal = ({
             )}
             {unknowns.length > 0 && (
               <>
-                <Text style={s.groupTitle}>Requirements not loaded yet</Text>
+                <Text accessibilityRole="header" style={s.groupTitle}>Requirements not loaded yet</Text>
                 {unknowns.map((r) => (
                   <Row key={r.program.id} entry={r} badgeText="?" badgeStyle={s.badgeUnknown} />
                 ))}
@@ -263,7 +263,7 @@ const WhatIfModal = ({
   if (asScreen) return visible ? content : null;
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      {content}
+      <View style={{ flex: 1 }} accessibilityViewIsModal>{content}</View>
     </Modal>
   );
 };
@@ -277,7 +277,7 @@ const s = StyleSheet.create({
   title: { fontFamily: FONT, fontSize: 24, fontWeight: '700', color: '#1a1a1a' },
   closeBtn: { padding: 8 },
   closeText: { fontFamily: FONT, fontSize: 18, fontWeight: '600', color: MAROON },
-  subtitle: { fontFamily: FONT, fontSize: 14, color: '#888', paddingHorizontal: 16, marginBottom: 8 },
+  subtitle: { fontFamily: FONT, fontSize: 14, color: STONE, paddingHorizontal: 16, marginBottom: 8 },
 
   modeRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 6 },
   modeChip: {
@@ -289,7 +289,7 @@ const s = StyleSheet.create({
   modeChipTextOn: { color: '#FFF' },
 
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  loadingText: { fontFamily: FONT, fontSize: 15, color: '#999', marginTop: 12, textAlign: 'center' },
+  loadingText: { fontFamily: FONT, fontSize: 15, color: STONE, marginTop: 12, textAlign: 'center' },
 
   groupTitle: { fontFamily: FONT, fontSize: 20, color: MAROON, marginTop: 10, marginBottom: 6 },
   row: {
@@ -297,7 +297,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#F0F0F0', borderRadius: 10, padding: 12, marginBottom: 8,
   },
   rowName: { fontFamily: FONT, fontSize: 17, fontWeight: '700', color: '#333' },
-  rowSub: { fontFamily: FONT, fontSize: 13, color: '#777', marginTop: 1 },
+  rowSub: { fontFamily: FONT, fontSize: 13, color: STONE, marginTop: 1 },
   badge: { borderRadius: 10, paddingVertical: 3, paddingHorizontal: 9 },
   badgeFits: { backgroundColor: '#d1fae5' },
   badgeStretch: { backgroundColor: '#fee2e2' },

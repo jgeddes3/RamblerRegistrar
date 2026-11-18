@@ -3,15 +3,24 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, ActivityInd
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppContext } from '../AppContext';
-import { signOut } from '../auth';
-import { fetchPrograms, fetchCourses, addUserCourse, removeUserCourse, saveUserProfile, fetchEnrichedRecommendations, fetchQuizFocusAreas, setUserLocation } from '../firestore-data';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { signOut, reauthenticate, deleteCurrentAccount } from '../auth';
+import { fetchPrograms, fetchCourses, addUserCourse, removeUserCourse, saveUserProfile, fetchEnrichedRecommendations, fetchQuizFocusAreas, setUserLocation, deleteAllUserData } from '../firestore-data';
+import { eraseAccountData, deletionErrorMessage, setDeletingAccount } from '../account-deletion';
+import { PENDING_SIGNUP_KEY, forgetPendingCourse, settleRetry } from '../signup-save';
 import { geocodeAddress, suggestAddresses } from '../campus-api';
 import showAlert from '../alert';
 import { canEditProfile, programEdit, minorToggleEdit, priorityEdit } from '../profile-edits';
 import { filterCourses, setCourseSelected } from '../course-list';
 import { afterModalDismiss } from '../modal-sequencing';
+import { STONE, INK, DANGER } from '../theme';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
+
+// What this phone keeps for an account, removed when the account is deleted:
+// Search's recent searches and any signup details still waiting to save.
+const LOCAL_ACCOUNT_KEYS = ['@rambler_recent_searches', PENDING_SIGNUP_KEY];
+const clearAccountLocalData = () => AsyncStorage.multiRemove(LOCAL_ACCOUNT_KEYS);
 
 // One row of the Courses Taken list. Memoized: with ~2,000 courses a tap
 // must re-render the row that changed, not the whole list.
@@ -41,7 +50,10 @@ const ProfileScreen = ({ visible, onClose }) => {
   } = useAppContext();
 
   const isUndecided = !selectedProgram || selectedProgram.id === 'undecided';
-  const [mode, setMode] = useState('profile'); // 'profile', 'selectProgram', 'selectMinor', 'selectCourses'
+  const [mode, setMode] = useState('profile'); // 'profile', 'selectProgram', 'selectMinor', 'selectCourses', 'deleteAccount'
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [programs, setPrograms] = useState([]);
   const [minorsList, setMinorsList] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -186,7 +198,7 @@ const ProfileScreen = ({ visible, onClose }) => {
     }
   }, [visible, selectedProgram, user]);
 
-  const handleSignOut = () => {
+  const signOutNow = () => {
     onClose();
     setMode('profile');
     // Signing out swaps the whole signed-in tree (this modal included) for the
@@ -194,6 +206,57 @@ const ProfileScreen = ({ visible, onClose }) => {
     // Modal that is still presented is the iOS dead-overlay freeze (see
     // modal-sequencing.js).
     afterModalDismiss(() => { signOut().catch(() => {}); });
+  };
+
+  const handleSignOut = () => {
+    showAlert('Sign out?', "You'll need your email and password to sign back in.", [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign Out', style: 'destructive', onPress: signOutNow },
+    ]);
+  };
+
+  const leaveDeletePanel = () => {
+    if (deleteBusy) return;
+    setMode('profile');
+    setDeletePassword('');
+    setDeleteError('');
+  };
+
+  // Password check and data deletion run with the panel open, so a failure
+  // shows here. Deleting the sign-in waits for the modal to close: like
+  // sign-out, it swaps the whole signed-in tree.
+  const handleDeleteAccount = async () => {
+    if (deleteBusy || !deletePassword) return;
+    setDeleteBusy(true);
+    setDeleteError('');
+    setDeletingAccount(true); // background signup retries stand down
+    const res = await eraseAccountData(deletePassword, user?.uid, {
+      reauthenticate,
+      settleBackgroundSaves: settleRetry,
+      deleteAllUserData,
+      clearLocalData: clearAccountLocalData,
+    });
+    setDeleteBusy(false);
+    if (!res.ok) {
+      setDeletingAccount(false);
+      setDeleteError(deletionErrorMessage(res));
+      return;
+    }
+    setDeletePassword('');
+    onClose();
+    setMode('profile');
+    afterModalDismiss(async () => {
+      try {
+        await deleteCurrentAccount();
+      } catch (e) {
+        showAlert(
+          'Account not fully deleted',
+          "Your data was deleted, but your sign-in wasn't. Open Profile and choose Delete account again to finish.",
+        );
+      } finally {
+        setDeletingAccount(false);
+      }
+    });
   };
 
   // Profile edits (major / minors / priority flags) share three rules:
@@ -325,6 +388,9 @@ const ProfileScreen = ({ visible, onClose }) => {
     if (!res) {
       apply(wasSelected);
       showAlert('Save failed', `${course.code} wasn't updated. Check your connection and try again.`);
+    } else if (wasSelected) {
+      // Removed: a signup save still waiting to retry must not re-add it.
+      forgetPendingCourse(AsyncStorage, user.uid, course.code).catch(() => {});
     }
   }, [user, setSelectedCourses]);
 
@@ -344,17 +410,74 @@ const ProfileScreen = ({ visible, onClose }) => {
     <TakenCourseRow course={item} selected={selectedCodes.has(item.code)} onPress={handleToggleCourse} />
   ), [selectedCodes, handleToggleCourse]);
 
+  // ==================== DELETE ACCOUNT MODE ====================
+  if (mode === 'deleteAccount') {
+    const canDelete = !!deletePassword && !deleteBusy;
+    return (
+      <Modal visible={visible} animationType="slide" transparent onRequestClose={leaveDeletePanel}>
+        <View accessibilityViewIsModal style={s.overlay}>
+          <View style={s.panelFull}>
+            <View style={s.headerRow}>
+              <TouchableOpacity onPress={leaveDeletePanel} disabled={deleteBusy} accessibilityRole="button">
+                <Text style={s.backText}>Back</Text>
+              </TouchableOpacity>
+              <Text accessibilityRole="header" style={s.headerTitle}>Delete account</Text>
+              <View style={{ width: 50 }} />
+            </View>
+            <ScrollView contentContainerStyle={s.deleteContent} keyboardShouldPersistTaps="handled">
+              <Text style={s.deleteBody}>
+                This permanently deletes your account and everything saved with it: your profile and
+                quiz results, courses taken, schedules and plans, seat watches, home address, and any
+                feedback you sent.
+              </Text>
+              <Text style={s.deleteBody}>It can't be undone.</Text>
+              <Text style={s.deleteLabel}>Enter your password to confirm</Text>
+              <TextInput
+                style={s.searchInput}
+                value={deletePassword}
+                onChangeText={(t) => { setDeletePassword(t); setDeleteError(''); }}
+                placeholder="Password"
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="current-password"
+                textContentType="password"
+                accessibilityLabel="Password"
+                editable={!deleteBusy}
+                onSubmitEditing={handleDeleteAccount}
+              />
+              {deleteError ? (
+                <Text style={s.deleteError} accessibilityRole="alert" accessibilityLiveRegion="polite">
+                  {deleteError}
+                </Text>
+              ) : null}
+              <TouchableOpacity
+                style={[s.deleteButton, !canDelete && s.deleteButtonDisabled]}
+                onPress={handleDeleteAccount}
+                disabled={!canDelete}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !canDelete, busy: deleteBusy }}
+              >
+                <Text style={s.deleteButtonText}>{deleteBusy ? 'Deleting…' : 'Delete my account'}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
   // ==================== SELECT PROGRAM MODE ====================
   if (mode === 'selectProgram') {
     return (
-      <Modal visible={visible} animationType="slide" transparent>
-        <View style={s.overlay}>
+      <Modal visible={visible} animationType="slide" transparent onRequestClose={() => { setMode('profile'); setSearch(''); }}>
+        <View accessibilityViewIsModal style={s.overlay}>
           <View style={s.panelFull}>
             <View style={s.headerRow}>
               <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }}>
                 <Text style={s.backText}>Back</Text>
               </TouchableOpacity>
-              <Text style={s.headerTitle}>Select Major</Text>
+              <Text accessibilityRole="header" style={s.headerTitle}>Select Major</Text>
               <View style={{ width: 50 }} />
             </View>
             <TextInput
@@ -370,7 +493,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                 {/* Recommendations section for undecided users */}
                 {isUndecided && recommendations.length > 0 && !search && (
                   <View style={s.recsSection}>
-                    <Text style={s.recsSectionTitle}>Recommended For You</Text>
+                    <Text accessibilityRole="header" style={s.recsSectionTitle}>Recommended For You</Text>
                     {quizResults && (
                       <Text style={s.recsSectionSub}>
                         Based on your {quizResults.code} · {quizResults.profileName} profile
@@ -443,14 +566,14 @@ const ProfileScreen = ({ visible, onClose }) => {
       (m.name || '').toLowerCase().includes(search.toLowerCase())
     );
     return (
-      <Modal visible={visible} animationType="slide" transparent>
-        <View style={s.overlay}>
+      <Modal visible={visible} animationType="slide" transparent onRequestClose={() => { setMode('profile'); setSearch(''); }}>
+        <View accessibilityViewIsModal style={s.overlay}>
           <View style={s.panelFull}>
             <View style={s.headerRow}>
               <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }}>
                 <Text style={s.backText}>Back</Text>
               </TouchableOpacity>
-              <Text style={s.headerTitle}>Select Minors</Text>
+              <Text accessibilityRole="header" style={s.headerTitle}>Select Minors</Text>
               <Text style={s.countBadge}>{(selectedMinors || []).length}/3</Text>
             </View>
             <TextInput
@@ -489,14 +612,14 @@ const ProfileScreen = ({ visible, onClose }) => {
   // ==================== SELECT COURSES MODE ====================
   if (mode === 'selectCourses') {
     return (
-      <Modal visible={visible} animationType="slide" transparent>
-        <View style={s.overlay}>
+      <Modal visible={visible} animationType="slide" transparent onRequestClose={() => { setMode('profile'); setSearch(''); }}>
+        <View accessibilityViewIsModal style={s.overlay}>
           <View style={s.panelFull}>
             <View style={s.headerRow}>
               <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }}>
                 <Text style={s.backText}>Back</Text>
               </TouchableOpacity>
-              <Text style={s.headerTitle}>Courses Taken</Text>
+              <Text accessibilityRole="header" style={s.headerTitle}>Courses Taken</Text>
               <Text style={s.countBadge}>{(selectedCourses || []).length}</Text>
             </View>
             <TextInput
@@ -530,10 +653,10 @@ const ProfileScreen = ({ visible, onClose }) => {
 
   // ==================== PROFILE MODE (default) ====================
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={s.overlay}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
+      <View accessibilityViewIsModal style={s.overlay}>
         <View style={s.panel}>
-          <TouchableOpacity onPress={handleClose} style={s.closeButton}>
+          <TouchableOpacity onPress={handleClose} style={s.closeButton} accessibilityRole="button" accessibilityLabel="Close profile">
             <Text style={s.closeText}>X</Text>
           </TouchableOpacity>
 
@@ -626,7 +749,7 @@ const ProfileScreen = ({ visible, onClose }) => {
 
             {/* Registration Priority */}
             <View style={s.infoBlock}>
-              <Text style={s.prioritySectionTitle}>Registration Priority</Text>
+              <Text accessibilityRole="header" style={s.prioritySectionTitle}>Registration Priority</Text>
               <View style={s.priorityRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.priorityRowLabel}>Honors student</Text>
@@ -659,7 +782,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                 describe. ON = excluded from every third-party sale/share
                 export (enforced in backend/export-sale-data.js). */}
             <View style={s.infoBlock}>
-              <Text style={s.prioritySectionTitle}>Privacy</Text>
+              <Text accessibilityRole="header" style={s.prioritySectionTitle}>Privacy</Text>
               <View style={s.priorityRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.priorityRowLabel}>Do not sell or share my personal information</Text>
@@ -699,7 +822,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               <TextInput
                 style={s.addressInput}
                 placeholder={savedHome ? 'Change address...' : 'e.g. 6363 N Winthrop Ave, Chicago, IL'}
-                placeholderTextColor="#999"
+                placeholderTextColor={STONE}
                 value={addressInput}
                 onChangeText={handleAddressChange}
                 autoCorrect={false}
@@ -852,8 +975,15 @@ const ProfileScreen = ({ visible, onClose }) => {
             <View style={s.divider} />
 
             {/* Sign Out */}
-            <TouchableOpacity style={s.signOutButton} onPress={handleSignOut}>
+            <TouchableOpacity style={s.signOutButton} onPress={handleSignOut} accessibilityRole="button">
               <Text style={s.signOutText}>Sign Out</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.deleteLink}
+              onPress={() => setMode('deleteAccount')}
+              accessibilityRole="button"
+            >
+              <Text style={s.deleteLinkText}>Delete account</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -927,7 +1057,7 @@ const s = StyleSheet.create({
   displayName: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 16,
-    color: '#888',
+    color: STONE,
     marginTop: 2,
   },
   divider: {
@@ -943,7 +1073,7 @@ const s = StyleSheet.create({
   label: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 14,
-    color: '#999',
+    color: STONE,
     fontWeight: 'bold',
     textTransform: 'uppercase',
     marginBottom: 4,
@@ -956,7 +1086,7 @@ const s = StyleSheet.create({
   valueSmall: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 14,
-    color: '#888',
+    color: STONE,
   },
   editHint: {
     fontFamily: 'CormorantGaramond-Regular',
@@ -1072,7 +1202,7 @@ const s = StyleSheet.create({
   focusSelectedCourses: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
-    color: '#888',
+    color: STONE,
     marginTop: 4,
   },
   focusPrompt: {
@@ -1102,7 +1232,7 @@ const s = StyleSheet.create({
   focusOptionDesc: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#888',
+    color: STONE,
     marginTop: 2,
   },
   focusBestBadge: {
@@ -1192,7 +1322,7 @@ const s = StyleSheet.create({
   priorityRowHint: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
-    color: '#888',
+    color: STONE,
     marginTop: 2,
     paddingRight: 8,
   },
@@ -1234,7 +1364,7 @@ const s = StyleSheet.create({
   recsSectionSub: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#888',
+    color: STONE,
     marginBottom: 12,
   },
   recItem: {
@@ -1260,7 +1390,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   recRankBadgeWarn: {
-    backgroundColor: '#999',
+    backgroundColor: STONE,
   },
   recRankText: {
     fontFamily: 'CormorantGaramond-Regular',
@@ -1280,7 +1410,7 @@ const s = StyleSheet.create({
   recItemDegree: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#888',
+    color: STONE,
     marginTop: 2,
   },
   recItemRationale: {
@@ -1312,7 +1442,7 @@ const s = StyleSheet.create({
   recsDividerText: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 16,
-    color: '#999',
+    color: STONE,
     fontWeight: 'bold',
   },
   signOutButton: {
@@ -1328,6 +1458,19 @@ const s = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
+  // Delete account: a quiet link under Sign Out, and its own panel.
+  deleteLink: { marginTop: 14, minHeight: 44, paddingHorizontal: 16, justifyContent: 'center' },
+  deleteLinkText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 17, color: DANGER.fg },
+  deleteContent: { padding: 20 },
+  deleteBody: { fontFamily: 'CormorantGaramond-Regular', fontSize: 17, color: INK, lineHeight: 24, marginBottom: 12 },
+  deleteLabel: { fontFamily: 'CormorantGaramond-Medium', fontSize: 16, color: INK, marginTop: 8 },
+  deleteError: { fontSize: 15, color: DANGER.fg, marginTop: 10 },
+  deleteButton: {
+    backgroundColor: DANGER.fg, borderRadius: 8, minHeight: 48,
+    alignItems: 'center', justifyContent: 'center', marginTop: 20,
+  },
+  deleteButtonDisabled: { opacity: 0.45 },
+  deleteButtonText: { fontFamily: 'CormorantGaramond-SemiBold', fontSize: 18, color: '#FFFFFF' },
   // Select program / courses mode
   headerRow: {
     flexDirection: 'row',
@@ -1404,7 +1547,7 @@ const s = StyleSheet.create({
   listItemSub: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#999',
+    color: STONE,
     marginTop: 2,
   },
 });

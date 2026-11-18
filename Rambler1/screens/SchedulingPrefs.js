@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAppContext } from '../AppContext';
 import { saveQuizResults } from '../firestore-data';
 import BackgroundImage from '../styleComponents/BackgroundImage';
+import { STONE } from '../theme';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -128,7 +129,7 @@ const SchedulingPrefs = () => {
           <View style={s.progressBarBg}>
             <View style={[s.progressBarFill, { width: `${((currentQ + 1) / QUESTIONS.length) * 100}%` }]} />
           </View>
-          <Text style={s.progressText}>{currentQ + 1} / {QUESTIONS.length}</Text>
+          <Text style={s.progressText} accessibilityLabel={`Question ${currentQ + 1} of ${QUESTIONS.length}`}>{currentQ + 1} / {QUESTIONS.length}</Text>
         </View>
 
         <View style={s.sectionBadge}>
@@ -138,7 +139,7 @@ const SchedulingPrefs = () => {
         {/* Question */}
         <ScrollView contentContainerStyle={s.scrollContent}>
           <View style={s.questionCard}>
-            <Text style={s.question}>{q.question}</Text>
+            <Text style={s.question} accessibilityRole="header">{q.question}</Text>
 
             {q.options.map((option) => {
               const selected = currentAnswer === option.value;
@@ -146,6 +147,8 @@ const SchedulingPrefs = () => {
                 <TouchableOpacity
                   key={option.value}
                   style={[s.option, selected ? s.optionSelected : s.optionUnselected]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: selected }}
                   onPress={() => handleSelect(option.value)}
                   activeOpacity={0.7}
                 >
@@ -307,7 +310,7 @@ const s = StyleSheet.create({
   hintText: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 15,
-    color: '#999',
+    color: STONE,
     marginBottom: 4,
   },
 });

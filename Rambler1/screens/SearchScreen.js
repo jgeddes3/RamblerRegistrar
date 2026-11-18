@@ -10,7 +10,10 @@ import { searchCourses as apiSearchCourses, getCourseSections, searchByInstructo
 import { fetchCourses as fetchLocalCourses } from '../Database';
 import CourseDetailModal from '../CourseDetailModal';
 import Skeleton from '../components/Skeleton';
+import ErrorState from '../components/ErrorState';
+import { seatAge } from '../seat-age';
 import { useRegistrationTerm, resolveRegistrationTerm } from '../term';
+import { STONE, WARN } from '../theme';
 
 // =============================================================================
 // CONSTANTS
@@ -140,6 +143,10 @@ const SectionRow = ({ section, onPress }) => {
           </Text>
         ) : null}
       </View>
+      {/* The spots badge is only as good as its last read: flag old ones. */}
+      {hasEnrollment && seatAge(section.enrollment_read_at)?.stale ? (
+        <Text style={s.staleSeats}>{seatAge(section.enrollment_read_at).label}, may have changed</Text>
+      ) : null}
     </TouchableOpacity>
   );
 };
@@ -161,7 +168,7 @@ function getFillFlag(fillStats) {
   return null;
 }
 
-const CourseCard = ({ course, sections, sectionsLoading, filters, onCoursePress, onSectionPress }) => {
+const CourseCard = ({ course, sections, sectionsLoading, sectionsFailed, filters, onCoursePress, onSectionPress, onRetrySections }) => {
   const TERM = useRegistrationTerm();
   // Filter sections by active filters
   const filteredSections = (sections || []).filter(sec => {
@@ -223,6 +230,13 @@ const CourseCard = ({ course, sections, sectionsLoading, filters, onCoursePress,
       <View style={s.cardSections}>
         {sectionsLoading ? (
           <ActivityIndicator color="#A30046" style={{ padding: 12 }} />
+        ) : sectionsFailed ? (
+          <ErrorState
+            variant="inline"
+            title="Couldn't load sections."
+            onRetry={() => onRetrySections(course)}
+            retryLabel={`Try again loading sections for ${course.code}`}
+          />
         ) : filteredSections.length > 0 ? (
           filteredSections.map((sec, i) => (
             <SectionRow
@@ -247,7 +261,7 @@ const CourseCard = ({ course, sections, sectionsLoading, filters, onCoursePress,
 
 const DepartmentGrid = ({ onSelect }) => (
   <View style={s.deptSection}>
-    <Text style={s.deptTitle}>Browse by Department</Text>
+    <Text accessibilityRole="header" style={s.deptTitle}>Browse by Department</Text>
     <View style={s.deptGrid}>
       {DEPARTMENTS.map((dept) => (
         <TouchableOpacity key={dept.code} style={s.deptCard} onPress={() => onSelect(dept.code)}>
@@ -267,13 +281,13 @@ const RecentSearches = ({ searches, onSelect, onRemove }) => {
   if (!searches || searches.length === 0) return null;
   return (
     <View style={s.recentSection}>
-      <Text style={s.recentTitle}>Recent Searches</Text>
+      <Text accessibilityRole="header" style={s.recentTitle}>Recent Searches</Text>
       {searches.map((term, i) => (
         <View key={`${term}-${i}`} style={s.recentRow}>
           <TouchableOpacity style={s.recentTerm} onPress={() => onSelect(term)}>
             <Text style={s.recentText}>{term}</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => onRemove(term)} style={s.recentX}>
+          <TouchableOpacity onPress={() => onRemove(term)} style={s.recentX} accessibilityRole="button" accessibilityLabel={`Remove ${term} from recent searches`}>
             <Text style={s.recentXText}>X</Text>
           </TouchableOpacity>
         </View>
@@ -302,6 +316,10 @@ const SearchScreen = () => {
   const [loading, setLoading] = useState(false);
   const [sections, setSections] = useState({});
   const [sectionsLoading, setSectionsLoading] = useState({});
+  // Course codes whose last sections read failed (shown with Try again).
+  const [sectionsFailed, setSectionsFailed] = useState({});
+  // The catalog search itself failed: shown instead of "No courses found".
+  const [searchFailed, setSearchFailed] = useState(false);
   const [recentSearches, setRecentSearches] = useState([]);
   const [filters, setFilters] = useState({ timeOfDay: null, days: null, openOnly: false });
   const [detailModal, setDetailModal] = useState({ visible: false, course: null, section: null, sections: null });
@@ -381,16 +399,20 @@ const SearchScreen = () => {
 
     const newSections = {};
     const doneLoading = {};
+    const failed = {};
     toLoad.forEach(c => { doneLoading[c.code] = false; });
     results.forEach((r, i) => {
       if (r.status === 'fulfilled' && Array.isArray(r.value.data)) {
         newSections[r.value.code] = r.value.data;
+        failed[r.value.code] = false;
       } else {
         requested.delete(toLoad[i].code); // failed read: let a later search retry
+        failed[toLoad[i].code] = true;
       }
     });
     setSections(prev => ({ ...prev, ...newSections }));
     setSectionsLoading(prev => ({ ...prev, ...doneLoading }));
+    setSectionsFailed(prev => ({ ...prev, ...failed }));
   }, []);
 
   // The registration term was corrected: sections on screen belong to the old
@@ -402,6 +424,7 @@ const SearchScreen = () => {
     sectionsRequestedRef.current = new Set();
     setSections({});
     setSectionsLoading({});
+    setSectionsFailed({});
     loadSectionsForCourses(resultsRef.current);
   }, [TERM.code, loadSectionsForCourses]);
 
@@ -419,7 +442,8 @@ const SearchScreen = () => {
     // Phase 2: API search
     setLoading(true);
     try {
-      const apiResults = await apiSearchCourses(q) || [];
+      const fetched = await apiSearchCourses(q); // null = the read failed
+      const apiResults = fetched || [];
       // Merge: API results may have data local doesn't
       const apiByCode = new Map(apiResults.map(r => [r.code, r]));
       // Local sqlite rows have no fill_stats — copy it from the matching API
@@ -468,12 +492,17 @@ const SearchScreen = () => {
 
       const finalResults = sortResults(merged, q);
       setResults(finalResults);
+      setSearchFailed(fetched === null);
 
       // Pre-load sections for all results in background
       loadSectionsForCourses(finalResults);
-    } catch (e) {}
+    } catch (e) {
+      if (gen === searchGenRef.current) setSearchFailed(true);
+    }
     if (gen === searchGenRef.current) setLoading(false);
   }, [sortResults, loadSectionsForCourses]);
+
+  const retrySections = useCallback((course) => loadSectionsForCourses([course]), [loadSectionsForCourses]);
 
   // A query becomes a "recent search" only when the user commits to it:
   // submits the box, opens a result, or picks a department/recent. Saving on
@@ -498,6 +527,7 @@ const SearchScreen = () => {
     if (!text.trim()) {
       setResults([]);
       setLoading(false);
+      setSearchFailed(false);
       return;
     }
     debounceRef.current = setTimeout(() => performSearch(text.trim()), 250);
@@ -506,6 +536,7 @@ const SearchScreen = () => {
   const clearSearch = () => {
     setQuery('');
     setResults([]);
+    setSearchFailed(false);
     inputRef.current?.focus();
   };
 
@@ -556,7 +587,7 @@ const SearchScreen = () => {
           ref={inputRef}
           style={s.searchInput}
           placeholder="Search courses, departments, professors..."
-          placeholderTextColor="#999"
+          placeholderTextColor={STONE}
           value={query}
           onChangeText={onSearchChange}
           onSubmitEditing={rememberQuery}
@@ -564,7 +595,7 @@ const SearchScreen = () => {
           returnKeyType="search"
         />
         {query.length > 0 && (
-          <TouchableOpacity style={s.clearBtn} onPress={clearSearch}>
+          <TouchableOpacity style={s.clearBtn} onPress={clearSearch} accessibilityRole="button" accessibilityLabel="Clear search">
             <Text style={s.clearBtnText}>X</Text>
           </TouchableOpacity>
         )}
@@ -595,6 +626,12 @@ const SearchScreen = () => {
             </View>
           ))}
         </View>
+      ) : results.length === 0 && !loading && searchFailed ? (
+        <ErrorState
+          title="Couldn't search the catalog"
+          message="Check your connection, then try again."
+          onRetry={() => performSearch(query.trim())}
+        />
       ) : results.length === 0 && !loading ? (
         <View style={s.emptyWrap}>
           <Text style={s.emptyTitle}>No courses found</Text>
@@ -609,11 +646,18 @@ const SearchScreen = () => {
               course={item}
               sections={sections[item.code]}
               sectionsLoading={sectionsLoading[item.code]}
+              sectionsFailed={sectionsFailed[item.code]}
               filters={filters}
               onCoursePress={handleCoursePress}
               onSectionPress={handleSectionPress}
+              onRetrySections={retrySections}
             />
           )}
+          ListHeaderComponent={
+            <Text style={s.seatNote}>
+              Seat counts are read from LOCUS once a day. Confirm in LOCUS before you register.
+            </Text>
+          }
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={VIEWABILITY_CONFIG}
           keyboardShouldPersistTaps="handled"
@@ -639,6 +683,10 @@ const SearchScreen = () => {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FBF9F4' },
+
+  // Seat-count age: the note above results, and the flag on an old count.
+  seatNote: { fontSize: 13, color: STONE, marginHorizontal: 16, marginTop: 8, marginBottom: 2, lineHeight: 18 },
+  staleSeats: { fontSize: 12, color: WARN.fg, marginTop: 4 },
 
   // Search bar
   searchBarWrap: {
@@ -751,7 +799,7 @@ const s = StyleSheet.create({
   cardCredits: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
-    color: '#999',
+    color: STONE,
   },
   cardName: {
     fontFamily: 'CormorantGaramond-Regular',
@@ -762,13 +810,13 @@ const s = StyleSheet.create({
   cardSub: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
-    color: '#999',
+    color: STONE,
     marginTop: 2,
   },
   cardChevron: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 20,
-    color: '#CCC',
+    color: STONE,
     marginLeft: 8,
   },
   cardSections: {
@@ -778,7 +826,7 @@ const s = StyleSheet.create({
   noMatchText: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
-    color: '#999',
+    color: STONE,
     textAlign: 'center',
     padding: 16,
   },
@@ -830,7 +878,7 @@ const s = StyleSheet.create({
   sectionRoom: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
-    color: '#888',
+    color: STONE,
   },
 
   // Department grid
@@ -865,7 +913,7 @@ const s = StyleSheet.create({
   deptName: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 11,
-    color: '#888',
+    color: STONE,
     textAlign: 'center',
     marginTop: 2,
   },
@@ -875,7 +923,7 @@ const s = StyleSheet.create({
   recentTitle: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
-    color: '#999',
+    color: STONE,
     fontWeight: 'bold',
     marginBottom: 8,
   },
@@ -896,7 +944,7 @@ const s = StyleSheet.create({
   recentXText: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
-    color: '#CCC',
+    color: STONE,
     fontWeight: 'bold',
   },
 
@@ -905,7 +953,7 @@ const s = StyleSheet.create({
   hintText: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
-    color: '#CCC',
+    color: STONE,
     textAlign: 'center',
     marginTop: 30,
   },
@@ -913,19 +961,19 @@ const s = StyleSheet.create({
   loadingText: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
-    color: '#999',
+    color: STONE,
     marginTop: 12,
   },
   emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyTitle: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 22,
-    color: '#999',
+    color: STONE,
   },
   emptyHint: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
-    color: '#CCC',
+    color: STONE,
     marginTop: 6,
   },
 });

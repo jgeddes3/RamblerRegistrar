@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, Platform, StatusBar, Image } from 'react-native';
+import { STONE } from '../theme';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
@@ -26,10 +27,10 @@ const MenuOverlay = ({ visible, onClose, onNavigate }) => {
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={s.overlay}>
-        <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={onClose} />
-        <View style={s.panel}>
+        <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={onClose} accessible={false} importantForAccessibility="no" />
+        <View style={s.panel} accessibilityViewIsModal>
           {/* Close */}
-          <TouchableOpacity onPress={onClose} style={s.closeButton}>
+          <TouchableOpacity onPress={onClose} style={s.closeButton} accessibilityRole="button" accessibilityLabel="Close menu">
             <Text style={s.closeText}>X</Text>
           </TouchableOpacity>
 
@@ -46,6 +47,7 @@ const MenuOverlay = ({ visible, onClose, onNavigate }) => {
             <TouchableOpacity
               key={item.label}
               style={s.menuItem}
+              accessibilityRole="button"
               onPress={() => handleItemPress(item.tab)}
             >
               <Text style={s.menuItemText}>{item.label}</Text>
@@ -59,6 +61,7 @@ const MenuOverlay = ({ visible, onClose, onNavigate }) => {
             <TouchableOpacity
               key={item.label}
               style={s.menuItem}
+              accessibilityRole="button"
               onPress={() => handleItemPress(item.tab, item.params)}
             >
               <Text style={s.menuItemTextSecondary}>{item.label}</Text>
@@ -145,7 +148,7 @@ const s = StyleSheet.create({
   menuItemTextSecondary: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 18,
-    color: '#888',
+    color: STONE,
   },
 });
 

@@ -13,7 +13,7 @@ const open = (url) => Linking.openURL(url).catch(() => {});
 const BookARideScreen = () => (
   <ScrollView style={s.container} contentContainerStyle={s.content}>
     {/* ------------------------------ 8-RIDE ------------------------------- */}
-    <Text style={s.eyebrow}>Evening safety rides</Text>
+    <Text accessibilityRole="header" style={s.eyebrow}>Evening safety rides</Text>
     <View style={s.card}>
       <View style={s.cardTitleRow}>
         <Ionicons name="bus-outline" size={18} color={MAROON} />
@@ -57,7 +57,7 @@ const BookARideScreen = () => (
     </View>
 
     {/* ------------------------- Intercampus shuttle ----------------------- */}
-    <Text style={s.eyebrow}>Between campuses</Text>
+    <Text accessibilityRole="header" style={s.eyebrow}>Between campuses</Text>
     <View style={s.card}>
       <View style={s.cardTitleRow}>
         <Ionicons name="swap-horizontal-outline" size={18} color={MAROON} />
@@ -127,7 +127,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: MAROON, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14,
   },
   btnSecondaryText: { fontFamily: FONT_MED, fontSize: 14, color: MAROON },
-  hint: { fontFamily: FONT_ITALIC, fontSize: 13, color: '#999', marginTop: 9 },
+  hint: { fontFamily: FONT_ITALIC, fontSize: 13, color: STONE, marginTop: 9 },
   footer: { fontFamily: FONT_ITALIC, fontSize: 13, color: '#B3ABA1', textAlign: 'center', marginTop: 4 },
 });
 

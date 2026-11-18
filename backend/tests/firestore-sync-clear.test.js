@@ -57,3 +57,14 @@ test('the hash of an unchanged section is stable (no mass rewrite on deploy)', (
   // Hash is of the same cleaned payload the old inline code built.
   assert.equal(hashOf(sectionDoc(full).payload), hashOf(sectionDoc({ ...full }).payload));
 });
+
+test('the read time goes to Firestore as enrollment.readAt, and changes the hash', () => {
+  const a = sectionDoc({ ...full, enrollment_read_at: '2026-11-17T16:00:00.000Z' }).payload;
+  const b = sectionDoc({ ...full, enrollment_read_at: '2026-11-18T16:00:00.000Z' }).payload;
+  assert.equal(a.enrollment.readAt, '2026-11-17T16:00:00.000Z');
+  assert.notEqual(hashOf(a), hashOf(b), 'a fresh read must be written even if the numbers match');
+});
+
+test('a section never read has no readAt', () => {
+  assert.equal('readAt' in sectionDoc(full).payload.enrollment, false);
+});

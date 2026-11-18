@@ -6,6 +6,7 @@ import { useAppContext } from './AppContext';
 import CustomLongButton1 from './styleComponents/CustomLongButton1';
 import { ScrollView } from 'react-native';
 import BackgroundImage from './styleComponents/BackgroundImage';
+import { STONE } from './theme';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -204,7 +205,7 @@ const ProgramSelect =() => {
         <View style={{ flex: 1 }}>
           {renderHeader()}
           {renderProgress()}
-          <Text style={s.pageTitle}>{getTitle()}</Text>
+          <Text accessibilityRole="header" style={s.pageTitle}>{getTitle()}</Text>
           <View style={s.choiceContainer}>
             <TouchableOpacity style={s.choiceButton} onPress={() => handleMinorChoice(true)}>
               <Text style={s.choiceButtonText}>Minor</Text>
@@ -224,7 +225,7 @@ const ProgramSelect =() => {
       <View style={{ flex: 1 }}>
         {renderHeader()}
         {renderProgress()}
-        <Text style={s.pageTitle}>{getTitle()}</Text>
+        <Text accessibilityRole="header" style={s.pageTitle}>{getTitle()}</Text>
 
         {/* Major phase: show selected major with remove */}
         {phase === 'major' && selectedProgram && (
@@ -385,7 +386,7 @@ const s = StyleSheet.create({
   progressLabel: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
-    color: '#999',
+    color: STONE,
   },
   progressLabelActive: {
     color: '#A30046',
@@ -508,7 +509,7 @@ const s = StyleSheet.create({
   undecidedHint: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#888',
+    color: STONE,
     marginTop: 2,
   },
   retryButton: {

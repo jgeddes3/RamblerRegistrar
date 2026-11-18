@@ -6,12 +6,14 @@ import {
   addCourseToPlan, addSectionToSchedule, PLAN_TERM_CAP,
 } from './firestore-data';
 import { getInstructorRating, noRatingCopy, ratingsAttribution } from './ratings';
-import { FONT_ITALIC, STONE } from './theme';
+import { FONT_ITALIC, STONE, WARN } from './theme';
 import { useAppContext } from './AppContext';
 import { fillWarning } from './planning-insights';
 import { planSemesters } from './plan-utils';
 import TrendChart from './components/TrendChart';
 import FeedbackModal from './components/FeedbackModal';
+import ErrorState from './components/ErrorState';
+import { seatAge, newestReadAt } from './seat-age';
 import showAlert from './alert';
 import { useRegistrationTerm, resolveRegistrationTerm } from './term';
 
@@ -37,6 +39,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
 
   const [sections, setSections] = useState([]);
   const [sectionsLoading, setSectionsLoading] = useState(false);
+  const [sectionsFailed, setSectionsFailed] = useState(false);
   const [profRatings, setProfRatings] = useState({});
   const [selectedSection, setSelectedSection] = useState(null);
   // Seat watches for this term: Set of watched class_number strings. Only the
@@ -129,12 +132,16 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
   })).sort((a, b) => b._prefScore - a._prefScore);
 
   const topScore = sortedSections.length > 0 ? sortedSections[0]._prefScore : 0;
+  // Seat-count age for the list header; rows whose own count is older say so.
+  const newestRead = newestReadAt(sortedSections);
+  const listAge = seatAge(newestRead);
   const displaySections = sortedSections;
 
   useEffect(() => {
     if (!visible || !course) return;
     resolveRegistrationTerm(); // retries if the published terms weren't reachable earlier
 
+    setSectionsFailed(false);
     if (singleSection) {
       fetchProfRatings([singleSection]);
     } else if (preSections && preSections.length > 0) {
@@ -213,11 +220,16 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
 
   const loadSections = async () => {
     setSectionsLoading(true);
+    setSectionsFailed(false);
     try {
-      const data = await getCourseSections(TERM.code, course.code);
+      const data = await getCourseSections(TERM.code, course.code); // null = read failed
       setSections(data || []);
+      setSectionsFailed(data === null);
       if (data && data.length > 0) fetchProfRatings(data);
-    } catch (e) {}
+    } catch (e) {
+      setSections([]);
+      setSectionsFailed(true);
+    }
     setSectionsLoading(false);
   };
 
@@ -233,8 +245,8 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
   if (!course) return null;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={s.overlay}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View accessibilityViewIsModal style={s.overlay}>
         <View style={s.modal}>
           {/* Header */}
           <View style={s.header}>
@@ -254,7 +266,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
           {fillNotice ? (
             fillNotice.level === 'info' ? (
               <View style={s.fillInfoRow}>
-                <Ionicons name="flash-outline" size={13} color="#888" />
+                <Ionicons name="flash-outline" size={13} color={STONE} />
                 <Text style={s.fillInfoLine}>{fillNotice.text}</Text>
               </View>
             ) : (
@@ -319,6 +331,12 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
           <Text style={s.termLabel}>
             {singleSection ? `Section ${singleSection.section_number} · ${TERM.label}` : `${TERM.label} Sections`}
           </Text>
+          {displaySections.length > 0 ? (
+            <Text style={[s.seatNote, listAge?.stale && s.seatNoteStale]}>
+              {listAge ? `${listAge.label}${listAge.stale ? ', may have changed' : ''}. ` : ''}
+              Confirm in LOCUS before you register.
+            </Text>
+          ) : null}
 
           <ScrollView style={s.sectionsList} showsVerticalScrollIndicator={false}>
             {sectionsLoading ? (
@@ -411,6 +429,15 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                           : sec.status || 'Enrollment TBD'}
                       </Text>
                     </View>
+                    {/* This section's count is older than the list's newest
+                        (its last read failed): say so on the row. */}
+                    {(() => {
+                      if (sec.enrollment_read_at === newestRead) return null;
+                      const age = seatAge(sec.enrollment_read_at);
+                      return age && age.stale && hasEnrollment ? (
+                        <Text style={s.staleSeats}>{age.label}, may have changed</Text>
+                      ) : null;
+                    })()}
 
                     {/* Enrollment + waitlist trend (single-section view only —
                         F-QW1 sparkline / F-HI3 waitlist movement) */}
@@ -505,6 +532,12 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                   </TouchableOpacity>
                 );
               })
+            ) : sectionsFailed ? (
+              <ErrorState
+                title="Couldn't load sections"
+                message="Check your connection, then try again."
+                onRetry={loadSections}
+              />
             ) : (
               <View style={s.empty}>
                 <Text style={s.emptyTitle}>No sections found</Text>
@@ -583,7 +616,7 @@ const s = StyleSheet.create({
   credits: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 14,
-    color: '#888',
+    color: STONE,
     marginTop: 2,
   },
   closeBtn: {
@@ -634,7 +667,7 @@ const s = StyleSheet.create({
     flex: 1,
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 14,
-    color: '#888',
+    color: STONE,
   },
   // Icon+text pair inside pill buttons/badges
   btnInner: {
@@ -658,6 +691,10 @@ const s = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
   },
+  // Seat-count age + "confirm in LOCUS" (sans: it carries a time).
+  seatNote: { fontSize: 13, color: STONE, marginTop: -4, marginBottom: 10, lineHeight: 18 },
+  seatNoteStale: { color: WARN.fg },
+  staleSeats: { fontSize: 13, color: WARN.fg, marginTop: 2, marginLeft: 22 },
   sectionsList: {
     flex: 1,
   },
@@ -745,7 +782,7 @@ const s = StyleSheet.create({
   },
   // Trend chart label (F-QW1/F-HI3)
   trendLabel: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#888', marginTop: 8,
+    fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: STONE, marginTop: 8,
   },
 
   // Remove from schedule (schedule-opened single-section view)
@@ -867,7 +904,7 @@ const s = StyleSheet.create({
   profStatLight: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#999',
+    color: STONE,
     marginTop: 2,
   },
   ratingsAttribution: {
@@ -883,12 +920,12 @@ const s = StyleSheet.create({
   emptyTitle: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 18,
-    color: '#999',
+    color: STONE,
   },
   emptyHint: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 14,
-    color: '#CCC',
+    color: STONE,
     marginTop: 4,
   },
 });

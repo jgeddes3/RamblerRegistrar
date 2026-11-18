@@ -135,6 +135,9 @@ function mapSection(docId, d) {
     enrollment_total: Number(enr.total) || 0,
     waitlist_cap: Number(enr.waitlistCap) || 0,
     waitlist_total: Number(enr.waitlistTotal) || 0,
+    // When the numbers above were read from LOCUS (ISO); null on docs synced
+    // before the backend started recording it. See seat-age.js.
+    enrollment_read_at: typeof enr.readAt === 'string' ? enr.readAt : null,
     instruction_mode: d.instructionMode ?? '',
     component: d.component ?? '',
     status: d.status ?? '',
@@ -903,6 +906,70 @@ export const submitFeedback = async ({ type, message, context } = {}) => {
     logError('submitFeedback', error);
     return null;
   }
+};
+
+// What a retried signup save must not overwrite (PendingSaveBanner): the
+// field names already on users/{uid}, and whether a quiz is saved.
+// null when the read failed, so the caller retries instead of guessing.
+export const fetchSignupSaveState = async (uid) => {
+  try {
+    const userId = resolveUid(uid);
+    if (!userId) return null;
+    const [profile, quiz] = await Promise.all([
+      getDoc(doc(db, 'users', userId)),
+      getDoc(doc(db, 'users', userId, 'private', 'quiz')),
+    ]);
+    // A cached copy may predate edits made since: no answer beats a stale one.
+    if (profile.metadata?.fromCache || quiz.metadata?.fromCache) return null;
+    return {
+      profileKeys: profile.exists() ? Object.keys(profile.data() || {}) : [],
+      hasQuiz: quiz.exists(),
+    };
+  } catch (error) {
+    logError('fetchSignupSaveState', error);
+    return null;
+  }
+};
+
+// =============================================================================
+// ACCOUNT DELETION (Profile > Delete account)
+// =============================================================================
+
+// Every collection under users/{uid} in firestore.rules. A collection added
+// there must be added here, or deleting an account leaves it behind.
+export const USER_SUBCOLLECTIONS = ['courses', 'locations', 'private', 'watches', 'schedules', 'plans'];
+
+// Deletes everything the account owns: the docs under users/{uid}, its
+// feedback reports, then the profile doc itself, last. Unlike the rest of
+// this file it THROWS on any failure: a deletion must never report success
+// with data left. Safe to run again after a partial failure.
+// (A collection read that comes back empty from the offline cache rejects in
+// firestore-guards, so being offline can't pass for "nothing to delete".)
+export const deleteAllUserData = async (uid) => {
+  const userId = resolveUid(uid);
+  if (!userId) throw new Error('deleteAllUserData: not signed in');
+  const snaps = await Promise.all([
+    ...USER_SUBCOLLECTIONS.map((sub) => getDocs(collection(db, 'users', userId, sub))),
+    getDocs(query(collection(db, 'feedback'), where('uid', '==', userId))),
+  ]);
+  // A list served from the offline cache may hold only some of the docs, so
+  // it can't stand for "everything": refuse it rather than miss the rest.
+  if (snaps.some((snap) => snap.metadata && snap.metadata.fromCache)) {
+    throw new Error('deleteAllUserData: offline (cached list)');
+  }
+  const refs = [];
+  USER_SUBCOLLECTIONS.forEach((sub, i) => {
+    for (const d of snaps[i].docs) refs.push(doc(db, 'users', userId, sub, d.id));
+  });
+  for (const d of snaps[snaps.length - 1].docs) refs.push(doc(db, 'feedback', d.id));
+
+  const results = await Promise.allSettled(refs.map((ref) => deleteDoc(ref)));
+  const failed = results.filter((r) => r.status === 'rejected');
+  if (failed.length) {
+    logError('deleteAllUserData', failed[0].reason);
+    throw new Error(`deleteAllUserData: ${failed.length} of ${refs.length} deletes failed`);
+  }
+  await deleteDoc(doc(db, 'users', userId));
 };
 
 // =============================================================================

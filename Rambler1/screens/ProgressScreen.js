@@ -8,6 +8,8 @@ import { saveCoursesConcurrently } from '../course-sync';
 import { afterModalDismiss } from '../modal-sequencing';
 import { programProgressSummary } from '../progress-summary';
 import CourseDetailModal from '../CourseDetailModal';
+import ErrorState from '../components/ErrorState';
+import { STONE } from '../theme';
 
 // Graduation Outlook banner design tokens (status -> colors)
 const OUTLOOK_COLORS = {
@@ -71,6 +73,8 @@ const ProgressScreen = () => {
   const [needsPrereqs, setNeedsPrereqs] = useState([]);
   const [coreProgress, setCoreProgress] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [synced, setSynced] = useState(false);
  // { "instructor name": { avgRating, avgDifficulty, wouldTakeAgainPercent, numRatings } }
   const [coreAreaModal, setCoreAreaModal] = useState(null);
@@ -194,7 +198,7 @@ const ProgressScreen = () => {
     } catch (e) { return null; }
   }, [user, synced, selectedProgram]);
 
-  // Load everything
+  // Load everything (again when Try again bumps reloadKey)
   useEffect(() => {
     if (!synced) return;
     setLoading(true);
@@ -217,9 +221,16 @@ const ProgressScreen = () => {
       }
       if (coreData) setCoreProgress(coreData);
       setOtherProgress((otherData || []).filter((p) => p && !p.error));
+      // Both loaders resolve null on a failed read. An undecided major has
+      // nothing to load, so its null isn't a failure.
+      const majorFailed = !!(user && selectedProgram && selectedProgram.id !== 'undecided' && !majorData);
+      const coreFailed = !!(user && !coreData);
+      setLoadFailed(majorFailed || coreFailed);
       setLoading(false);
     });
-  }, [synced, user, selectedProgram, selectedProgram2, selectedMinors, loadMajorProgress, loadCoreProgress]);
+  }, [synced, user, selectedProgram, selectedProgram2, selectedMinors, loadMajorProgress, loadCoreProgress, reloadKey]);
+
+  const retryLoad = () => setReloadKey((k) => k + 1);
 
   // Graduation outlook heuristic — recomputed whenever the underlying progress data
   // changes. Includes 2nd major + minors so the 'All' banner covers every program.
@@ -237,6 +248,20 @@ const ProgressScreen = () => {
     return (
       <View style={s.container}>
         <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 80 }} />
+      </View>
+    );
+  }
+
+  // Nothing loaded: an error, not a screen of zeros.
+  if (loadFailed && !progress && !coreProgress) {
+    return (
+      <View style={s.container}>
+        <ErrorState
+          style={{ marginTop: 60 }}
+          title="Couldn't load your progress"
+          message="Check your connection, then try again."
+          onRetry={retryLoad}
+        />
       </View>
     );
   }
@@ -280,7 +305,7 @@ const ProgressScreen = () => {
   // ==================== ALL VIEW ====================
   const renderAllView = () => (
     <ScrollView contentContainerStyle={s.scrollContent}>
-      <Text style={s.heading}>Degree Overview</Text>
+      <Text accessibilityRole="header" style={s.heading}>Degree Overview</Text>
 
       {renderOutlookBanner()}
 
@@ -349,7 +374,7 @@ const ProgressScreen = () => {
       {/* Electives or Added Classes */}
       {overflows ? (
         <View style={s.addedClassesCard}>
-          <Text style={s.addedClassesTitle}>Added Classes</Text>
+          <Text accessibilityRole="header" style={s.addedClassesTitle}>Added Classes</Text>
           <Text style={s.addedClassesDetail}>
             Your major ({majorCreditsRequired}cr) + core ({coreCreditsRequired}cr) = {accountedFor} credits, {addedCredits} more than the standard 120. No electives needed.
           </Text>
@@ -379,7 +404,7 @@ const ProgressScreen = () => {
     }
     return (
       <ScrollView contentContainerStyle={s.scrollContent}>
-        <Text style={s.heading}>{selectedProgram.name} ({selectedProgram.degree})</Text>
+        <Text accessibilityRole="header" style={s.heading}>{selectedProgram.name} ({selectedProgram.degree})</Text>
         {selectedProgram.school && <Text style={s.subheading}>{selectedProgram.school}</Text>}
 
         {progress.requirementsUnknown ? (
@@ -402,7 +427,7 @@ const ProgressScreen = () => {
 
         {progress.completed && progress.completed.length > 0 && (
           <View style={s.section}>
-            <Text style={s.sectionHeader}>Completed</Text>
+            <Text accessibilityRole="header" style={s.sectionHeader}>Completed</Text>
             {progress.completed.map((c) => (
               <CourseRow key={c.code || c.id} icon="✓" iconColor="#2d6a4f" code={c.code} name={c.name} onPress={() => openCourseModal(c)} />
             ))}
@@ -411,7 +436,7 @@ const ProgressScreen = () => {
 
         {upNext.length > 0 && (
           <View style={s.section}>
-            <Text style={s.sectionHeader}>Up Next</Text>
+            <Text accessibilityRole="header" style={s.sectionHeader}>Up Next</Text>
             <Text style={s.sectionSub}>Prerequisites met, ready to take</Text>
             {upNext.map((c) => (
               <CourseRow key={c.code || c.id} icon="○" iconColor="#A30046" code={c.code} name={c.name} onPress={() => openCourseModal(c)} />
@@ -421,12 +446,12 @@ const ProgressScreen = () => {
 
         {needsPrereqs.length > 0 && (
           <View style={s.section}>
-            <Text style={s.sectionHeader}>Remaining</Text>
+            <Text accessibilityRole="header" style={s.sectionHeader}>Remaining</Text>
             <Text style={s.sectionSub}>Need prerequisites first</Text>
             {needsPrereqs.map((c) => (
               <TouchableOpacity key={c.code || c.id} onPress={() => openCourseModal(c)}>
                 <View style={s.courseRow}>
-                  <Text style={[s.rowIcon, { color: '#CCC' }]}>○</Text>
+                  <Text style={[s.rowIcon, { color: STONE }]}>○</Text>
                   <View style={s.courseInfo}>
                     <Text style={s.courseCode}>{c.code}</Text>
                     {c.name ? <Text style={s.courseName}>{c.name}</Text> : null}
@@ -471,7 +496,7 @@ const ProgressScreen = () => {
 
     return (
       <ScrollView contentContainerStyle={s.scrollContent}>
-        <Text style={s.heading}>University Core Curriculum</Text>
+        <Text accessibilityRole="header" style={s.heading}>University Core Curriculum</Text>
         <Text style={s.subheading}>Required for all undergraduates</Text>
 
         <ProgressBar
@@ -485,12 +510,12 @@ const ProgressScreen = () => {
 
         {/* One-course areas */}
         <View style={s.section}>
-          <Text style={s.sectionHeader}>One-Course Requirements</Text>
+          <Text accessibilityRole="header" style={s.sectionHeader}>One-Course Requirements</Text>
           {singleAreas.map((a) => {
             const done = a.status === 'completed' || a.status === 'satisfied';
             const waived = a.status === 'waived';
             const icon = done ? '✓' : waived ? '—' : '○';
-            const iconColor = done ? '#2d6a4f' : waived ? '#999' : '#A30046';
+            const iconColor = done ? '#2d6a4f' : waived ? STONE : '#A30046';
             const detail = done ? a.satisfiedBy
               : waived ? (a.override?.notes || 'Waived')
               : a.courseOptions?.find(o => o.is_required) ? `Required: ${a.courseOptions.find(o => o.is_required).course_code}`
@@ -503,7 +528,7 @@ const ProgressScreen = () => {
 
         {/* Tiered areas */}
         <View style={s.section}>
-          <Text style={s.sectionHeader}>Tiered Requirements</Text>
+          <Text accessibilityRole="header" style={s.sectionHeader}>Tiered Requirements</Text>
           <Text style={s.sectionSub}>Complete Tier 1 before Tier 2</Text>
           {Object.entries(tieredGroups).map(([baseName, tiers]) => (
             <View key={baseName} style={s.tieredGroup}>
@@ -512,7 +537,7 @@ const ProgressScreen = () => {
                 const done = a.status === 'completed' || a.status === 'satisfied';
                 const waived = a.status === 'waived';
                 const icon = done ? '✓' : waived ? '—' : '○';
-                const iconColor = done ? '#2d6a4f' : waived ? '#999' : '#A30046';
+                const iconColor = done ? '#2d6a4f' : waived ? STONE : '#A30046';
                 const tierLabel = a.tier === 'tier1' ? 'Tier 1' : 'Tier 2';
                 const detail = done ? a.satisfiedBy
                   : waived ? (a.override?.notes || 'Waived')
@@ -529,7 +554,7 @@ const ProgressScreen = () => {
         {/* Other requirements */}
         {otherAreas.length > 0 && (
           <View style={s.section}>
-            <Text style={s.sectionHeader}>Other Requirements</Text>
+            <Text accessibilityRole="header" style={s.sectionHeader}>Other Requirements</Text>
             {otherAreas.map((a) => {
               const icon = a.status === 'completed' ? '✓' : '○';
               const iconColor = a.status === 'completed' ? '#2d6a4f' : '#A30046';
@@ -622,6 +647,15 @@ const ProgressScreen = () => {
         ))}
       </ScrollView>
 
+      {loadFailed ? (
+        <ErrorState
+          variant="banner"
+          title="Some of your progress didn't load."
+          message="Numbers below may be incomplete."
+          onRetry={retryLoad}
+        />
+      ) : null}
+
       {view === 'all' && renderAllView()}
       {view === 'major' && renderMajorView()}
       {view === 'core' && renderCoreView()}
@@ -642,7 +676,7 @@ const ProgressScreen = () => {
         if (overflows) {
           return (
             <ScrollView contentContainerStyle={s.scrollContent}>
-              <Text style={s.heading}>Added Classes</Text>
+              <Text accessibilityRole="header" style={s.heading}>Added Classes</Text>
               <Text style={s.subheading}>Your major requires more than 120 credits</Text>
               <View style={s.addedClassesCard}>
                 <Text style={s.addedClassesDetail}>
@@ -651,7 +685,7 @@ const ProgressScreen = () => {
               </View>
               {electiveCourses.length > 0 && (
                 <View style={s.section}>
-                  <Text style={s.sectionHeader}>Additional Courses Taken</Text>
+                  <Text accessibilityRole="header" style={s.sectionHeader}>Additional Courses Taken</Text>
                   {electiveCourses.map((c) => (
                     <CourseRow key={c.code || c.id} icon="✓" iconColor="#d97706" code={c.code} name={c.name}
                       detail={`${c.credits || 3} credits`} onPress={() => openCourseModal(c)} />
@@ -665,7 +699,7 @@ const ProgressScreen = () => {
 
         return (
           <ScrollView contentContainerStyle={s.scrollContent}>
-            <Text style={s.heading}>Electives / Free Credits</Text>
+            <Text accessibilityRole="header" style={s.heading}>Electives / Free Credits</Text>
             <Text style={s.subheading}>Credits outside of major and core requirements</Text>
             <ProgressBar
               label="Elective Progress"
@@ -680,7 +714,7 @@ const ProgressScreen = () => {
             </Text>
             {electiveCourses.length > 0 && (
               <View style={s.section}>
-                <Text style={s.sectionHeader}>Your Elective Courses</Text>
+                <Text accessibilityRole="header" style={s.sectionHeader}>Your Elective Courses</Text>
                 {electiveCourses.map((c) => (
                   <CourseRow key={c.code || c.id} icon="✓" iconColor="#d97706" code={c.code} name={c.name}
                     detail={`${c.credits || 3} credits`} onPress={() => openCourseModal(c)} />
@@ -708,7 +742,7 @@ const ProgressScreen = () => {
         const isMinor = (prog?.program?.type || meta?.type) === 'minor';
         return (
           <ScrollView contentContainerStyle={s.scrollContent}>
-            <Text style={s.heading}>{title}{isMinor ? ' (Minor)' : ''}</Text>
+            <Text accessibilityRole="header" style={s.heading}>{title}{isMinor ? ' (Minor)' : ''}</Text>
             {!prog ? (
               <Text style={s.emptyText}>Progress unavailable for this program.</Text>
             ) : prog.requirementsUnknown ? (
@@ -735,7 +769,7 @@ const ProgressScreen = () => {
                 </Text>
                 {prog.completed && prog.completed.length > 0 && (
                   <View style={s.section}>
-                    <Text style={s.sectionHeader}>Completed</Text>
+                    <Text accessibilityRole="header" style={s.sectionHeader}>Completed</Text>
                     {prog.completed.map((c) => (
                       <CourseRow key={c.code || c.id} icon="✓" iconColor="#2d6a4f" code={c.code} name={c.name} onPress={() => openCourseModal(c)} />
                     ))}
@@ -743,7 +777,7 @@ const ProgressScreen = () => {
                 )}
                 {prog.remaining && prog.remaining.length > 0 && (
                   <View style={s.section}>
-                    <Text style={s.sectionHeader}>Remaining</Text>
+                    <Text accessibilityRole="header" style={s.sectionHeader}>Remaining</Text>
                     {prog.remaining.map((c, i) => (
                       <React.Fragment key={`${c.choice_group ?? 'req'}-${c.code || c.id}-${i}`}>
                         {c.choice_note && c.choice_group !== prog.remaining[i - 1]?.choice_group && (
@@ -768,15 +802,15 @@ const ProgressScreen = () => {
       })()}
 
       {/* Core Area Options Modal */}
-      <Modal visible={!!coreAreaModal} animationType="slide" transparent>
-        <View style={s.modalOverlay}>
+      <Modal visible={!!coreAreaModal} animationType="slide" transparent onRequestClose={() => setCoreAreaModal(null)}>
+        <View accessibilityViewIsModal style={s.modalOverlay}>
           <View style={s.modalPanel}>
             <View style={s.modalHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={s.modalTitle}>{coreAreaModal?.name}</Text>
+                <Text accessibilityRole="header" style={s.modalTitle}>{coreAreaModal?.name}</Text>
                 <Text style={s.modalSubtitle}>{coreAreaModal?.credits} credits required</Text>
               </View>
-              <TouchableOpacity onPress={() => setCoreAreaModal(null)} style={s.modalClose}>
+              <TouchableOpacity onPress={() => setCoreAreaModal(null)} style={s.modalClose} accessibilityRole="button" accessibilityLabel="Close">
                 <Text style={s.modalCloseText}>X</Text>
               </TouchableOpacity>
             </View>
@@ -938,7 +972,7 @@ const s = StyleSheet.create({
   subheading: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
-    color: '#888',
+    color: STONE,
     marginBottom: 12,
   },
 
@@ -981,7 +1015,7 @@ const s = StyleSheet.create({
   progressCardDetail: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
-    color: '#999',
+    color: STONE,
   },
 
   // Sections
@@ -996,7 +1030,7 @@ const s = StyleSheet.create({
   sectionSub: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
-    color: '#999',
+    color: STONE,
     marginBottom: 8,
   },
 
@@ -1108,7 +1142,7 @@ const s = StyleSheet.create({
   rowChevron: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 24,
-    color: '#CCC',
+    color: STONE,
     marginLeft: 8,
   },
 
@@ -1141,7 +1175,7 @@ const s = StyleSheet.create({
   modalSubtitle: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
-    color: '#888',
+    color: STONE,
   },
   modalClose: {
     width: 32,
@@ -1157,12 +1191,12 @@ const s = StyleSheet.create({
   modalEmptyText: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 18,
-    color: '#999',
+    color: STONE,
   },
   modalEmptyHint: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
-    color: '#CCC',
+    color: STONE,
     marginTop: 6,
   },
   sectionCard: {
@@ -1253,7 +1287,7 @@ const s = StyleSheet.create({
   profDiff: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
-    color: '#888',
+    color: STONE,
   },
 
   // Tiered groups
@@ -1270,7 +1304,7 @@ const s = StyleSheet.create({
   emptyText: {
     fontFamily: 'CormorantGaramond-Regular',
     fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
-    color: '#999',
+    color: STONE,
     textAlign: 'center',
     marginTop: 40,
   },

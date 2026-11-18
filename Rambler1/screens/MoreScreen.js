@@ -5,6 +5,7 @@ import FeedbackModal from '../components/FeedbackModal';
 import PrivacyPolicyModal from '../components/PrivacyPolicyModal';
 import { TERMS_TITLE, TERMS_SECTIONS } from '../terms-content';
 import ProfileScreen from './ProfileScreen';
+import { STONE } from '../theme';
 
 const MAROON = '#A30046';
 
@@ -72,7 +73,7 @@ const MoreScreen = ({ navigation }) => {
   const [termsVisible, setTermsVisible] = useState(false);
   return (
   <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-    <Text style={styles.title}>More</Text>
+    <Text accessibilityRole="header" style={styles.title}>More</Text>
     <Text style={styles.subtitle}>Campus tools and resources</Text>
 
     <View style={styles.card}>
@@ -189,7 +190,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
-    color: '#888',
+    color: STONE,
     marginBottom: 20,
   },
   card: {
@@ -236,11 +237,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   rowLabelDisabled: {
-    color: '#999',
+    color: STONE,
   },
   rowSublabel: {
     fontFamily: 'CormorantGaramond-Regular', fontSize: 12,
-    color: '#999',
+    color: STONE,
     marginTop: 1,
   },
 });

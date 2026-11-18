@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { STONE } from '../theme';
 
 const ProfessorRating = ({ professor }) => {
   const rating = professor.avg_rating ? professor.avg_rating.toFixed(1) : 'N/A';
@@ -19,7 +20,7 @@ const ProfessorRating = ({ professor }) => {
         <Text style={styles.name}>
           {professor.first_name} {professor.last_name}
         </Text>
-        <View style={[styles.ratingBadge, { backgroundColor: professor.avg_rating ? ratingColor : '#999' }]}>
+        <View style={[styles.ratingBadge, { backgroundColor: professor.avg_rating ? ratingColor : STONE }]}>
           <Text style={styles.ratingText}>{rating}</Text>
         </View>
       </View>
@@ -78,12 +79,12 @@ const styles = StyleSheet.create({
   },
   statSeparator: {
     marginHorizontal: 8,
-    color: '#ccc',
+    color: STONE,
   },
   ratingsCount: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
-    color: '#999',
+    color: STONE,
   },
 });
 

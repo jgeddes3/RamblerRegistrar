@@ -9,6 +9,7 @@ import {
   View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { STONE } from '../theme';
 
 const MAROON = '#A30046';
 
@@ -28,10 +29,10 @@ const PhoenixPreviewModal = ({ item, visible, onClose }) => {
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={s.overlay}>
+      <View accessibilityViewIsModal style={s.overlay}>
         <View style={s.panel}>
           <View style={s.headerRow}>
-            <Text style={s.masthead}>The Loyola Phoenix</Text>
+            <Text accessibilityRole="header" style={s.masthead}>The Loyola Phoenix</Text>
             <TouchableOpacity
               onPress={onClose}
               style={s.closeBtn}
@@ -42,7 +43,7 @@ const PhoenixPreviewModal = ({ item, visible, onClose }) => {
           </View>
 
           <ScrollView contentContainerStyle={s.content}>
-            <Text style={s.title}>{item.title}</Text>
+            <Text accessibilityRole="header" style={s.title}>{item.title}</Text>
             {metaParts.length > 0 || when ? (
               <Text style={s.meta}>
                 {[metaParts.join(' · '), when].filter(Boolean).join(' · ')}
@@ -105,7 +106,7 @@ const s = StyleSheet.create({
     lineHeight: 29,
     color: '#1a1a1a',
   },
-  meta: { fontSize: 12, color: '#888', marginTop: 6 },
+  meta: { fontSize: 12, color: STONE, marginTop: 6 },
   paragraph: {
     fontFamily: 'CormorantGaramond-Regular',
     fontSize: 17,

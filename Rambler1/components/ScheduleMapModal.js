@@ -21,7 +21,7 @@ import {
 import { transitEstimate, getTrainArrivals } from '../cta';
 import { formatMinutes } from '../schedule-generator';
 import DayMap from './DayMap';
-import { FONT, MAROON } from '../theme';
+import { FONT, MAROON, STONE, NEUTRAL } from '../theme';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 const WEEKDAYS = [
@@ -33,7 +33,7 @@ const STATUS_STYLE = {
   ok: { text: 'OK', color: '#065f46', bg: '#d1fae5' },
   tight: { text: 'Tight', color: '#92400e', bg: '#fef3c7' },
   impossible: { text: 'Impossible', color: '#b91c1c', bg: '#fee2e2' },
-  unknown: { text: '?', color: '#6b7280', bg: '#f3f4f6' },
+  unknown: { text: '?', color: NEUTRAL.fg, bg: NEUTRAL.bg },
 };
 
 const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
@@ -91,9 +91,9 @@ const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={s.container}>
+      <View accessibilityViewIsModal style={s.container}>
         <View style={s.header}>
-          <Text style={s.title}>Day Map</Text>
+          <Text accessibilityRole="header" style={s.title}>Day Map</Text>
           <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel="Close day map">
             <Text style={s.closeText}>Done</Text>
           </TouchableOpacity>
@@ -126,7 +126,7 @@ const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
                   <View style={s.commuteCard}>
                     <View style={s.commuteTitleRow}>
                       <Ionicons name="home-outline" size={15} color="#1e40af" />
-                      <Text style={s.commuteTitle}>
+                      <Text accessibilityRole="header" style={s.commuteTitle}>
                         Leave home by {formatMinutes(commute.leaveByMin)}
                       </Text>
                     </View>
@@ -139,7 +139,7 @@ const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
                   <View style={s.commuteCard}>
                     <View style={s.commuteTitleRow}>
                       <Ionicons name="train-outline" size={15} color="#1e40af" />
-                      <Text style={s.commuteTitle}>
+                      <Text accessibilityRole="header" style={s.commuteTitle}>
                         {transit.rideMin > 0
                           ? `About ${transit.totalMin} min by Red Line`
                           : `About ${transit.totalMin} min on foot via ${transit.fromStation.name}`}
@@ -168,7 +168,7 @@ const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
                   <View style={s.commuteCard}>
                     <View style={s.commuteTitleRow}>
                       <Ionicons name="home-outline" size={15} color="#1e40af" />
-                      <Text style={s.commuteTitle}>
+                      <Text accessibilityRole="header" style={s.commuteTitle}>
                         Home is about {(commute.meters / 1609).toFixed(1)} mi from your first class
                       </Text>
                     </View>
@@ -291,7 +291,7 @@ const s = StyleSheet.create({
   dayChipText: { fontFamily: FONT, fontSize: 15, fontWeight: '600', color: '#444' },
   dayChipTextOn: { color: '#FFF' },
 
-  emptyText: { fontFamily: FONT, fontSize: 17, color: '#999', textAlign: 'center', marginTop: 40 },
+  emptyText: { fontFamily: FONT, fontSize: 17, color: STONE, textAlign: 'center', marginTop: 40 },
 
   commuteCard: {
     backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12, marginBottom: 10,
@@ -316,7 +316,7 @@ const s = StyleSheet.create({
   },
   orderBubbleText: { fontFamily: FONT, fontSize: 14, fontWeight: '700', color: '#FFF' },
   classCode: { fontFamily: FONT, fontSize: 17, fontWeight: '700', color: '#333' },
-  classMeta: { fontFamily: FONT, fontSize: 13, color: '#777' },
+  classMeta: { fontFamily: FONT, fontSize: 13, color: STONE },
 
   transRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingLeft: 12 },
   transBadge: { borderRadius: 10, paddingVertical: 2, paddingHorizontal: 9 },
@@ -344,7 +344,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: MAROON, borderRadius: 10, paddingVertical: 7, paddingHorizontal: 14,
   },
   rideBtnSecondaryText: { fontSize: 13, color: MAROON, fontVariant: ['tabular-nums'] },
-  rideHint: { fontFamily: 'CormorantGaramond-Italic', fontSize: 13, color: '#999', marginTop: 7 },
+  rideHint: { fontFamily: 'CormorantGaramond-Italic', fontSize: 13, color: STONE, marginTop: 7 },
 });
 
 export default ScheduleMapModal;

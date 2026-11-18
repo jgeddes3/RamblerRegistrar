@@ -19,6 +19,7 @@ import showAlert from './alert';
 import { resolveRegistrationTerm } from './term';
 import { afterModalDismiss } from './modal-sequencing';
 import TopBar from './components/TopBar';
+import PendingSaveBanner from './components/PendingSaveBanner';
 import MenuOverlay from './components/MenuOverlay';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
 import ProfileScreen from './screens/ProfileScreen';
@@ -46,6 +47,7 @@ import MapScreen from './screens/MapScreen';
 import LibraryScreen from './screens/LibraryScreen';
 import EventsScreen from './screens/EventsScreen';
 import PhoenixScreen from './screens/PhoenixScreen';
+import { STONE } from './theme';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -155,12 +157,13 @@ const MainTabs = () => {
         onMenuPress={() => setMenuVisible(true)}
         onProfilePress={() => setProfileVisible(true)}
       />
+      <PendingSaveBanner />
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
           tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
           tabBarActiveTintColor: '#A30046',
-          tabBarInactiveTintColor: '#999',
+          tabBarInactiveTintColor: STONE,
           tabBarLabelStyle: {
             fontFamily: 'CormorantGaramond-Regular',
             fontSize: 14,

@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { FONT, MAROON } from '../theme';
+import { FONT, MAROON, STONE } from '../theme';
 
 const AMBER = '#d97706';
 
@@ -99,7 +99,7 @@ const st = StyleSheet.create({
   axisRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 3 },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendSwatch: { width: 8, height: 8, borderRadius: 2 },
-  axisText: { fontFamily: FONT, fontSize: 11, color: '#999' },
+  axisText: { fontFamily: FONT, fontSize: 11, color: STONE },
 });
 
 export default TrendChart;

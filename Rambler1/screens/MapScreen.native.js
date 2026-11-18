@@ -27,10 +27,9 @@ import {
   fetchUserPrimaryLocation,
 } from '../firestore-data';
 import { buildRouteLegs } from '../walk-route';
-import { PARCHMENT, STONE } from '../theme';
+import { PARCHMENT, STONE, FONT, MAROON } from '../theme';
 import { useRegistrationTerm } from '../term';
 
-const MAROON = '#A30046';
 const GOLD = '#FFB81C'; // Loyola gold — "your classes" pins
 const HOME_BLUE = '#2E5E9E';
 
@@ -452,8 +451,8 @@ const MapScreen = () => {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: PARCHMENT },
-  title: { fontFamily: 'CormorantGaramond-Regular', fontSize: 28, color: MAROON },
-  subtitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: STONE, marginTop: -2 },
+  title: { fontFamily: FONT, fontSize: 28, color: MAROON },
+  subtitle: { fontFamily: FONT, fontSize: 15, color: STONE, marginTop: -2 },
 
   // Overlays
   titleCard: {
@@ -524,7 +523,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginBottom: 8,
   },
-  routeTitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 22, color: MAROON },
+  routeTitle: { fontFamily: FONT, fontSize: 22, color: MAROON },
   routeHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   routeClearText: { fontSize: 14, fontWeight: '600', color: MAROON },
   routeCloseBtn: { padding: 2 },

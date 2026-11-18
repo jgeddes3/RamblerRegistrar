@@ -4,7 +4,9 @@ import { useNavigation } from '@react-navigation/native';
 import { useAppContext } from '../AppContext';
 import { fetchQuizRecommendations, fetchQuizFocusAreas } from '../firestore-data';
 import BackgroundImage from '../styleComponents/BackgroundImage';
-import { STONE } from '../theme';
+import { STONE, FONT, FONT_SEMI, MAROON } from '../theme';
+import StepCounter from '../components/ui/StepCounter';
+import useOnboardingDraft from '../components/ui/useOnboardingDraft';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -31,6 +33,7 @@ const DIMENSION_ORDER = ['R', 'I', 'A', 'S', 'E', 'C'];
 const QuizResults = () => {
   const navigation = useNavigation();
   const { quizResults, selectedProgram } = useAppContext();
+  useOnboardingDraft('QuizResults', { quizResults });
   const [recommendations, setRecommendations] = useState([]);
   const [focusAreas, setFocusAreas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -89,6 +92,7 @@ const QuizResults = () => {
         <ScrollView contentContainerStyle={s.scrollContent}>
           {/* Profile header */}
           <View style={s.profileCard}>
+            <StepCounter route="QuizResults" tone="onLight" />
             <Text style={s.codeLabel}>{code}</Text>
             <Text style={s.profileName}>{profileName}</Text>
             <Text style={s.profileSubtitle}>Your RIASEC Profile</Text>
@@ -124,7 +128,7 @@ const QuizResults = () => {
               <Text style={s.cardTitle}>Recommended Majors</Text>
               <Text style={s.cardSubtitle}>Based on your personality profile</Text>
               {loading ? (
-                <ActivityIndicator color="#A30046" style={{ marginTop: 16 }} />
+                <ActivityIndicator color={MAROON} style={{ marginTop: 16 }} />
               ) : recommendations.length > 0 ? (
                 recommendations.map((rec, i) => (
                   <View key={rec.program_id || i} style={s.recRow}>
@@ -153,7 +157,7 @@ const QuizResults = () => {
               <Text style={s.cardTitle}>Your Focus Within {selectedProgram.name}</Text>
               <Text style={s.cardSubtitle}>Ranked by fit with your personality</Text>
               {loading ? (
-                <ActivityIndicator color="#A30046" style={{ marginTop: 16 }} />
+                <ActivityIndicator color={MAROON} style={{ marginTop: 16 }} />
               ) : focusAreas.length > 0 ? (
                 focusAreas.map((area, i) => (
                   <View key={area.id || i} style={s.focusRow}>
@@ -213,9 +217,9 @@ const s = StyleSheet.create({
     padding: 20,
   },
   errorText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
-    color: '#A30046',
+    color: MAROON,
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -226,28 +230,27 @@ const s = StyleSheet.create({
   },
   // Profile card
   profileCard: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderRadius: 16,
     padding: 28,
     alignItems: 'center',
     marginBottom: 16,
   },
   codeLabel: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 48,
     color: '#FFFFFF',
-    fontWeight: 'bold',
     letterSpacing: 8,
   },
   profileName: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 26,
     color: '#FFFFFF',
     marginTop: 4,
     textAlign: 'center',
   },
   profileSubtitle: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: 'rgba(255,255,255,0.7)',
     marginTop: 6,
@@ -260,14 +263,13 @@ const s = StyleSheet.create({
     marginBottom: 16,
   },
   cardTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 22,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
     marginBottom: 4,
   },
   cardSubtitle: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: STONE,
     marginBottom: 12,
@@ -284,14 +286,12 @@ const s = StyleSheet.create({
     gap: 4,
   },
   scoreDimLetter: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 18,
-    fontWeight: 'bold',
     color: '#333',
     width: 16,
   },
   scoreDimName: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
     color: STONE,
   },
@@ -308,9 +308,8 @@ const s = StyleSheet.create({
     borderRadius: 8,
   },
   scoreValue: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 16,
-    fontWeight: 'bold',
     color: '#333',
     width: 30,
     textAlign: 'right',
@@ -333,40 +332,38 @@ const s = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   recRankText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 16,
     color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   recInfo: {
     flex: 1,
   },
   recName: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 18,
     color: '#333',
-    fontWeight: 'bold',
   },
   recDegree: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: STONE,
   },
   recRationale: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: '#666',
     marginTop: 4,
     fontStyle: 'italic',
   },
   noDataText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 16,
     color: '#666',
     marginTop: 12,
@@ -387,10 +384,9 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   focusBadgeTop: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
   },
   focusBadgeText: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
     color: '#666',
     fontWeight: 'bold',
@@ -399,21 +395,19 @@ const s = StyleSheet.create({
     color: '#FFFFFF',
   },
   focusName: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 18,
     color: '#333',
-    fontWeight: 'bold',
   },
   focusDesc: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: '#666',
     marginTop: 4,
   },
   focusCourses: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#A30046',
+    color: MAROON,
     marginTop: 6,
   },
   // Bottom
@@ -426,7 +420,7 @@ const s = StyleSheet.create({
     borderTopColor: '#E0E0E0',
   },
   continueButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 6,
@@ -434,10 +428,9 @@ const s = StyleSheet.create({
     height: 50,
   },
   continueButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 20,
     color: 'white',
-    fontWeight: 'bold',
   },
 });
 

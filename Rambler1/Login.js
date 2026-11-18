@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, View, Text, TouchableOpacity } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loadDraft, resumeRoutes, clearDraft } from './onboarding';
 import { signIn } from './auth';
 import { useAppContext } from './AppContext';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
@@ -7,8 +9,9 @@ import { TERMS_TITLE, TERMS_SECTIONS } from './terms-content';
 import BackgroundImage from './styleComponents/BackgroundImage';
 import LogoImage from './styleComponents/LogoImage1';
 import CustomButton from './styleComponents/customButton1';
-import SearchBar from './styleComponents/SearchBar';
+import TextField from './components/ui/TextField';
 import TitleText1 from './styleComponents/TitleTextP1';
+import { FONT, MAROON } from './theme';
 
 const Login = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -17,10 +20,47 @@ const Login = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [policyVisible, setPolicyVisible] = useState(false);
   const [termsVisible, setTermsVisible] = useState(false);
+  const passwordRef = useRef(null);
+  const { setSelectedProgram, setSelectedProgram2, setSelectedMinors, setSelectedCourses, setQuizResults } = useAppContext();
+
+  // A sign-up left part-way (the app was closed): offer to pick it up.
+  const [draft, setDraft] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    loadDraft(AsyncStorage).then((d) => {
+      if (alive && d && resumeRoutes(d.step)) setDraft(d);
+    });
+    return () => { alive = false; };
+  }, []);
+
+  const continueSignup = async () => {
+    // Read it again: going Back to Login after an earlier Continue, the draft
+    // has moved on since this screen first loaded it.
+    const latest = await loadDraft(AsyncStorage);
+    if (!latest || !resumeRoutes(latest.step)) {
+      setDraft(null); // gone or expired since this screen loaded: nothing to continue
+      return;
+    }
+    const restore = [
+      ['selectedProgram', setSelectedProgram], ['selectedProgram2', setSelectedProgram2],
+      ['selectedMinors', setSelectedMinors], ['selectedCourses', setSelectedCourses],
+      ['quizResults', setQuizResults],
+    ];
+    for (const [key, set] of restore) if (key in latest && set) set(latest[key]);
+    const routes = resumeRoutes(latest.step, { quizTaken: !!(latest.quizResults && latest.quizResults.code) });
+    navigation.reset({ index: routes.length - 1, routes });
+  };
+
+  // Shown under the fields and read out at once (the field the user is in
+  // may be far from where the message appears).
+  const fail = (message) => {
+    setErrorMessage(message);
+    AccessibilityInfo.announceForAccessibility?.(message);
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
-      setErrorMessage('Please enter email and password');
+      fail('Please enter email and password');
       return;
     }
     setErrorMessage('');
@@ -31,15 +71,15 @@ const Login = ({ navigation }) => {
     } catch (error) {
       const code = error.code;
       if (code === 'auth/invalid-email') {
-        setErrorMessage('Invalid email address');
+        fail('Invalid email address');
       } else if (code === 'auth/user-not-found') {
-        setErrorMessage('No account found with this email');
+        fail('No account found with this email');
       } else if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
-        setErrorMessage('Incorrect password');
+        fail('Incorrect password');
       } else if (code === 'auth/too-many-requests') {
-        setErrorMessage('Too many attempts. Try again later');
+        fail('Too many attempts. Try again later');
       } else {
-        setErrorMessage('Login failed. Please try again');
+        fail('Login failed. Please try again');
       }
     } finally {
       setLoading(false);
@@ -47,6 +87,9 @@ const Login = ({ navigation }) => {
   };
 
   const handleSignup = () => {
+    // A fresh sign-up: an older half-finished one would otherwise refill it.
+    clearDraft(AsyncStorage);
+    setDraft(null);
     navigation.navigate('ProgramSelect');
   };
 
@@ -55,23 +98,37 @@ const Login = ({ navigation }) => {
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <LogoImage source={require('./assets/Icons/Logo-02.png')} />
         <TitleText1>Rambler Registrar</TitleText1>
-        <View style={{ marginBottom: 15 }}>
-          <SearchBar
-            placeholder="Email"
-            value={email}
-            onChangeText={(text) => { setEmail(text); setErrorMessage(''); }}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-        </View>
-        <SearchBar
-          placeholder="Password"
+        <TextField
+          label="Email"
+          style={{ marginBottom: 15 }}
+          value={email}
+          onChangeText={(text) => { setEmail(text); setErrorMessage(''); }}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="email"
+          textContentType="username"
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+        />
+        <TextField
+          ref={passwordRef}
+          label="Password"
           value={password}
           onChangeText={(text) => { setPassword(text); setErrorMessage(''); }}
           secureTextEntry={true}
+          autoCapitalize="none"
+          autoComplete="current-password"
+          textContentType="password"
+          returnKeyType="go"
+          onSubmitEditing={handleLogin}
         />
         {errorMessage ? (
-          <Text style={{ color: '#A30046', marginTop: 10, fontFamily: 'CormorantGaramond-Regular', fontSize: 16 }}>
+          <Text
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+            style={{ color: MAROON, marginTop: 10, fontFamily: FONT, fontSize: 16 }}
+          >
             {errorMessage}
           </Text>
         ) : null}
@@ -90,6 +147,21 @@ const Login = ({ navigation }) => {
             Sign up
           </CustomButton>
         </View>
+        {draft ? (
+          <TouchableOpacity
+            onPress={continueSignup}
+            accessibilityRole="button"
+            accessibilityLabel="Continue setting up your account"
+            style={{
+              marginTop: 16, minHeight: 44, justifyContent: 'center', paddingHorizontal: 18,
+              backgroundColor: '#FFFFFF', borderRadius: 22, borderWidth: 1, borderColor: MAROON,
+            }}
+          >
+            <Text style={{ color: MAROON, fontSize: 15, fontWeight: '600' }}>
+              Continue setting up your account
+            </Text>
+          </TouchableOpacity>
+        ) : null}
         <View style={{ flexDirection: 'row', gap: 22, marginTop: 24 }}>
           <TouchableOpacity
             onPress={() => setTermsVisible(true)}
@@ -97,7 +169,7 @@ const Login = ({ navigation }) => {
           >
             <Text
               style={{
-                fontFamily: 'CormorantGaramond-Regular',
+                fontFamily: FONT,
                 fontSize: 15,
                 color: 'black',
                 textDecorationLine: 'underline',
@@ -112,7 +184,7 @@ const Login = ({ navigation }) => {
           >
             <Text
               style={{
-                fontFamily: 'CormorantGaramond-Regular',
+                fontFamily: FONT,
                 fontSize: 15,
                 color: 'black',
                 textDecorationLine: 'underline',

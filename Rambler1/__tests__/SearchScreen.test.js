@@ -9,9 +9,14 @@ jest.mock('../firestore-data', () => ({
   searchCourses: (...a) => mockSearchCourses(...a),
   getCourseSections: (...a) => mockGetCourseSections(...a),
   searchByInstructor: jest.fn(async () => []),
+  addSectionToSchedule: (...a) => mockAddSection(...a),
+  removeSectionFromSchedule: (...a) => mockRemoveSection(...a),
 }));
+const mockAddSection = jest.fn();
+const mockRemoveSection = jest.fn();
 jest.mock('../Database', () => ({ fetchCourses: jest.fn(async () => []) }));
-jest.mock('../AppContext', () => ({ useAppContext: () => ({ selectedProgram: null }) }));
+const mockCtx = { current: { selectedProgram: null } };
+jest.mock('../AppContext', () => ({ useAppContext: () => mockCtx.current }));
 jest.mock('../CourseDetailModal', () => () => null);
 // FlatList stand-in: renders every row and exposes its props, so a test can
 // report rows as scrolled into view (the real list needs native layout for that).
@@ -36,7 +41,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   setItem: jest.fn(async () => {}),
 }));
 
-import SearchScreen from '../screens/SearchScreen';
+import SearchScreen, { PRELOAD_COURSES, SECTIONS_SHOWN, FilterChips } from '../screens/SearchScreen';
 import { resolveRegistrationTerm, __resetTermForTests } from '../term';
 
 const NOV_2026 = new Date(2026, 10, 18); // calendar registration term: 1272
@@ -128,7 +133,7 @@ describe('sections beyond the first batch', () => {
     mockSearchCourses.mockResolvedValue(MANY);
     await render(<SearchScreen />);
     await search('SUBJ');
-    await waitFor(() => expect(mockGetCourseSections).toHaveBeenCalledTimes(30));
+    await waitFor(() => expect(mockGetCourseSections).toHaveBeenCalledTimes(PRELOAD_COURSES));
     expect(mockGetCourseSections).not.toHaveBeenCalledWith('1272', 'SUBJ 140');
 
     await act(async () => {
@@ -138,7 +143,7 @@ describe('sections beyond the first batch', () => {
       });
     });
     await waitFor(() => expect(mockGetCourseSections).toHaveBeenCalledWith('1272', 'SUBJ 140'));
-    expect(mockGetCourseSections).toHaveBeenCalledTimes(35);
+    expect(mockGetCourseSections).toHaveBeenCalledTimes(PRELOAD_COURSES + 5);
   });
 });
 
@@ -166,4 +171,76 @@ describe('failed reads show an error with Try again', () => {
     await waitFor(() => expect(mockGetCourseSections).toHaveBeenCalledTimes(2));
     expect(await screen.findByText(/No sections for/)).toBeTruthy();
   });
+});
+
+describe('lighter results', () => {
+  const SECTIONS = Array.from({ length: 5 }, (_, i) => ({
+    id: String(5000 + i), class_number: String(5000 + i), section_number: `00${i + 1}`,
+    subject: 'COMP', catalog_number: '170', enrollment_cap: 30, enrollment_total: 10,
+  }));
+
+  test('a card shows the first few sections, and Show all reveals the rest', async () => {
+    mockGetCourseSections.mockResolvedValue(SECTIONS);
+    await render(<SearchScreen />);
+    await search('COMP 170');
+    expect(await screen.findByText('Sec 001')).toBeTruthy();
+    expect(SECTIONS_SHOWN).toBe(3);
+    expect(screen.queryByText('Sec 004')).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Show all 5 sections of COMP 170' }));
+    expect(screen.getByText('Sec 005')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Show fewer sections of COMP 170' }));
+    expect(screen.queryByText('Sec 005')).toBeNull();
+  });
+
+  test('only the first results get their sections up front', () => {
+    expect(PRELOAD_COURSES).toBeLessThanOrEqual(10);
+  });
+
+  test('clearing the box cancels a search that has not started yet', async () => {
+    await render(<SearchScreen />);
+    await fireEvent.changeText(screen.getByPlaceholderText(/Search courses/), 'COMP');
+    await fireEvent.press(screen.getByRole('button', { name: 'Clear search' }));
+    await new Promise((r) => setTimeout(r, 400)); // past the 250 ms debounce
+    expect(mockSearchCourses).not.toHaveBeenCalled();
+  });
+});
+
+describe('"+" adds a section straight to the schedule', () => {
+  const { ToastProvider, ToastHost } = require('../components/ui/Toast');
+  const SEC = { id: '5000', class_number: '5000', section_number: '001', subject: 'COMP', catalog_number: '170', enrollment_cap: 30, enrollment_total: 10 };
+  const withToasts = () => (
+    <ToastProvider>
+      <SearchScreen />
+      <ToastHost />
+    </ToastProvider>
+  );
+  afterEach(() => { mockCtx.current = { selectedProgram: null }; });
+
+  test('signed in: one tap adds it, with a toast that can undo it', async () => {
+    mockCtx.current = { selectedProgram: null, user: { uid: 'u1', isAnonymous: false } };
+    mockGetCourseSections.mockResolvedValue([SEC]);
+    mockAddSection.mockReset().mockResolvedValue({ added: true });
+    mockRemoveSection.mockReset().mockResolvedValue({ removed: true });
+    await render(withToasts());
+    await search('COMP 170');
+    await fireEvent.press(await screen.findByRole('button', { name: 'Add COMP 170 Sec 001 to your schedule' }));
+    expect(mockAddSection).toHaveBeenCalledWith('u1', '1272', '5000');
+    expect(await screen.findByText(/COMP 170 Sec 001 added to your .* schedule\./)).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Undo' }));
+    expect(mockRemoveSection).toHaveBeenCalledWith('u1', '1272', '5000');
+  });
+
+  test('signed out: no "+" (there is no schedule to add to)', async () => {
+    mockGetCourseSections.mockResolvedValue([SEC]);
+    await render(withToasts());
+    await search('COMP 170');
+    expect(await screen.findByText('Sec 001')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /to your schedule/ })).toBeNull();
+  });
+});
+
+test('filter chips report whether each filter is on', async () => {
+  await render(<FilterChips filters={{ timeOfDay: 'morning', days: null, openOnly: false }} onFilterChange={() => {}} />);
+  expect(screen.getByRole('button', { name: /Morning/ }).props.accessibilityState).toMatchObject({ selected: true });
+  expect(screen.getByRole('button', { name: /Open Seats/ }).props.accessibilityState).toMatchObject({ selected: false });
 });

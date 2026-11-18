@@ -9,13 +9,15 @@ import { afterModalDismiss } from '../modal-sequencing';
 import { programProgressSummary } from '../progress-summary';
 import CourseDetailModal from '../CourseDetailModal';
 import ErrorState from '../components/ErrorState';
-import { STONE } from '../theme';
+import { STONE, FONT_SEMI, FONT, MAROON, OK, WARN, DANGER, PARCHMENT } from '../theme';
+import { slopTo } from '../components/ui/hitSlop';
+import Tappable from '../components/ui/Tappable';
 
 // Graduation Outlook banner design tokens (status -> colors)
 const OUTLOOK_COLORS = {
-  'on-track': { bg: '#d1fae5', fg: '#065f46' },
-  'at-risk': { bg: '#fef3c7', fg: '#92400e' },
-  'off-track': { bg: '#fee2e2', fg: '#b91c1c' },
+  'on-track': { bg: OK.bg, fg: OK.fg },
+  'at-risk': { bg: WARN.bg, fg: WARN.fg },
+  'off-track': { bg: DANGER.bg, fg: DANGER.fg },
 };
 const OUTLOOK_LABELS = {
   'on-track': 'On Track',
@@ -33,7 +35,7 @@ const ProgressBar = ({ label, percent, completed, total, unit, color }) => (
       <Text style={s.progressCardPercent}>{percent}%</Text>
     </View>
     <View style={s.progressBarBg}>
-      <View style={[s.progressBarFill, { width: `${Math.min(percent, 100)}%`, backgroundColor: color || '#A30046' }]} />
+      <View style={[s.progressBarFill, { width: `${Math.min(percent, 100)}%`, backgroundColor: color || MAROON }]} />
     </View>
     <Text style={s.progressCardDetail}>{completed} / {total} {unit}</Text>
   </View>
@@ -45,7 +47,7 @@ const ProgressBar = ({ label, percent, completed, total, unit, color }) => (
 const CourseRow = ({ icon, iconColor, code, name, detail, indent, onPress }) => {
   const content = (
     <View style={[s.courseRow, indent && { paddingLeft: 28 }]}>
-      <Text style={[s.rowIcon, { color: iconColor || '#A30046' }]}>{icon}</Text>
+      <Text style={[s.rowIcon, { color: iconColor || MAROON }]}>{icon}</Text>
       <View style={s.courseInfo}>
         <Text style={s.courseCode}>{code}</Text>
         {name ? <Text style={s.courseName}>{name}</Text> : null}
@@ -247,7 +249,7 @@ const ProgressScreen = () => {
   if (loading) {
     return (
       <View style={s.container}>
-        <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 80 }} />
+        <ActivityIndicator size="large" color={MAROON} style={{ marginTop: 80 }} />
       </View>
     );
   }
@@ -328,7 +330,7 @@ const ProgressScreen = () => {
             completed={progress.creditsCompleted}
             total={progress.totalCreditsRequired}
             unit="credits"
-            color="#A30046"
+            color={MAROON}
           />
         </TouchableOpacity>
       )}
@@ -421,7 +423,7 @@ const ProgressScreen = () => {
           completed={progress.completedCount}
           total={progress.totalRequired}
           unit="courses"
-          color="#A30046"
+          color={MAROON}
         />
         )}
 
@@ -439,7 +441,7 @@ const ProgressScreen = () => {
             <Text accessibilityRole="header" style={s.sectionHeader}>Up Next</Text>
             <Text style={s.sectionSub}>Prerequisites met, ready to take</Text>
             {upNext.map((c) => (
-              <CourseRow key={c.code || c.id} icon="○" iconColor="#A30046" code={c.code} name={c.name} onPress={() => openCourseModal(c)} />
+              <CourseRow key={c.code || c.id} icon="○" iconColor={MAROON} code={c.code} name={c.name} onPress={() => openCourseModal(c)} />
             ))}
           </View>
         )}
@@ -515,7 +517,7 @@ const ProgressScreen = () => {
             const done = a.status === 'completed' || a.status === 'satisfied';
             const waived = a.status === 'waived';
             const icon = done ? '✓' : waived ? '—' : '○';
-            const iconColor = done ? '#2d6a4f' : waived ? STONE : '#A30046';
+            const iconColor = done ? '#2d6a4f' : waived ? STONE : MAROON;
             const detail = done ? a.satisfiedBy
               : waived ? (a.override?.notes || 'Waived')
               : a.courseOptions?.find(o => o.is_required) ? `Required: ${a.courseOptions.find(o => o.is_required).course_code}`
@@ -537,7 +539,7 @@ const ProgressScreen = () => {
                 const done = a.status === 'completed' || a.status === 'satisfied';
                 const waived = a.status === 'waived';
                 const icon = done ? '✓' : waived ? '—' : '○';
-                const iconColor = done ? '#2d6a4f' : waived ? STONE : '#A30046';
+                const iconColor = done ? '#2d6a4f' : waived ? STONE : MAROON;
                 const tierLabel = a.tier === 'tier1' ? 'Tier 1' : 'Tier 2';
                 const detail = done ? a.satisfiedBy
                   : waived ? (a.override?.notes || 'Waived')
@@ -557,7 +559,7 @@ const ProgressScreen = () => {
             <Text accessibilityRole="header" style={s.sectionHeader}>Other Requirements</Text>
             {otherAreas.map((a) => {
               const icon = a.status === 'completed' ? '✓' : '○';
-              const iconColor = a.status === 'completed' ? '#2d6a4f' : '#A30046';
+              const iconColor = a.status === 'completed' ? '#2d6a4f' : MAROON;
               const detail = a.status === 'completed' ? a.satisfiedBy : a.description || 'Not yet completed';
               return <CourseRow key={a.id} icon={icon} iconColor={iconColor} code={a.name} name={`${a.credits} credit${a.credits !== 1 ? 's' : ''}`} detail={detail} />;
             })}
@@ -577,7 +579,7 @@ const ProgressScreen = () => {
       key: 'major',
       label: selectedProgram.name.length > 12 ? selectedProgram.name.substring(0, 12) + '...' : selectedProgram.name,
       percent: progress?.percentComplete || 0,
-      color: '#A30046',
+      color: MAROON,
     });
   }
 
@@ -630,9 +632,9 @@ const ProgressScreen = () => {
   return (
     <View style={s.container}>
       {/* Tab toggle */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabScrollRow} contentContainerStyle={s.tabScrollContent}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabScrollRow} contentContainerStyle={s.tabScrollContent} accessibilityRole="tablist">
         {tabs.map((tab) => (
-          <TouchableOpacity
+          <Tappable role="tab" selected={view === tab.key}
             key={tab.key}
             style={[s.tabButton, view === tab.key && s.tabButtonActive]}
             onPress={() => setView(tab.key)}
@@ -640,10 +642,10 @@ const ProgressScreen = () => {
             <Text style={[s.tabText, view === tab.key && s.tabTextActive]}>{tab.label}</Text>
             {tab.percent !== null && (
               <View style={s.tabBarMini}>
-                <View style={[s.tabBarMiniFill, { width: `${Math.min(tab.percent, 100)}%`, backgroundColor: tab.color || '#A30046' }]} />
+                <View style={[s.tabBarMiniFill, { width: `${Math.min(tab.percent, 100)}%`, backgroundColor: tab.color || MAROON }]} />
               </View>
             )}
-          </TouchableOpacity>
+          </Tappable>
         ))}
       </ScrollView>
 
@@ -760,7 +762,7 @@ const ProgressScreen = () => {
                   completed={prog.completedCount}
                   total={prog.totalRequired}
                   unit="courses"
-                  color="#A30046"
+                  color={MAROON}
                 />
                 <Text style={s.sectionSub}>
                   Covers the specifically-listed requirements. Open electives in the
@@ -785,7 +787,7 @@ const ProgressScreen = () => {
                         )}
                         <CourseRow
                           icon="○"
-                          iconColor="#A30046"
+                          iconColor={MAROON}
                           code={c.code}
                           name={c.name}
                           onPress={c.is_placeholder ? undefined : () => openCourseModal(c)}
@@ -810,7 +812,7 @@ const ProgressScreen = () => {
                 <Text accessibilityRole="header" style={s.modalTitle}>{coreAreaModal?.name}</Text>
                 <Text style={s.modalSubtitle}>{coreAreaModal?.credits} credits required</Text>
               </View>
-              <TouchableOpacity onPress={() => setCoreAreaModal(null)} style={s.modalClose} accessibilityRole="button" accessibilityLabel="Close">
+              <TouchableOpacity onPress={() => setCoreAreaModal(null)} style={s.modalClose} hitSlop={slopTo(32)} accessibilityRole="button" accessibilityLabel="Close">
                 <Text style={s.modalCloseText}>X</Text>
               </TouchableOpacity>
             </View>
@@ -862,7 +864,7 @@ const ProgressScreen = () => {
 };
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FBF9F4' },
+  container: { flex: 1, backgroundColor: PARCHMENT },
 
   // Tab toggle
   tabScrollRow: {
@@ -884,12 +886,11 @@ const s = StyleSheet.create({
     backgroundColor: '#F0F0F0',
     minWidth: 70,
   },
-  tabButtonActive: { backgroundColor: '#A30046' },
+  tabButtonActive: { backgroundColor: MAROON },
   tabText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT_SEMI,
+    fontSize: 14,
     color: '#666',
-    fontWeight: 'bold',
   },
   tabTextActive: { color: '#FFFFFF' },
   tabBarMini: {
@@ -914,21 +915,20 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   addedClassesTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 18,
+    fontFamily: FONT_SEMI,
+    fontSize: 18,
     color: '#d97706',
-    fontWeight: 'bold',
     marginBottom: 4,
   },
   addedClassesDetail: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT,
+    fontSize: 14,
     color: '#666',
     lineHeight: 20,
   },
   electiveHint: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
+    fontFamily: FONT,
+    fontSize: 16,
     color: '#666',
     lineHeight: 24,
     marginTop: 16,
@@ -944,34 +944,31 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   outlookStatus: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 18,
     marginBottom: 4,
   },
   outlookMessage: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
+    fontFamily: FONT,
+    fontSize: 15,
     lineHeight: 21,
     marginBottom: 6,
   },
   outlookDisclaimer: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 11,
+    fontSize: 11,
     color: '#666',
     lineHeight: 15,
   },
 
   heading: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 26,
-    color: '#A30046',
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 26,
+    color: MAROON,
     marginBottom: 2,
   },
   subheading: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
+    fontFamily: FONT,
+    fontSize: 15,
     color: STONE,
     marginBottom: 12,
   },
@@ -989,17 +986,15 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   progressCardLabel: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
+    fontFamily: FONT_SEMI,
+    fontSize: 16,
     color: '#333',
-    fontWeight: 'bold',
     flex: 1,
   },
   progressCardPercent: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
-    color: '#A30046',
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 16,
+    color: MAROON,
   },
   progressBarBg: {
     height: 10,
@@ -1013,23 +1008,20 @@ const s = StyleSheet.create({
     borderRadius: 5,
   },
   progressCardDetail: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
+    fontSize: 13,
     color: STONE,
   },
 
   // Sections
   section: { marginTop: 16 },
   sectionHeader: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 20,
-    color: '#A30046',
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 20,
+    color: MAROON,
     marginBottom: 4,
   },
   sectionSub: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
+    fontSize: 13,
     color: STONE,
     marginBottom: 8,
   },
@@ -1045,27 +1037,23 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   rowIcon: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI, fontSize: 16,
     width: 24,
     textAlign: 'center',
     marginTop: 2,
   },
   courseInfo: { flex: 1, marginLeft: 4 },
   courseCode: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
+    fontFamily: FONT_SEMI,
+    fontSize: 15,
     color: '#333',
-    fontWeight: 'bold',
   },
   courseName: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
+    fontSize: 13,
     color: '#666',
   },
   courseDetail: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 12,
+    fontSize: 12,
     color: '#e76f51',
     marginTop: 1,
   },
@@ -1089,25 +1077,23 @@ const s = StyleSheet.create({
     marginBottom: 2,
   },
   coreOptionCode: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 16,
     color: '#333',
   },
   coreOptionName: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT,
+    fontSize: 14,
     color: '#666',
   },
   overlapBadge: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderRadius: 8,
     paddingVertical: 1,
     paddingHorizontal: 6,
   },
   overlapBadgeText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 10,
+    fontSize: 10,
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
@@ -1118,8 +1104,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 6,
   },
   requiredBadgeText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 10,
+    fontSize: 10,
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
@@ -1127,21 +1112,19 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   prereqFulfilled: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
+    fontSize: 13,
     color: '#2d6a4f',
     fontWeight: 'bold',
     marginBottom: 1,
   },
   prereqMissing: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
+    fontSize: 13,
     color: '#e76f51',
     marginBottom: 1,
   },
   rowChevron: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 24,
+    fontFamily: FONT,
+    fontSize: 24,
     color: STONE,
     marginLeft: 8,
   },
@@ -1167,14 +1150,13 @@ const s = StyleSheet.create({
     borderBottomColor: '#E0E0E0',
   },
   modalTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 22,
-    color: '#A30046',
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 22,
+    color: MAROON,
   },
   modalSubtitle: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT,
+    fontSize: 14,
     color: STONE,
   },
   modalClose: {
@@ -1185,17 +1167,17 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalCloseText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 14, fontWeight: 'bold', color: '#555' },
+  modalCloseText: { fontFamily: FONT_SEMI, fontSize: 14, color: '#555' },
   modalContent: { padding: 16 },
   modalEmpty: { alignItems: 'center', paddingTop: 40, paddingBottom: 40 },
   modalEmptyText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 18,
+    fontFamily: FONT,
+    fontSize: 18,
     color: STONE,
   },
   modalEmptyHint: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT,
+    fontSize: 14,
     color: STONE,
     marginTop: 6,
   },
@@ -1217,9 +1199,8 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   sectionNumber: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 16,
     color: '#333',
   },
   spotsBadge: {
@@ -1227,18 +1208,17 @@ const s = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 8,
   },
-  spotsBadgeOpen: { backgroundColor: '#d1fae5' },
-  spotsBadgeLow: { backgroundColor: '#fef3c7' },
-  spotsBadgeFull: { backgroundColor: '#fee2e2' },
+  spotsBadgeOpen: { backgroundColor: OK.bg },
+  spotsBadgeLow: { backgroundColor: WARN.bg },
+  spotsBadgeFull: { backgroundColor: DANGER.bg },
   spotsBadgeText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 12,
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#333',
   },
   sectionTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
+    fontFamily: FONT,
+    fontSize: 15,
     color: '#333',
     marginBottom: 6,
   },
@@ -1246,8 +1226,8 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   sectionInfoText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT,
+    fontSize: 14,
     color: '#555',
     lineHeight: 20,
   },
@@ -1258,10 +1238,9 @@ const s = StyleSheet.create({
     borderTopColor: '#F0F0F0',
   },
   sectionInstructor: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
-    color: '#A30046',
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 15,
+    color: MAROON,
   },
   profRatingRow: {
     flexDirection: 'row',
@@ -1270,40 +1249,36 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   profStar: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT, fontSize: 14,
     color: '#d97706',
   },
   profRating: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
+    fontFamily: FONT_SEMI,
+    fontSize: 15,
     color: '#333',
-    fontWeight: 'bold',
   },
   profAgain: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
+    fontSize: 13,
     color: '#2E7D32',
   },
   profDiff: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
+    fontSize: 13,
     color: STONE,
   },
 
   // Tiered groups
   tieredGroup: { marginBottom: 8 },
   tieredGroupName: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
+    fontFamily: FONT_SEMI,
+    fontSize: 16,
     color: '#333',
-    fontWeight: 'bold',
     marginBottom: 4,
     marginLeft: 4,
   },
 
   emptyText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
+    fontFamily: FONT,
+    fontSize: 16,
     color: STONE,
     textAlign: 'center',
     marginTop: 40,

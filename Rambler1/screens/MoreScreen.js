@@ -5,9 +5,9 @@ import FeedbackModal from '../components/FeedbackModal';
 import PrivacyPolicyModal from '../components/PrivacyPolicyModal';
 import { TERMS_TITLE, TERMS_SECTIONS } from '../terms-content';
 import ProfileScreen from './ProfileScreen';
-import { STONE } from '../theme';
+import { STONE, FONT, FONT_SEMI, MAROON, PARCHMENT, MAROON_WASH } from '../theme';
+import { CAMPUS_LINKS } from '../campus-links';
 
-const MAROON = '#A30046';
 
 const MENU_ROWS = [
   {
@@ -28,36 +28,8 @@ const MENU_ROWS = [
     sublabel: 'Courses that filled quickest last cycle',
     icon: 'flash-outline',
   },
-  {
-    key: 'BookARide',
-    label: 'Book a Ride',
-    sublabel: '8-RIDE evenings & the intercampus shuttle',
-    icon: 'bus-outline',
-  },
-  {
-    key: 'Map',
-    label: 'Campus Map',
-    sublabel: 'Buildings across LSC & WTC',
-    icon: 'map-outline',
-  },
-  {
-    key: 'Library',
-    label: 'Library Hours',
-    sublabel: 'Hours and study-room booking',
-    icon: 'library-outline',
-  },
-  {
-    key: 'Events',
-    label: 'Campus Events',
-    sublabel: 'What’s happening at Loyola',
-    icon: 'calendar-outline',
-  },
-  {
-    key: 'Phoenix',
-    label: 'Loyola Phoenix',
-    sublabel: 'Headlines from the student newspaper',
-    icon: 'newspaper-outline',
-  },
+  // Campus-life rows: the same list as the top-bar Campus menu.
+  ...CAMPUS_LINKS,
   {
     key: 'PreferenceQuiz',
     label: 'Retake the Quiz',
@@ -176,20 +148,20 @@ const MoreScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FBF9F4',
+    backgroundColor: PARCHMENT,
   },
   content: {
     padding: 20,
     paddingBottom: 40,
   },
   title: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 32,
+    fontFamily: FONT,
+    fontSize: 32,
     color: MAROON,
     marginBottom: 4,
   },
   subtitle: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT, fontSize: 14,
     color: STONE,
     marginBottom: 20,
   },
@@ -219,7 +191,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FBF0F5',
+    backgroundColor: MAROON_WASH,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -231,16 +203,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rowLabel: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 20,
+    fontFamily: FONT_SEMI,
+    fontSize: 20,
     color: '#333',
-    fontWeight: 'bold',
   },
   rowLabelDisabled: {
     color: STONE,
   },
   rowSublabel: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 12,
+    fontSize: 12,
     color: STONE,
     marginTop: 1,
   },

@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { STONE } from '../theme';
+import { STONE, FONT, MAROON } from '../theme';
 
 const styles = StyleSheet.create({
   container: {
@@ -7,26 +7,26 @@ const styles = StyleSheet.create({
   },
   topBar: {
     height: 110,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
   },
   sectionHeader: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 24,
-    color: '#A30046',
+    color: MAROON,
     marginTop: 16,
     marginBottom: 8,
     marginHorizontal: 16,
   },
   infoText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     marginHorizontal: 16,
     marginBottom: 4,
   },
   classItem: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 16,
     marginHorizontal: 24,
     marginBottom: 2,
@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   tagText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
   },
   dayContainer: {
@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
   },
   dayText: {
     fontSize: 20,
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     textAlign: 'center',
   },
   separator: {
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   emptyText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 16,
     color: STONE,
     textAlign: 'center',

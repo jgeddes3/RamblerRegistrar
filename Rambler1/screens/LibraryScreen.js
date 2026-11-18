@@ -10,9 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getLibraryHours, getLibraryHoursWeekly } from '../campus-api';
-import { STONE, OK, NEUTRAL } from '../theme';
+import { STONE, OK, NEUTRAL, FONT, FONT_SEMI, MAROON, PARCHMENT, MAROON_WASH } from '../theme';
 
-const MAROON = '#A30046';
 
 // Bookable study-room locations (F-Q8). LibCal's booking flow needs a Loyola
 // login, so the app deep-links straight into the official picker for each
@@ -273,21 +272,21 @@ const LibraryScreen = () => {
 // -------------------------------------------------------------------- styles
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FBF9F4' },
+  container: { flex: 1, backgroundColor: PARCHMENT },
   content: { padding: 16, paddingBottom: 32 },
   emptyContainer: { flexGrow: 1 },
   centerWrap: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#FBF9F4', paddingHorizontal: 24,
+    backgroundColor: PARCHMENT, paddingHorizontal: 24,
   },
-  loadingText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 16, color: STONE, marginTop: 12 },
+  loadingText: { fontFamily: FONT, fontSize: 16, color: STONE, marginTop: 12 },
   emptyTitle: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 22, color: STONE,
+    fontFamily: FONT, fontSize: 22, color: STONE,
     textAlign: 'center', marginTop: 10,
   },
-  emptyHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: STONE, marginTop: 6, textAlign: 'center' },
+  emptyHint: { fontFamily: FONT, fontSize: 15, color: STONE, marginTop: 6, textAlign: 'center' },
 
-  sectionTitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 24, color: MAROON, marginBottom: 8 },
+  sectionTitle: { fontFamily: FONT, fontSize: 24, color: MAROON, marginBottom: 8 },
 
   // Today card
   card: {
@@ -295,18 +294,18 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#F0F0F0', borderLeftWidth: 4,
   },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
-  cardName: { flex: 1, fontFamily: 'CormorantGaramond-Regular', fontSize: 19, color: '#333' },
+  cardName: { flex: 1, fontFamily: FONT, fontSize: 19, color: '#333' },
   statusPill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     borderRadius: 10, paddingVertical: 2, paddingHorizontal: 9,
   },
-  statusOpen: { backgroundColor: '#d1fae5' },
+  statusOpen: { backgroundColor: OK.bg },
   statusClosed: { backgroundColor: NEUTRAL.bg },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 11, fontWeight: 'bold' },
+  statusText: { fontSize: 11, fontWeight: 'bold' },
   hoursRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 6 },
-  hoursText: { flex: 1, fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#555' },
-  noteText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: STONE, marginTop: 4, fontStyle: 'italic' },
+  hoursText: { flex: 1, fontSize: 13, color: '#555' },
+  noteText: { fontSize: 12, color: STONE, marginTop: 4, fontStyle: 'italic' },
 
   // Expanded booking detail (accordion)
   detailWrap: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F0F0F0' },
@@ -314,8 +313,8 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: MAROON, borderRadius: 10, paddingVertical: 10, marginBottom: 8,
   },
-  bookButtonText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, fontWeight: 'bold', color: '#FFFFFF' },
-  detailHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: STONE, fontStyle: 'italic' },
+  bookButtonText: { fontFamily: FONT_SEMI, fontSize: 15, color: '#FFFFFF' },
+  detailHint: { fontSize: 13, color: STONE, fontStyle: 'italic' },
 
   // Study-room booking rows (F-Q8)
   bookRow: {
@@ -324,26 +323,26 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#F0F0F0',
   },
   bookIconWrap: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: '#FBF0F5',
+    width: 36, height: 36, borderRadius: 18, backgroundColor: MAROON_WASH,
     alignItems: 'center', justifyContent: 'center',
   },
-  bookName: { fontFamily: 'CormorantGaramond-Regular', fontSize: 17, color: '#333' },
-  bookCampus: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: STONE },
-  bookHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: STONE, fontStyle: 'italic', marginBottom: 4 },
+  bookName: { fontFamily: FONT, fontSize: 17, color: '#333' },
+  bookCampus: { fontSize: 12, color: STONE },
+  bookHint: { fontSize: 12, color: STONE, fontStyle: 'italic', marginBottom: 4 },
 
   // Weekly grid
   weekCard: {
     backgroundColor: '#FAFAFA', borderRadius: 12, padding: 14, marginBottom: 10,
     borderWidth: 1, borderColor: '#F0F0F0',
   },
-  weekLocName: { fontFamily: 'CormorantGaramond-Regular', fontSize: 18, color: '#333', marginBottom: 6 },
+  weekLocName: { fontFamily: FONT, fontSize: 18, color: '#333', marginBottom: 6 },
   weekGrid: { gap: 2 },
   weekRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 3, borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
   },
-  weekDay: { width: 44, fontFamily: 'CormorantGaramond-Regular', fontSize: 12, fontWeight: '600', color: MAROON },
-  weekHours: { flex: 1, fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: '#555', textAlign: 'right' },
+  weekDay: { width: 44, fontSize: 12, fontWeight: '600', color: MAROON },
+  weekHours: { flex: 1, fontSize: 12, color: '#555', textAlign: 'right' },
 });
 
 export default LibraryScreen;

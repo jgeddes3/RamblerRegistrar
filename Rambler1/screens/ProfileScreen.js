@@ -13,7 +13,8 @@ import showAlert from '../alert';
 import { canEditProfile, programEdit, minorToggleEdit, priorityEdit } from '../profile-edits';
 import { filterCourses, setCourseSelected } from '../course-list';
 import { afterModalDismiss } from '../modal-sequencing';
-import { STONE, INK, DANGER } from '../theme';
+import { STONE, INK, DANGER, FONT_SEMI, FONT, FONT_MED, MAROON } from '../theme';
+import { slopTo } from '../components/ui/hitSlop';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
@@ -418,7 +419,7 @@ const ProfileScreen = ({ visible, onClose }) => {
         <View accessibilityViewIsModal style={s.overlay}>
           <View style={s.panelFull}>
             <View style={s.headerRow}>
-              <TouchableOpacity onPress={leaveDeletePanel} disabled={deleteBusy} accessibilityRole="button">
+              <TouchableOpacity onPress={leaveDeletePanel} disabled={deleteBusy} hitSlop={slopTo(40, 20)} accessibilityRole="button">
                 <Text style={s.backText}>Back</Text>
               </TouchableOpacity>
               <Text accessibilityRole="header" style={s.headerTitle}>Delete account</Text>
@@ -474,7 +475,7 @@ const ProfileScreen = ({ visible, onClose }) => {
         <View accessibilityViewIsModal style={s.overlay}>
           <View style={s.panelFull}>
             <View style={s.headerRow}>
-              <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }}>
+              <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }} hitSlop={slopTo(40, 20)} accessibilityRole="button">
                 <Text style={s.backText}>Back</Text>
               </TouchableOpacity>
               <Text accessibilityRole="header" style={s.headerTitle}>Select Major</Text>
@@ -487,7 +488,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               onChangeText={setSearch}
             />
             {loading ? (
-              <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 40 }} />
+              <ActivityIndicator size="large" color={MAROON} style={{ marginTop: 40 }} />
             ) : (
               <ScrollView contentContainerStyle={s.listContent}>
                 {/* Recommendations section for undecided users */}
@@ -500,7 +501,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                       </Text>
                     )}
                     {recsLoading ? (
-                      <ActivityIndicator color="#A30046" style={{ marginTop: 12 }} />
+                      <ActivityIndicator color={MAROON} style={{ marginTop: 12 }} />
                     ) : (
                       recommendations.map((rec, i) => (
                         <TouchableOpacity
@@ -570,7 +571,7 @@ const ProfileScreen = ({ visible, onClose }) => {
         <View accessibilityViewIsModal style={s.overlay}>
           <View style={s.panelFull}>
             <View style={s.headerRow}>
-              <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }}>
+              <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }} hitSlop={slopTo(40, 20)} accessibilityRole="button">
                 <Text style={s.backText}>Back</Text>
               </TouchableOpacity>
               <Text accessibilityRole="header" style={s.headerTitle}>Select Minors</Text>
@@ -583,7 +584,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               onChangeText={setSearch}
             />
             {loading ? (
-              <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 40 }} />
+              <ActivityIndicator size="large" color={MAROON} style={{ marginTop: 40 }} />
             ) : (
               <ScrollView contentContainerStyle={s.listContent}>
                 {filteredMinors.map(minor => {
@@ -616,7 +617,7 @@ const ProfileScreen = ({ visible, onClose }) => {
         <View accessibilityViewIsModal style={s.overlay}>
           <View style={s.panelFull}>
             <View style={s.headerRow}>
-              <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }}>
+              <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }} hitSlop={slopTo(40, 20)} accessibilityRole="button">
                 <Text style={s.backText}>Back</Text>
               </TouchableOpacity>
               <Text accessibilityRole="header" style={s.headerTitle}>Courses Taken</Text>
@@ -629,7 +630,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               onChangeText={setSearch}
             />
             {loading ? (
-              <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 40 }} />
+              <ActivityIndicator size="large" color={MAROON} style={{ marginTop: 40 }} />
             ) : (
               // FlatList, not ScrollView + map: only the rows near the viewport
               // are mounted. Rendering all ~2,000 (again on every tap and
@@ -656,7 +657,7 @@ const ProfileScreen = ({ visible, onClose }) => {
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <View accessibilityViewIsModal style={s.overlay}>
         <View style={s.panel}>
-          <TouchableOpacity onPress={handleClose} style={s.closeButton} accessibilityRole="button" accessibilityLabel="Close profile">
+          <TouchableOpacity onPress={handleClose} style={s.closeButton} hitSlop={slopTo(36)} accessibilityRole="button" accessibilityLabel="Close profile">
             <Text style={s.closeText}>X</Text>
           </TouchableOpacity>
 
@@ -702,7 +703,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               accessibilityLabel="Change major, add a major, or add a minor, and see the time cost"
             >
               <View style={s.navRowIconWrap}>
-                <Ionicons name="compass-outline" size={20} color="#A30046" />
+                <Ionicons name="compass-outline" size={20} color={MAROON} />
               </View>
               <Text style={s.navRowText}>Change major, add a major, or add a minor, and see the time cost</Text>
               <Ionicons name="chevron-forward" size={18} color="#C0C0C0" />
@@ -759,7 +760,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                   accessibilityLabel="Honors student"
                   value={isHonors === true}
                   onValueChange={(v) => handleTogglePriority('isHonors', v)}
-                  trackColor={{ false: '#D8D8D8', true: '#A30046' }}
+                  trackColor={{ false: '#D8D8D8', true: MAROON }}
                   thumbColor="#FFFFFF"
                 />
               </View>
@@ -772,7 +773,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                   accessibilityLabel="Student-athlete"
                   value={isAthlete === true}
                   onValueChange={(v) => handleTogglePriority('isAthlete', v)}
-                  trackColor={{ false: '#D8D8D8', true: '#A30046' }}
+                  trackColor={{ false: '#D8D8D8', true: MAROON }}
                   thumbColor="#FFFFFF"
                 />
               </View>
@@ -796,7 +797,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                   accessibilityLabel="Do not sell or share my personal information"
                   value={dataSaleOptOut === true}
                   onValueChange={(v) => handleToggleDataSale(v)}
-                  trackColor={{ false: '#D8D8D8', true: '#A30046' }}
+                  trackColor={{ false: '#D8D8D8', true: MAROON }}
                   thumbColor="#FFFFFF"
                 />
               </View>
@@ -857,7 +858,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               <View style={s.infoBlock}>
                 <Text style={s.label}>Your Focus</Text>
                 {focusLoading ? (
-                  <ActivityIndicator color="#A30046" size="small" style={{ marginTop: 8 }} />
+                  <ActivityIndicator color={MAROON} size="small" style={{ marginTop: 8 }} />
                 ) : focusAreas.length > 0 ? (
                   <View>
                     {selectedFocus ? (
@@ -909,7 +910,7 @@ const ProfileScreen = ({ visible, onClose }) => {
             <View style={s.divider} />
 
             {/* RIASEC Quiz Results */}
-            {quizResults && quizResults.scores ? (
+            {quizResults && quizResults.code && quizResults.scores ? (
               <View style={s.infoBlock}>
                 <Text style={s.label}>Personality Profile</Text>
                 <View style={s.riasecHeader}>
@@ -966,7 +967,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               accessibilityLabel="Retake the quiz"
             >
               <View style={s.navRowIconWrap}>
-                <Ionicons name="refresh-outline" size={20} color="#A30046" />
+                <Ionicons name="refresh-outline" size={20} color={MAROON} />
               </View>
               <Text style={s.navRowText}>Retake the quiz</Text>
               <Ionicons name="chevron-forward" size={18} color="#C0C0C0" />
@@ -1038,24 +1039,23 @@ const s = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
   },
   avatarLargeText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 36,
     color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   email: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     color: '#333',
   },
   displayName: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 16,
     color: STONE,
     marginTop: 2,
@@ -1071,36 +1071,34 @@ const s = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 14,
     color: STONE,
-    fontWeight: 'bold',
     textTransform: 'uppercase',
     marginBottom: 4,
   },
   value: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 20,
     color: '#333',
   },
   valueSmall: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: STONE,
   },
   editHint: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
-    color: '#A30046',
+    color: MAROON,
     marginTop: 4,
   },
   // Home address (F-Q7)
   addressInput: {
     borderWidth: 1, borderColor: '#DDD', borderRadius: 8, padding: 10,
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: '#333', marginTop: 8,
+    fontFamily: FONT, fontSize: 15, color: '#333', marginTop: 8,
   },
   addressError: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#b91c1c', marginTop: 6,
+    fontSize: 13, color: DANGER.fg, marginTop: 6,
   },
   // Address autofill dropdown (rendered directly under the input)
   suggestList: {
@@ -1115,7 +1113,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#EEE',
   },
   suggestText: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#333',
+    fontFamily: FONT, fontSize: 14, color: '#333',
   },
   // Tappable card rows that close the modal and jump into the More tab
   navRow: {
@@ -1135,47 +1133,44 @@ const s = StyleSheet.create({
   },
   navRowText: {
     flex: 1,
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 15,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
     paddingRight: 8,
   },
   addressSaveBtn: {
-    alignSelf: 'flex-start', backgroundColor: '#A30046', borderRadius: 10,
+    alignSelf: 'flex-start', backgroundColor: MAROON, borderRadius: 10,
     paddingVertical: 7, paddingHorizontal: 16, marginTop: 8,
   },
   addressSaveBtnText: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15, fontWeight: '600', color: '#FFF',
+    fontFamily: FONT_SEMI, fontSize: 15, color: '#FFF',
   },
   selectButton: {
     width: '100%',
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     paddingVertical: 16,
     borderRadius: 10,
     alignItems: 'center',
     marginBottom: 16,
   },
   selectButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 20,
     color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   selectButtonOutline: {
     width: '100%',
     borderWidth: 2,
-    borderColor: '#A30046',
+    borderColor: MAROON,
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
     marginBottom: 16,
   },
   selectButtonOutlineText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 18,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
   },
   focusSelected: {
     flexDirection: 'row',
@@ -1188,25 +1183,23 @@ const s = StyleSheet.create({
     marginTop: 8,
   },
   focusSelectedName: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 18,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
   },
   focusSelectedDesc: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: '#666',
     marginTop: 2,
   },
   focusSelectedCourses: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
     color: STONE,
     marginTop: 4,
   },
   focusPrompt: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 15,
     color: '#666',
     marginBottom: 8,
@@ -1224,27 +1217,24 @@ const s = StyleSheet.create({
     flex: 1,
   },
   focusOptionName: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 17,
     color: '#333',
-    fontWeight: 'bold',
   },
   focusOptionDesc: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
     color: STONE,
     marginTop: 2,
   },
   focusBestBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderRadius: 10,
     paddingVertical: 2,
     paddingHorizontal: 8,
     marginBottom: 4,
   },
   focusBestText: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 11,
     color: '#FFFFFF',
     fontWeight: 'bold',
@@ -1256,14 +1246,13 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   riasecCode: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 32,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
     letterSpacing: 4,
   },
   riasecProfileName: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     color: '#666',
   },
@@ -1276,9 +1265,8 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   riasecDim: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 16,
-    fontWeight: 'bold',
     color: '#333',
     width: 18,
   },
@@ -1295,18 +1283,16 @@ const s = StyleSheet.create({
     borderRadius: 6,
   },
   riasecScore: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 14,
-    fontWeight: 'bold',
     color: '#333',
     width: 24,
     textAlign: 'right',
   },
   prioritySectionTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 20,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
     marginBottom: 8,
   },
   priorityRow: {
@@ -1315,19 +1301,18 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   priorityRowLabel: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     color: '#333',
   },
   priorityRowHint: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
     color: STONE,
     marginTop: 2,
     paddingRight: 8,
   },
   schedPref: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 16,
     color: '#555',
     marginBottom: 4,
@@ -1339,30 +1324,27 @@ const s = StyleSheet.create({
     marginBottom: 16,
   },
   changeButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 6,
     marginLeft: 12,
   },
   changeButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 15,
     color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   recsSection: {
     marginBottom: 8,
   },
   recsSectionTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 20,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
     marginBottom: 2,
   },
   recsSectionSub: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
     color: STONE,
     marginBottom: 12,
@@ -1385,7 +1367,7 @@ const s = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1393,35 +1375,30 @@ const s = StyleSheet.create({
     backgroundColor: STONE,
   },
   recRankText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 15,
     color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   recItemRight: {
     flex: 1,
   },
   recItemName: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 17,
     color: '#333',
-    fontWeight: 'bold',
   },
   recItemDegree: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
     color: STONE,
     marginTop: 2,
   },
   recItemRationale: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
     color: '#666',
     fontStyle: 'italic',
     marginTop: 4,
   },
   recFeasibility: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
     marginTop: 6,
     fontWeight: 'bold',
@@ -1440,37 +1417,35 @@ const s = StyleSheet.create({
     paddingBottom: 8,
   },
   recsDividerText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 16,
     color: STONE,
-    fontWeight: 'bold',
   },
   signOutButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     paddingVertical: 14,
     paddingHorizontal: 40,
     borderRadius: 8,
     marginTop: 8,
   },
   signOutText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 18,
     color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   // Delete account: a quiet link under Sign Out, and its own panel.
   deleteLink: { marginTop: 14, minHeight: 44, paddingHorizontal: 16, justifyContent: 'center' },
-  deleteLinkText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 17, color: DANGER.fg },
+  deleteLinkText: { fontFamily: FONT, fontSize: 17, color: DANGER.fg },
   deleteContent: { padding: 20 },
-  deleteBody: { fontFamily: 'CormorantGaramond-Regular', fontSize: 17, color: INK, lineHeight: 24, marginBottom: 12 },
-  deleteLabel: { fontFamily: 'CormorantGaramond-Medium', fontSize: 16, color: INK, marginTop: 8 },
+  deleteBody: { fontFamily: FONT, fontSize: 17, color: INK, lineHeight: 24, marginBottom: 12 },
+  deleteLabel: { fontFamily: FONT_MED, fontSize: 16, color: INK, marginTop: 8 },
   deleteError: { fontSize: 15, color: DANGER.fg, marginTop: 10 },
   deleteButton: {
     backgroundColor: DANGER.fg, borderRadius: 8, minHeight: 48,
     alignItems: 'center', justifyContent: 'center', marginTop: 20,
   },
   deleteButtonDisabled: { opacity: 0.45 },
-  deleteButtonText: { fontFamily: 'CormorantGaramond-SemiBold', fontSize: 18, color: '#FFFFFF' },
+  deleteButtonText: { fontFamily: FONT_SEMI, fontSize: 18, color: '#FFFFFF' },
   // Select program / courses mode
   headerRow: {
     flexDirection: 'row',
@@ -1482,22 +1457,19 @@ const s = StyleSheet.create({
     borderBottomColor: '#E0E0E0',
   },
   backText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 16,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
   },
   headerTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 20,
     color: '#333',
-    fontWeight: 'bold',
   },
   countBadge: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 16,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
     backgroundColor: '#F0F0F0',
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -1506,7 +1478,7 @@ const s = StyleSheet.create({
   },
   searchInput: {
     fontSize: 16,
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     color: '#000',
     backgroundColor: '#F5F5F5',
     borderRadius: 8,
@@ -1527,10 +1499,10 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   listItemSelected: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
   },
   listItemText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 16,
     color: '#333',
   },
@@ -1538,14 +1510,12 @@ const s = StyleSheet.create({
     color: '#FFFFFF',
   },
   listItemCode: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 14,
     color: '#666',
-    fontWeight: 'bold',
     marginBottom: 2,
   },
   listItemSub: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
     color: STONE,
     marginTop: 2,

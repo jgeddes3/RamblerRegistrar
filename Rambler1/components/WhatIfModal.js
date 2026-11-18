@@ -24,7 +24,8 @@ import { useAppContext } from '../AppContext';
 import showAlert from '../alert';
 import { canEditProfile } from '../profile-edits';
 import { afterModalDismiss } from '../modal-sequencing';
-import { FONT, MAROON, STONE } from '../theme';
+import { FONT, MAROON, STONE, FONT_SEMI, OK, DANGER, NEUTRAL } from '../theme';
+import Tappable from './ui/Tappable';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 const MAX_MINORS = 3;
@@ -205,16 +206,16 @@ const WhatIfModal = ({
           Every program, measured against what you've already completed and planned.
         </Text>
 
-        <View style={s.modeRow}>
+        <View style={s.modeRow} accessibilityRole="tablist">
           {MODES.map((m) => (
-            <TouchableOpacity
+            <Tappable role="tab" selected={mode === m.key}
               key={m.key}
               style={[s.modeChip, mode === m.key && s.modeChipOn]}
               onPress={() => setMode(m.key)}
               accessibilityLabel={m.label}
             >
               <Text style={[s.modeChipText, mode === m.key && s.modeChipTextOn]}>{m.label}</Text>
-            </TouchableOpacity>
+            </Tappable>
           ))}
         </View>
 
@@ -274,9 +275,9 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingBottom: 2,
   },
-  title: { fontFamily: FONT, fontSize: 24, fontWeight: '700', color: '#1a1a1a' },
+  title: { fontFamily: FONT_SEMI, fontSize: 24, color: '#1a1a1a' },
   closeBtn: { padding: 8 },
-  closeText: { fontFamily: FONT, fontSize: 18, fontWeight: '600', color: MAROON },
+  closeText: { fontFamily: FONT_SEMI, fontSize: 18, color: MAROON },
   subtitle: { fontFamily: FONT, fontSize: 14, color: STONE, paddingHorizontal: 16, marginBottom: 8 },
 
   modeRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 6 },
@@ -285,7 +286,7 @@ const s = StyleSheet.create({
     paddingVertical: 7, alignItems: 'center',
   },
   modeChipOn: { backgroundColor: MAROON, borderColor: MAROON },
-  modeChipText: { fontFamily: FONT, fontSize: 14, fontWeight: '600', color: '#444', textAlign: 'center' },
+  modeChipText: { fontFamily: FONT_SEMI, fontSize: 14, color: '#444', textAlign: 'center' },
   modeChipTextOn: { color: '#FFF' },
 
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
@@ -296,13 +297,13 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 10,
     borderWidth: 1, borderColor: '#F0F0F0', borderRadius: 10, padding: 12, marginBottom: 8,
   },
-  rowName: { fontFamily: FONT, fontSize: 17, fontWeight: '700', color: '#333' },
-  rowSub: { fontFamily: FONT, fontSize: 13, color: STONE, marginTop: 1 },
+  rowName: { fontFamily: FONT_SEMI, fontSize: 17, color: '#333' },
+  rowSub: { fontSize: 13, color: STONE, marginTop: 1 },
   badge: { borderRadius: 10, paddingVertical: 3, paddingHorizontal: 9 },
-  badgeFits: { backgroundColor: '#d1fae5' },
-  badgeStretch: { backgroundColor: '#fee2e2' },
-  badgeUnknown: { backgroundColor: '#f3f4f6' },
-  badgeText: { fontFamily: FONT, fontSize: 13, fontWeight: '700', color: '#333' },
+  badgeFits: { backgroundColor: OK.bg },
+  badgeStretch: { backgroundColor: DANGER.bg },
+  badgeUnknown: { backgroundColor: NEUTRAL.bg },
+  badgeText: { fontSize: 13, fontWeight: '700', color: '#333' },
 });
 
 export default WhatIfModal;

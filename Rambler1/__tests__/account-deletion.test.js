@@ -145,3 +145,57 @@ describe('races with background saves', () => {
     expect(await fetchSignupSaveState('u1')).toEqual({ profileKeys: ['graduationYear'], hasQuiz: true });
   });
 });
+
+describe('removeSectionFromSchedule (Undo for an add)', () => {
+  const { removeSectionFromSchedule } = require('../firestore-data');
+  const scheduleDoc = (ids) => ({ exists: () => true, data: () => ({ termCode: '1266', sectionIds: ids, name: '' }), metadata: { fromCache: false } });
+
+  test('takes the one section off and keeps the rest', async () => {
+    fs.getDoc.mockReset().mockResolvedValue(scheduleDoc(['5440', '5512', '6001']));
+    fs.setDoc.mockReset().mockResolvedValue(undefined);
+    expect(await removeSectionFromSchedule('u1', '1266', 5512)).toEqual({ removed: true });
+    expect(fs.setDoc.mock.calls[0][1].sectionIds).toEqual(['5440', '6001']);
+  });
+
+  test('a section that is not there changes nothing', async () => {
+    fs.getDoc.mockReset().mockResolvedValue(scheduleDoc(['5440']));
+    fs.setDoc.mockReset();
+    expect(await removeSectionFromSchedule('u1', '1266', '9999')).toEqual({ absent: true });
+    expect(fs.setDoc).not.toHaveBeenCalled();
+  });
+});
+
+describe('schedule writes are queued (two quick "+" taps keep both)', () => {
+  const { addSectionToSchedule, removeSectionFromSchedule } = require('../firestore-data');
+  // An in-memory schedule doc whose writes take a moment, like the network.
+  let stored;
+  beforeEach(() => {
+    stored = ['100'];
+    fs.getDoc.mockReset().mockImplementation(async () => ({
+      exists: () => true, data: () => ({ termCode: '1266', sectionIds: [...stored] }), metadata: { fromCache: false },
+    }));
+    fs.setDoc.mockReset().mockImplementation(async (_ref, payload) => {
+      await new Promise((r) => setTimeout(r, 5));
+      stored = payload.sectionIds;
+    });
+  });
+
+  test('two adds at once both land', async () => {
+    const [a, b] = await Promise.all([
+      addSectionToSchedule('u1', '1266', '201'),
+      addSectionToSchedule('u1', '1266', '202'),
+    ]);
+    expect(a).toEqual({ added: true });
+    expect(b).toEqual({ added: true });
+    expect(stored.sort()).toEqual(['100', '201', '202']);
+  });
+
+  test('an undo racing an add leaves exactly the add', async () => {
+    await addSectionToSchedule('u1', '1266', '201');
+    await Promise.all([
+      removeSectionFromSchedule('u1', '1266', '201'), // Undo
+      addSectionToSchedule('u1', '1266', '202'),
+    ]);
+    expect(stored.sort()).toEqual(['100', '202']);
+  });
+});

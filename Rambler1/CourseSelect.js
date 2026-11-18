@@ -7,6 +7,9 @@ import CustomLongButton1 from './styleComponents/CustomLongButton1';
 import BackgroundImage from './styleComponents/BackgroundImage';
 import CourseDetailModal from './CourseDetailModal';
 import { buildCourseRows } from './course-list';
+import StepCounter from './components/ui/StepCounter';
+import useOnboardingDraft from './components/ui/useOnboardingDraft';
+import { FONT, FONT_SEMI, MAROON } from './theme';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -32,6 +35,7 @@ const CourseSelect =() => {
   const [majorCourseIds, setMajorCourseIds] = useState(null);
   const { selectedCourses, setSelectedCourses, selectedProgram } = useAppContext();
   const navigation = useNavigation();
+  useOnboardingDraft('CourseSelect', { selectedCourses });
 
   const loadCourses = () => {
     setLoading(true);
@@ -116,7 +120,9 @@ const CourseSelect =() => {
             </TouchableOpacity>
           </View>
           <Image source={require('./assets/Icons/Logo2-02.png')} style={s.headerLogo} />
-          <View style={s.headerSide} />
+          <View style={s.headerSide}>
+            <StepCounter route="CourseSelect" />
+          </View>
         </View>
         <View style={s.pageTitleBadge}>
           <Text accessibilityRole="header" style={s.pageTitle}>Select Courses You've Taken</Text>
@@ -130,10 +136,10 @@ const CourseSelect =() => {
           />
         </View>
         {loading ? (
-          <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 100 }} />
+          <ActivityIndicator size="large" color={MAROON} style={{ marginTop: 100 }} />
         ) : error ? (
           <View style={{ alignItems: 'center', marginTop: 100 }}>
-            <Text style={{ color: '#A30046', textAlign: 'center', fontFamily: 'CormorantGaramond-Regular', fontSize: 18 }}>
+            <Text style={{ color: MAROON, textAlign: 'center', fontFamily: FONT, fontSize: 18 }}>
               {error}
             </Text>
             <TouchableOpacity onPress={loadCourses} style={s.retryButton}>
@@ -173,7 +179,7 @@ const CourseSelect =() => {
 const s = StyleSheet.create({
   headerBar: {
     height: 120,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
@@ -196,10 +202,9 @@ const s = StyleSheet.create({
     borderRadius: 4,
   },
   backButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 15,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
   },
   pageTitleBadge: {
     backgroundColor: '#FFFFFF',
@@ -210,14 +215,14 @@ const s = StyleSheet.create({
     marginTop: 15,
   },
   pageTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 36,
     textAlign: 'center',
     color: 'black',
   },
   searchInput: {
     fontSize: 17,
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     color: '#000000',
     backgroundColor: '#D9D9D9',
     borderWidth: 1,
@@ -228,22 +233,21 @@ const s = StyleSheet.create({
     height: 38,
   },
   retryButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: 4,
     marginTop: 16,
   },
   retryButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     color: '#FFFFFF',
   },
   sectionLabel: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#A30046',
+    color: MAROON,
     backgroundColor: 'rgba(255,255,255,0.9)',
     borderRadius: 10,
     paddingVertical: 3,
@@ -260,7 +264,7 @@ const s = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   nextButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 2,
@@ -268,7 +272,7 @@ const s = StyleSheet.create({
     height: 53,
   },
   nextButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 19,
     color: '#FFFFFF',
   },

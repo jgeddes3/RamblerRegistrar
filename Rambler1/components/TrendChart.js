@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { FONT, MAROON, STONE } from '../theme';
+import { MAROON, STONE, INK, HAIRLINE } from '../theme';
 
 const AMBER = '#d97706';
 
@@ -48,14 +48,56 @@ export function shortDate(iso) {
   return `${MONTHS[parseInt(m[2], 10) - 1]} ${parseInt(m[3], 10)}`;
 }
 
+const seatsText = (p) => {
+  const total = Number(p.total) || 0;
+  const cap = Number(p.cap) || 0;
+  return cap > 0 ? `${total} of ${cap}` : `${total}`;
+};
+
+// What the chart says, in words: the latest reading (shown beside the
+// caption) and a one-sentence description for screen readers, which can't
+// read bars. null when there is no trend to draw.
+export function trendSummary(history) {
+  // The same window the bars draw (buildTrendBars keeps the last 30).
+  const points = (Array.isArray(history) ? history : [])
+    .filter((p) => p && Number.isFinite(Number(p.total)))
+    .slice(-30);
+  if (points.length < 2) return null;
+  const first = points[0];
+  const last = points[points.length - 1];
+  const wait = Number(last.waitlist) || 0;
+  const waitText = wait > 0 ? `, ${wait} on waitlist` : '';
+  const moved = Number(last.total) < Number(first.total) ? 'falling to' : 'rising to';
+  return {
+    latest: `${seatsText(last)} enrolled${waitText}`,
+    spoken: `Seats filled from ${shortDate(first.date)} to ${shortDate(last.date)}: ` +
+      `${seatsText(first)} ${moved} ${seatsText(last)}${waitText}.`,
+    cap: Number(last.cap) || 0,
+    count: points.length,
+  };
+}
+
 const TrendChart = ({ history, height = 44, showWaitlist = true }) => {
   const bars = buildTrendBars(history);
-  if (!bars.length) return null;
+  const summary = trendSummary(history);
+  if (!bars.length || !summary) return null;
   const anyWaitlist = showWaitlist && bars.some((b) => b.waitlist > 0);
 
   return (
-    <View style={st.wrap}>
-      <View style={[st.chartRow, { height }]}>
+    <View
+      style={st.wrap}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={summary.spoken}
+    >
+      {/* Caption: what the bars answer, and where it stands now. */}
+      <View style={st.captionRow}>
+        <Text style={st.caption}>Seats filled, last {bars.length} readings</Text>
+        <Text style={st.latest}>{summary.latest}</Text>
+      </View>
+      {/* Scale: the dashed top line is a full section; bars rise toward it. */}
+      {summary.cap > 0 ? <Text style={st.scaleText}>Full: {summary.cap}</Text> : null}
+      <View style={[st.chartRow, { height }, summary.cap > 0 && st.chartFullLine]}>
         {bars.map((b, i) => (
           <View key={i} style={st.barSlot}>
             {anyWaitlist && b.waitlist > 0 ? (
@@ -91,7 +133,13 @@ const TrendChart = ({ history, height = 44, showWaitlist = true }) => {
 
 const st = StyleSheet.create({
   wrap: { marginTop: 8, marginBottom: 4 },
+  captionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 },
+  // Numbers and small labels in the system sans (theme rule: Cormorant only at 14+).
+  caption: { fontSize: 12, color: STONE },
+  latest: { fontSize: 12, fontWeight: '600', color: INK },
+  scaleText: { fontSize: 10, color: STONE, alignSelf: 'flex-end', marginBottom: 1 },
   chartRow: { flexDirection: 'row', alignItems: 'flex-end' },
+  chartFullLine: { borderTopWidth: 1, borderStyle: 'dashed', borderColor: HAIRLINE },
   barSlot: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', marginHorizontal: 0.5 },
   enrollBar: { alignSelf: 'stretch', backgroundColor: '#C4577E', borderTopLeftRadius: 1, borderTopRightRadius: 1 },
   enrollBarFull: { backgroundColor: MAROON },
@@ -99,7 +147,7 @@ const st = StyleSheet.create({
   axisRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 3 },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendSwatch: { width: 8, height: 8, borderRadius: 2 },
-  axisText: { fontFamily: FONT, fontSize: 11, color: STONE },
+  axisText: { fontSize: 11, color: STONE },
 });
 
 export default TrendChart;

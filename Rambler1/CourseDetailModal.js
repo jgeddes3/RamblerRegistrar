@@ -6,13 +6,14 @@ import {
   addCourseToPlan, addSectionToSchedule, PLAN_TERM_CAP,
 } from './firestore-data';
 import { getInstructorRating, noRatingCopy, ratingsAttribution } from './ratings';
-import { FONT_ITALIC, STONE } from './theme';
+import { FONT_ITALIC, STONE, WARN } from './theme';
 import { useAppContext } from './AppContext';
 import { fillWarning } from './planning-insights';
 import { planSemesters } from './plan-utils';
 import TrendChart from './components/TrendChart';
 import FeedbackModal from './components/FeedbackModal';
 import ErrorState from './components/ErrorState';
+import { seatAge, newestReadAt } from './seat-age';
 import showAlert from './alert';
 import { useRegistrationTerm, resolveRegistrationTerm } from './term';
 
@@ -131,6 +132,9 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
   })).sort((a, b) => b._prefScore - a._prefScore);
 
   const topScore = sortedSections.length > 0 ? sortedSections[0]._prefScore : 0;
+  // Seat-count age for the list header; rows whose own count is older say so.
+  const newestRead = newestReadAt(sortedSections);
+  const listAge = seatAge(newestRead);
   const displaySections = sortedSections;
 
   useEffect(() => {
@@ -327,6 +331,12 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
           <Text style={s.termLabel}>
             {singleSection ? `Section ${singleSection.section_number} · ${TERM.label}` : `${TERM.label} Sections`}
           </Text>
+          {displaySections.length > 0 ? (
+            <Text style={[s.seatNote, listAge?.stale && s.seatNoteStale]}>
+              {listAge ? `${listAge.label}${listAge.stale ? ', may have changed' : ''}. ` : ''}
+              Confirm in LOCUS before you register.
+            </Text>
+          ) : null}
 
           <ScrollView style={s.sectionsList} showsVerticalScrollIndicator={false}>
             {sectionsLoading ? (
@@ -419,6 +429,15 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                           : sec.status || 'Enrollment TBD'}
                       </Text>
                     </View>
+                    {/* This section's count is older than the list's newest
+                        (its last read failed): say so on the row. */}
+                    {(() => {
+                      if (sec.enrollment_read_at === newestRead) return null;
+                      const age = seatAge(sec.enrollment_read_at);
+                      return age && age.stale && hasEnrollment ? (
+                        <Text style={s.staleSeats}>{age.label}, may have changed</Text>
+                      ) : null;
+                    })()}
 
                     {/* Enrollment + waitlist trend (single-section view only —
                         F-QW1 sparkline / F-HI3 waitlist movement) */}
@@ -672,6 +691,10 @@ const s = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
   },
+  // Seat-count age + "confirm in LOCUS" (sans: it carries a time).
+  seatNote: { fontSize: 13, color: STONE, marginTop: -4, marginBottom: 10, lineHeight: 18 },
+  seatNoteStale: { color: WARN.fg },
+  staleSeats: { fontSize: 13, color: WARN.fg, marginTop: 2, marginLeft: 22 },
   sectionsList: {
     flex: 1,
   },

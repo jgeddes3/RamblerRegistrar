@@ -87,3 +87,31 @@ test('parseEnrollmentFields: real numbers, including 0, are returned', () => {
     { enrollment_cap: 0, enrollment_total: 0, waitlist_cap: 0, waitlist_total: 0 },
   );
 });
+
+// Seat-count age: the app shows when each section's numbers were last read,
+// so a carried-forward reading must keep its original time, not today's.
+test('a successful read stamps enrollment_read_at', () => {
+  db.insertSection(TERM, section({ class_number: '7101', enrollment_cap: 30, enrollment_total: 3,
+    enrollment_read_at: '2026-11-18T16:05:00.000Z' }));
+  assert.equal(row('7101').enrollment_read_at, '2026-11-18T16:05:00.000Z');
+});
+
+test('a read without an explicit time is stamped now', () => {
+  const before = Date.now();
+  db.insertSection(TERM, section({ class_number: '7102', enrollment_cap: 30, enrollment_total: 3 }));
+  const stamped = Date.parse(row('7102').enrollment_read_at);
+  assert.ok(stamped >= before - 1000 && stamped <= Date.now() + 1000, `stamp ${row('7102').enrollment_read_at}`);
+});
+
+test('a failed read keeps the previous read time along with the numbers', () => {
+  db.insertSection(TERM, section({ class_number: '7103', enrollment_cap: 30, enrollment_total: 3,
+    enrollment_read_at: '2026-11-15T16:00:00.000Z' }));
+  db.insertSection(TERM, section({ class_number: '7103' })); // failed read
+  assert.equal(row('7103').enrollment_read_at, '2026-11-15T16:00:00.000Z');
+  assert.equal(row('7103').enrollment_total, 3);
+});
+
+test('a new section that was never read has no read time', () => {
+  db.insertSection(TERM, section({ class_number: '7104' }));
+  assert.equal(row('7104').enrollment_read_at, null);
+});

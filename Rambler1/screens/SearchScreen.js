@@ -11,8 +11,9 @@ import { fetchCourses as fetchLocalCourses } from '../Database';
 import CourseDetailModal from '../CourseDetailModal';
 import Skeleton from '../components/Skeleton';
 import ErrorState from '../components/ErrorState';
+import { seatAge } from '../seat-age';
 import { useRegistrationTerm, resolveRegistrationTerm } from '../term';
-import { STONE } from '../theme';
+import { STONE, WARN } from '../theme';
 
 // =============================================================================
 // CONSTANTS
@@ -142,6 +143,10 @@ const SectionRow = ({ section, onPress }) => {
           </Text>
         ) : null}
       </View>
+      {/* The spots badge is only as good as its last read: flag old ones. */}
+      {hasEnrollment && seatAge(section.enrollment_read_at)?.stale ? (
+        <Text style={s.staleSeats}>{seatAge(section.enrollment_read_at).label}, may have changed</Text>
+      ) : null}
     </TouchableOpacity>
   );
 };
@@ -648,6 +653,11 @@ const SearchScreen = () => {
               onRetrySections={retrySections}
             />
           )}
+          ListHeaderComponent={
+            <Text style={s.seatNote}>
+              Seat counts are read from LOCUS once a day. Confirm in LOCUS before you register.
+            </Text>
+          }
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={VIEWABILITY_CONFIG}
           keyboardShouldPersistTaps="handled"
@@ -673,6 +683,10 @@ const SearchScreen = () => {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FBF9F4' },
+
+  // Seat-count age: the note above results, and the flag on an old count.
+  seatNote: { fontSize: 13, color: STONE, marginHorizontal: 16, marginTop: 8, marginBottom: 2, lineHeight: 18 },
+  staleSeats: { fontSize: 12, color: WARN.fg, marginTop: 4 },
 
   // Search bar
   searchBarWrap: {

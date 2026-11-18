@@ -148,3 +148,25 @@ describe('home', () => {
     expect(await screen.findByText('Hours unavailable')).toBeTruthy();
   });
 });
+
+describe('seat-count age on course detail', () => {
+  const { seatAge } = require('../seat-age');
+  const section = (n, readAt) => ({
+    id: n, class_number: n, section_number: n, enrollment_cap: 30, enrollment_total: 20, enrollment_read_at: readAt,
+  });
+
+  test('says when seats were read and to confirm in LOCUS; flags a row read days earlier', async () => {
+    const now = new Date().toISOString();
+    const old = new Date(Date.now() - 4 * 86400000).toISOString();
+    mockData.getCourseSections.mockResolvedValueOnce([section('001', now), section('002', old)]);
+    await render(<CourseDetailModal visible course={COURSE} onClose={() => {}} />);
+    expect(await screen.findByText(`${seatAge(now).label}. Confirm in LOCUS before you register.`)).toBeTruthy();
+    expect(screen.getByText(`${seatAge(old).label}, may have changed`)).toBeTruthy();
+  });
+
+  test('without a read time it still says to confirm in LOCUS', async () => {
+    mockData.getCourseSections.mockResolvedValueOnce([section('001', null)]);
+    await render(<CourseDetailModal visible course={COURSE} onClose={() => {}} />);
+    expect(await screen.findByText('Confirm in LOCUS before you register.')).toBeTruthy();
+  });
+});

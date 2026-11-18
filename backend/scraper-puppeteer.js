@@ -351,7 +351,8 @@ class LocusPuppeteerScraper {
         });
         const enrollment = parseEnrollmentFields(raw);
         if (enrollment) {
-          Object.assign(sections[i], enrollment);
+          // Stamped at the read, not at the end-of-subject save.
+          Object.assign(sections[i], enrollment, { enrollment_read_at: new Date().toISOString() });
           read++;
         }
 

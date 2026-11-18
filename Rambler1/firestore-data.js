@@ -135,6 +135,9 @@ function mapSection(docId, d) {
     enrollment_total: Number(enr.total) || 0,
     waitlist_cap: Number(enr.waitlistCap) || 0,
     waitlist_total: Number(enr.waitlistTotal) || 0,
+    // When the numbers above were read from LOCUS (ISO); null on docs synced
+    // before the backend started recording it. See seat-age.js.
+    enrollment_read_at: typeof enr.readAt === 'string' ? enr.readAt : null,
     instruction_mode: d.instructionMode ?? '',
     component: d.component ?? '',
     status: d.status ?? '',

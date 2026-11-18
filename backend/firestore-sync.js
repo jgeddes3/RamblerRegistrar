@@ -102,6 +102,10 @@ function sectionDoc(s) {
     enrollment: {
       cap, total, waitlistCap: s.waitlist_cap || 0, waitlistTotal: s.waitlist_total || 0,
       percentFull: cap > 0 ? Math.round((100 * total) / cap) : 0,
+      // When these numbers were read from LOCUS (the app shows their age).
+      // Part of the hash on purpose: a fresh read is written even when the
+      // numbers didn't change, or the app would show them as stale.
+      ...(s.enrollment_read_at ? { readAt: s.enrollment_read_at } : {}),
     },
     instructionMode: s.instruction_mode, component: s.component, status: s.status || 'active',
   });

@@ -59,6 +59,10 @@ async function initDb() {
       UNIQUE(term_code, class_number)
     )
   `);
+  // When this section's enrollment numbers were last actually read from
+  // LOCUS (ISO 8601). A failed read carries the numbers AND this time forward,
+  // so the app can say how old a seat count is. NULL = never read.
+  try { db.run('ALTER TABLE sections ADD COLUMN enrollment_read_at TEXT'); } catch (e) { /* exists */ }
 
   db.run('CREATE INDEX IF NOT EXISTS idx_sections_term ON sections(term_code)');
   db.run('CREATE INDEX IF NOT EXISTS idx_sections_subject ON sections(subject)');
@@ -358,13 +362,17 @@ module.exports = {
     // No enrollment read this run (detail page failed, or a scrape without
     // --enrollment): keep the section's last known numbers instead of
     // overwriting them with 0. A successful read of 0 is still saved as 0.
+    // The read time travels with the numbers: stamped on a read (the scraper
+    // passes the moment it read the page), carried forward on a failed one.
     let enrollment = section;
+    let readAt = section.enrollment_read_at || new Date().toISOString();
     if (section.enrollment_cap === undefined || section.enrollment_cap === null) {
       enrollment = queryAll(
-        `SELECT enrollment_cap, enrollment_total, waitlist_cap, waitlist_total
+        `SELECT enrollment_cap, enrollment_total, waitlist_cap, waitlist_total, enrollment_read_at
          FROM sections WHERE term_code = ? AND class_number = ?`,
         [termCode, section.class_number || '']
       )[0] || {};
+      readAt = enrollment.enrollment_read_at || null;
     }
     db.run(`
       INSERT OR REPLACE INTO sections (
@@ -372,8 +380,8 @@ module.exports = {
         title, instructor, meeting_days, meeting_time_start, meeting_time_end,
         room, building, enrollment_cap, enrollment_total,
         waitlist_cap, waitlist_total, instruction_mode, component, status,
-        start_date, end_date, raw_data
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        start_date, end_date, raw_data, enrollment_read_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       termCode,
       section.subject || '',
@@ -397,6 +405,7 @@ module.exports = {
       section.start_date || section.dates || '',
       section.end_date || '',
       JSON.stringify(section.raw_data || section),
+      readAt,
     ]);
     // No save() here (B5): a full scrape inserts ~2,500 sections and a full-DB
     // serialize per insert stalls the event loop for the whole run. Callers

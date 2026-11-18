@@ -18,6 +18,27 @@ const TERM_CODES = {
   'Winter 2025': '1258',
 };
 
+// Turn the raw text of a section detail page's enrollment fields into numbers.
+// Returns null when cap or total is missing/unparseable: that means the read
+// failed (LOCUS dropped the session or we never reached the detail page), and
+// the caller must not treat it as a real 0/0. Waitlist fields are optional.
+function parseEnrollmentFields(raw) {
+  const num = (text) => {
+    if (text === null || text === undefined) return null;
+    const n = parseInt(String(text).trim(), 10);
+    return Number.isNaN(n) ? null : n;
+  };
+  const cap = num(raw.cap);
+  const total = num(raw.total);
+  if (cap === null || total === null) return null;
+  return {
+    enrollment_cap: cap,
+    enrollment_total: total,
+    waitlist_cap: num(raw.waitCap) ?? 0,
+    waitlist_total: num(raw.waitTotal) ?? 0,
+  };
+}
+
 class LocusPuppeteerScraper {
   constructor() {
     this.browser = null;
@@ -242,8 +263,11 @@ class LocusPuppeteerScraper {
 
   // Fetch enrollment details by clicking into each section's detail page
   // This is slow (~3 sec per section) so only use when needed
+  // A section whose read fails is left WITHOUT enrollment fields, so
+  // db.insertSection keeps its last known numbers rather than saving 0/0.
   async fetchEnrollmentForSections(sections) {
     console.log(`  Fetching enrollment for ${sections.length} sections...`);
+    let read = 0;
     for (let i = 0; i < sections.length; i++) {
       try {
         // Click the class number link
@@ -253,25 +277,25 @@ class LocusPuppeteerScraper {
         await link.click();
         await new Promise(r => setTimeout(r, 2500));
 
-        // Extract enrollment data from detail page
-        const enrollment = await this.page.evaluate(() => {
-          const get = (id) => {
+        // Raw field text from the detail page; null when a field is absent
+        // (we are not actually on a detail page).
+        const raw = await this.page.evaluate(() => {
+          const text = (id) => {
             const el = document.getElementById(id);
-            return el ? parseInt(el.textContent.trim()) || 0 : 0;
+            return el ? el.textContent : null;
           };
           return {
-            enrollment_cap: get('SSR_CLS_DTL_WRK_ENRL_CAP'),
-            enrollment_total: get('SSR_CLS_DTL_WRK_ENRL_TOT'),
-            available_seats: get('SSR_CLS_DTL_WRK_AVAILABLE_SEATS'),
-            waitlist_cap: get('SSR_CLS_DTL_WRK_WAIT_CAP'),
-            waitlist_total: get('SSR_CLS_DTL_WRK_WAIT_TOT'),
+            cap: text('SSR_CLS_DTL_WRK_ENRL_CAP'),
+            total: text('SSR_CLS_DTL_WRK_ENRL_TOT'),
+            waitCap: text('SSR_CLS_DTL_WRK_WAIT_CAP'),
+            waitTotal: text('SSR_CLS_DTL_WRK_WAIT_TOT'),
           };
         });
-
-        sections[i].enrollment_cap = enrollment.enrollment_cap;
-        sections[i].enrollment_total = enrollment.enrollment_total;
-        sections[i].waitlist_cap = enrollment.waitlist_cap;
-        sections[i].waitlist_total = enrollment.waitlist_total;
+        const enrollment = parseEnrollmentFields(raw);
+        if (enrollment) {
+          Object.assign(sections[i], enrollment);
+          read++;
+        }
 
         // Click "Return to Search Results"
         const returnBtn = await this.page.$('#CLASS_SRCH_WRK2_SSR_PB_BACK');
@@ -286,8 +310,9 @@ class LocusPuppeteerScraper {
         // Skip this section if detail fetch fails
       }
     }
-    const withData = sections.filter(s => s.enrollment_cap > 0).length;
-    console.log(`  Enrollment data: ${withData}/${sections.length} sections`);
+    const missed = sections.length - read;
+    console.log(`  Enrollment data: ${read}/${sections.length} sections` +
+      (missed ? ` (${missed} not read, previous numbers kept)` : ''));
     return sections;
   }
 
@@ -603,4 +628,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { scrape, LocusPuppeteerScraper, SUBJECTS, TERM_CODES };
+module.exports = { scrape, LocusPuppeteerScraper, SUBJECTS, TERM_CODES, parseEnrollmentFields };

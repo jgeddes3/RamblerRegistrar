@@ -2,7 +2,8 @@ const initSqlJs = require('sql.js');
 const fs = require('fs');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, 'locus.db');
+// LOCUS_DB_PATH lets tests point at a throwaway file instead of the live DB.
+const DB_PATH = process.env.LOCUS_DB_PATH || path.join(__dirname, 'locus.db');
 let db = null;
 
 // =============================================================================
@@ -354,6 +355,17 @@ module.exports = {
   initDb,
 
   insertSection(termCode, section) {
+    // No enrollment read this run (detail page failed, or a scrape without
+    // --enrollment): keep the section's last known numbers instead of
+    // overwriting them with 0. A successful read of 0 is still saved as 0.
+    let enrollment = section;
+    if (section.enrollment_cap === undefined || section.enrollment_cap === null) {
+      enrollment = queryAll(
+        `SELECT enrollment_cap, enrollment_total, waitlist_cap, waitlist_total
+         FROM sections WHERE term_code = ? AND class_number = ?`,
+        [termCode, section.class_number || '']
+      )[0] || {};
+    }
     db.run(`
       INSERT OR REPLACE INTO sections (
         term_code, subject, catalog_number, section_number, class_number,
@@ -375,10 +387,10 @@ module.exports = {
       section.meeting_time_end || '',
       section.room || '',
       section.building || '',
-      section.enrollment_cap || 0,
-      section.enrollment_total || 0,
-      section.waitlist_cap || 0,
-      section.waitlist_total || 0,
+      enrollment.enrollment_cap || 0,
+      enrollment.enrollment_total || 0,
+      enrollment.waitlist_cap || 0,
+      enrollment.waitlist_total || 0,
       section.instruction_mode || '',
       section.component || '',
       section.status || '',

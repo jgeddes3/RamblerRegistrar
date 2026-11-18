@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "scrape": "node scraper-puppeteer.js"
+    "scrape": "node scraper-puppeteer.js",
+    "test": "node --test tests/enrollment-preserve.test.js"
   },
   "dependencies": {
     "cheerio": "^1.0.0",

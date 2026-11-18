@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { searchCourses, getCourseSections } from '../firestore-data';
-import { FONT, FONT_ITALIC, STONE, FONT_SEMI } from '../theme';
+import { FONT, FONT_ITALIC, STONE, FONT_SEMI, MAROON, WARN } from '../theme';
 import { generateSchedules, formatMinutes } from '../schedule-generator';
 import { sectionsToBlocks, gridBounds, findConflicts } from '../schedule-utils';
 import ScheduleGrid from './ScheduleGrid';
@@ -216,7 +216,7 @@ const GenerateScheduleModal = ({
         autoCorrect={false}
         autoCapitalize="characters"
       />
-      {searchLoading && <ActivityIndicator style={{ marginTop: 8 }} color="#A30046" />}
+      {searchLoading && <ActivityIndicator style={{ marginTop: 8 }} color={MAROON} />}
       {results.map((course) => (
         <TouchableOpacity
           key={course.code}
@@ -262,7 +262,7 @@ const GenerateScheduleModal = ({
         <Switch
           value={openOnly}
           onValueChange={setOpenOnly}
-          trackColor={{ true: '#A30046' }}
+          trackColor={{ true: MAROON }}
           accessibilityLabel="Open sections only"
         />
       </View>
@@ -272,7 +272,7 @@ const GenerateScheduleModal = ({
           <Switch
             value={keepCurrent}
             onValueChange={setKeepCurrent}
-            trackColor={{ true: '#A30046' }}
+            trackColor={{ true: MAROON }}
             accessibilityLabel="Keep my current classes"
           />
         </View>
@@ -341,7 +341,7 @@ const GenerateScheduleModal = ({
           empty state, not a footnote above one. */}
       {generated.candidates.length === 0 ? (
         <ScrollView contentContainerStyle={st.emptyWrap}>
-          <Ionicons name="alert-circle-outline" size={32} color="#A30046" />
+          <Ionicons name="alert-circle-outline" size={32} color={MAROON} />
           <Text style={st.emptyHeadline}>
             {generated.notes[0] || 'No conflict-free schedule exists for these courses.'}
           </Text>
@@ -463,7 +463,7 @@ const st = StyleSheet.create({
   },
   title: { fontFamily: FONT_SEMI, fontSize: 24, color: '#1a1a1a' },
   closeBtn: { padding: 8 },
-  closeText: { fontFamily: FONT_SEMI, color: '#A30046', fontSize: 18, },
+  closeText: { fontFamily: FONT_SEMI, color: MAROON, fontSize: 18, },
   termLabel: { fontFamily: FONT, paddingHorizontal: 16, color: '#666', fontSize: 16, marginBottom: 8 },
 
   sectionLabel: {
@@ -472,7 +472,7 @@ const st = StyleSheet.create({
   },
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8 },
   chip: {
-    backgroundColor: '#A30046', borderRadius: 16, paddingVertical: 6, paddingHorizontal: 12,
+    backgroundColor: MAROON, borderRadius: 16, paddingVertical: 6, paddingHorizontal: 12,
     marginRight: 8, marginBottom: 8,
   },
   chipText: { fontFamily: FONT_SEMI, color: '#fff', fontSize: 15 },
@@ -484,11 +484,11 @@ const st = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
     paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
   },
-  resultCode: { fontFamily: FONT_SEMI, fontSize: 16, color: '#A30046', width: 100 },
+  resultCode: { fontFamily: FONT_SEMI, fontSize: 16, color: MAROON, width: 100 },
   resultName: { fontFamily: FONT, fontSize: 16, flex: 1, color: '#444' },
   recLabel: { fontFamily: FONT, fontSize: 15, color: '#666', paddingHorizontal: 16, marginTop: 12, marginBottom: 4 },
   focusPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#A30046',
+    flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: MAROON,
     borderRadius: 8, paddingVertical: 2, paddingHorizontal: 7, marginLeft: 8,
   },
   focusPillText: { color: '#fff', fontSize: 13, fontWeight: '600' },
@@ -503,12 +503,12 @@ const st = StyleSheet.create({
     borderWidth: 1, borderColor: '#ccc', borderRadius: 16,
     paddingVertical: 6, paddingHorizontal: 14, marginRight: 8, marginBottom: 8,
   },
-  optChipOn: { backgroundColor: '#A30046', borderColor: '#A30046' },
+  optChipOn: { backgroundColor: MAROON, borderColor: MAROON },
   optChipText: { fontFamily: FONT_SEMI, color: '#444', fontSize: 15, },
   optChipTextOn: { color: '#fff' },
 
   generateBtn: {
-    backgroundColor: '#A30046', borderRadius: 12, margin: 16, paddingVertical: 14,
+    backgroundColor: MAROON, borderRadius: 12, margin: 16, paddingVertical: 14,
     alignItems: 'center',
   },
   generateBtnDisabled: { opacity: 0.4 },
@@ -518,8 +518,8 @@ const st = StyleSheet.create({
     fontFamily: FONT_ITALIC, color: STONE, fontSize: 14,
     paddingHorizontal: 16, marginBottom: 6,
   },
-  notesWrap: { backgroundColor: '#FEF3C7', padding: 12, marginHorizontal: 16, borderRadius: 10, marginBottom: 8 },
-  noteText: { fontFamily: FONT, color: '#92400E', fontSize: 15, marginBottom: 2 },
+  notesWrap: { backgroundColor: WARN.bg, padding: 12, marginHorizontal: 16, borderRadius: 10, marginBottom: 8 },
+  noteText: { fontFamily: FONT, color: WARN.fg, fontSize: 15, marginBottom: 2 },
   emptyWrap: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
   emptyHeadline: {
     fontFamily: FONT_SEMI, fontSize: 19, color: '#1a1a1a',
@@ -535,7 +535,7 @@ const st = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
   },
   candScoreBadge: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: '#A30046',
+    width: 44, height: 44, borderRadius: 22, backgroundColor: MAROON,
     alignItems: 'center', justifyContent: 'center', marginRight: 12,
   },
   candScoreText: { fontFamily: FONT_SEMI, color: '#fff', fontSize: 16 },
@@ -545,17 +545,17 @@ const st = StyleSheet.create({
   candChevron: { color: STONE, fontSize: 24, paddingLeft: 8 },
 
   adjustBtn: { padding: 14, alignItems: 'center' },
-  adjustBtnText: { fontFamily: FONT_SEMI, fontSize: 16, color: '#A30046', },
+  adjustBtnText: { fontFamily: FONT_SEMI, fontSize: 16, color: MAROON, },
 
   previewStats: { fontFamily: FONT, paddingHorizontal: 16, paddingBottom: 8, color: '#666', fontSize: 15 },
   previewBtnRow: { flexDirection: 'row', padding: 12, gap: 10 },
   backBtn: {
-    flex: 1, borderWidth: 1, borderColor: '#A30046', borderRadius: 12,
+    flex: 1, borderWidth: 1, borderColor: MAROON, borderRadius: 12,
     paddingVertical: 13, alignItems: 'center', marginRight: 10,
   },
-  backBtnText: { fontFamily: FONT_SEMI, color: '#A30046', fontSize: 17 },
+  backBtnText: { fontFamily: FONT_SEMI, color: MAROON, fontSize: 17 },
   useBtn: {
-    flex: 2, backgroundColor: '#A30046', borderRadius: 12, paddingVertical: 13,
+    flex: 2, backgroundColor: MAROON, borderRadius: 12, paddingVertical: 13,
     alignItems: 'center',
   },
   useBtnText: { fontFamily: FONT_SEMI, color: '#fff', fontSize: 17 },

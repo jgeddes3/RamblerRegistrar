@@ -21,7 +21,7 @@ import {
 import { transitEstimate, getTrainArrivals } from '../cta';
 import { formatMinutes } from '../schedule-generator';
 import DayMap from './DayMap';
-import { FONT, MAROON, STONE, NEUTRAL, FONT_SEMI, FONT_MED } from '../theme';
+import { FONT, MAROON, STONE, NEUTRAL, FONT_SEMI, FONT_MED, DANGER, OK, WARN, MAROON_WASH } from '../theme';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 const WEEKDAYS = [
@@ -30,9 +30,9 @@ const WEEKDAYS = [
 ];
 
 const STATUS_STYLE = {
-  ok: { text: 'OK', color: '#065f46', bg: '#d1fae5' },
-  tight: { text: 'Tight', color: '#92400e', bg: '#fef3c7' },
-  impossible: { text: 'Impossible', color: '#b91c1c', bg: '#fee2e2' },
+  ok: { text: 'OK', color: OK.fg, bg: OK.bg },
+  tight: { text: 'Tight', color: WARN.fg, bg: WARN.bg },
+  impossible: { text: 'Impossible', color: DANGER.fg, bg: DANGER.bg },
   unknown: { text: '?', color: NEUTRAL.fg, bg: NEUTRAL.bg },
 };
 
@@ -220,7 +220,7 @@ const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
 
               {transitions.some((t) => t.status === 'impossible') ? (
                 <View style={s.impossibleRow}>
-                  <Ionicons name="close-circle" size={15} color="#b91c1c" style={{ marginTop: 2 }} />
+                  <Ionicons name="close-circle" size={15} color={DANGER.fg} style={{ marginTop: 2 }} />
                   <Text style={s.impossibleNote}>
                     An impossible transfer means these classes can't both be attended.
                     Swap one section before registration.
@@ -325,10 +325,10 @@ const s = StyleSheet.create({
 
   impossibleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 12 },
   impossibleNote: {
-    flex: 1, fontFamily: FONT, fontSize: 14, color: '#b91c1c', lineHeight: 20,
+    flex: 1, fontFamily: FONT, fontSize: 14, color: DANGER.fg, lineHeight: 20,
   },
   rideCard: {
-    backgroundColor: '#FBF0F5', borderRadius: 10, padding: 12, marginTop: 12,
+    backgroundColor: MAROON_WASH, borderRadius: 10, padding: 12, marginTop: 12,
     borderWidth: 1, borderColor: '#E8CDD9',
   },
   rideTitle: { flex: 1, fontFamily: FONT_SEMI, fontSize: 16, color: MAROON },

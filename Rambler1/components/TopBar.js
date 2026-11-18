@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Image, TouchableOpacity, Text, StyleSheet, Platform, StatusBar } from 'react-native';
 import { useAppContext } from '../AppContext';
-import { FONT_SEMI } from '../theme';
+import { FONT_SEMI, MAROON } from '../theme';
 
 const TopBar = ({ onMenuPress, onProfilePress }) => {
   const { user } = useAppContext();
@@ -15,7 +15,7 @@ const TopBar = ({ onMenuPress, onProfilePress }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#A30046" />
+      <StatusBar barStyle="light-content" backgroundColor={MAROON} />
 
       <View style={styles.content}>
         {/* Menu button (left) */}
@@ -48,7 +48,7 @@ const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight ||
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     paddingTop: STATUSBAR_HEIGHT,
   },
   content: {
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontFamily: FONT_SEMI,
     fontSize: 18,
-    color: '#A30046',
+    color: MAROON,
   },
 });
 

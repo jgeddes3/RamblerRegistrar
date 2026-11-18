@@ -7,7 +7,7 @@ import StepCounter from '../components/ui/StepCounter';
 import { loadDraft, saveDraft } from '../onboarding';
 import { saveQuizResults } from '../firestore-data';
 import BackgroundImage from '../styleComponents/BackgroundImage';
-import { STONE, FONT_SEMI, FONT } from '../theme';
+import { STONE, FONT_SEMI, FONT, MAROON } from '../theme';
 import { slopTo } from '../components/ui/hitSlop';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
@@ -233,10 +233,10 @@ const s = StyleSheet.create({
     alignSelf: 'center', minHeight: 44, justifyContent: 'center', marginTop: 8,
     paddingHorizontal: 16, backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 22,
   },
-  skipText: { fontSize: 15, fontWeight: '600', color: '#A30046' },
+  skipText: { fontSize: 15, fontWeight: '600', color: MAROON },
   headerBar: {
     height: 120,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
@@ -254,7 +254,7 @@ const s = StyleSheet.create({
   backButtonText: {
     fontFamily: FONT_SEMI,
     fontSize: 15,
-    color: '#A30046',
+    color: MAROON,
   },
   progressContainer: {
     paddingHorizontal: 20,
@@ -273,7 +273,7 @@ const s = StyleSheet.create({
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderRadius: 4,
   },
   progressText: {
@@ -285,7 +285,7 @@ const s = StyleSheet.create({
   },
   sectionBadge: {
     alignSelf: 'center',
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderRadius: 16,
     paddingVertical: 4,
     paddingHorizontal: 14,
@@ -324,9 +324,9 @@ const s = StyleSheet.create({
     borderColor: '#D9D9D9',
   },
   optionSelected: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderWidth: 1,
-    borderColor: '#A30046',
+    borderColor: MAROON,
   },
   optionTextUnselected: {
     fontFamily: FONT,
@@ -347,7 +347,7 @@ const s = StyleSheet.create({
     borderTopColor: '#E0E0E0',
   },
   nextButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 6,

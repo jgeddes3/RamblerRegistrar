@@ -9,7 +9,7 @@ import CourseDetailModal from './CourseDetailModal';
 import { buildCourseRows } from './course-list';
 import StepCounter from './components/ui/StepCounter';
 import useOnboardingDraft from './components/ui/useOnboardingDraft';
-import { FONT, FONT_SEMI } from './theme';
+import { FONT, FONT_SEMI, MAROON } from './theme';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -136,10 +136,10 @@ const CourseSelect =() => {
           />
         </View>
         {loading ? (
-          <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 100 }} />
+          <ActivityIndicator size="large" color={MAROON} style={{ marginTop: 100 }} />
         ) : error ? (
           <View style={{ alignItems: 'center', marginTop: 100 }}>
-            <Text style={{ color: '#A30046', textAlign: 'center', fontFamily: FONT, fontSize: 18 }}>
+            <Text style={{ color: MAROON, textAlign: 'center', fontFamily: FONT, fontSize: 18 }}>
               {error}
             </Text>
             <TouchableOpacity onPress={loadCourses} style={s.retryButton}>
@@ -179,7 +179,7 @@ const CourseSelect =() => {
 const s = StyleSheet.create({
   headerBar: {
     height: 120,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
@@ -204,7 +204,7 @@ const s = StyleSheet.create({
   backButtonText: {
     fontFamily: FONT_SEMI,
     fontSize: 15,
-    color: '#A30046',
+    color: MAROON,
   },
   pageTitleBadge: {
     backgroundColor: '#FFFFFF',
@@ -233,7 +233,7 @@ const s = StyleSheet.create({
     height: 38,
   },
   retryButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: 4,
@@ -247,7 +247,7 @@ const s = StyleSheet.create({
   sectionLabel: {
     fontFamily: FONT_SEMI,
     fontSize: 14,
-    color: '#A30046',
+    color: MAROON,
     backgroundColor: 'rgba(255,255,255,0.9)',
     borderRadius: 10,
     paddingVertical: 3,
@@ -264,7 +264,7 @@ const s = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   nextButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 2,

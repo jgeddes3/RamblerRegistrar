@@ -16,6 +16,7 @@ import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { saveUserProfile } from './firestore-data';
+import { MAROON } from './theme';
 
 // Show notifications as banners even while the app is foregrounded (the OS
 // default is to silently swallow them). Call ONCE at app startup.
@@ -54,7 +55,7 @@ export async function registerForPushNotifications() {
         name: 'Seat alerts',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#A30046',
+        lightColor: MAROON,
       });
     }
 

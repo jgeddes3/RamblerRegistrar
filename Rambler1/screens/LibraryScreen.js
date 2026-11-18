@@ -10,9 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getLibraryHours, getLibraryHoursWeekly } from '../campus-api';
-import { STONE, OK, NEUTRAL, FONT, FONT_SEMI } from '../theme';
+import { STONE, OK, NEUTRAL, FONT, FONT_SEMI, MAROON, PARCHMENT, MAROON_WASH } from '../theme';
 
-const MAROON = '#A30046';
 
 // Bookable study-room locations (F-Q8). LibCal's booking flow needs a Loyola
 // login, so the app deep-links straight into the official picker for each
@@ -273,12 +272,12 @@ const LibraryScreen = () => {
 // -------------------------------------------------------------------- styles
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FBF9F4' },
+  container: { flex: 1, backgroundColor: PARCHMENT },
   content: { padding: 16, paddingBottom: 32 },
   emptyContainer: { flexGrow: 1 },
   centerWrap: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#FBF9F4', paddingHorizontal: 24,
+    backgroundColor: PARCHMENT, paddingHorizontal: 24,
   },
   loadingText: { fontFamily: FONT, fontSize: 16, color: STONE, marginTop: 12 },
   emptyTitle: {
@@ -300,7 +299,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 5,
     borderRadius: 10, paddingVertical: 2, paddingHorizontal: 9,
   },
-  statusOpen: { backgroundColor: '#d1fae5' },
+  statusOpen: { backgroundColor: OK.bg },
   statusClosed: { backgroundColor: NEUTRAL.bg },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 11, fontWeight: 'bold' },
@@ -324,7 +323,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#F0F0F0',
   },
   bookIconWrap: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: '#FBF0F5',
+    width: 36, height: 36, borderRadius: 18, backgroundColor: MAROON_WASH,
     alignItems: 'center', justifyContent: 'center',
   },
   bookName: { fontFamily: FONT, fontSize: 17, color: '#333' },

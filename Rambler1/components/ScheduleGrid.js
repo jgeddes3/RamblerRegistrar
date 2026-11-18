@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { MAROON } from '../theme';
 
 export const HOUR_HEIGHT = 52;
 const MIN_BLOCK_HEIGHT = 26;
@@ -214,7 +215,7 @@ const styles = StyleSheet.create({
   dayHeaderText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#A30046',
+    color: MAROON,
   },
   bodyRow: {
     flexDirection: 'row',

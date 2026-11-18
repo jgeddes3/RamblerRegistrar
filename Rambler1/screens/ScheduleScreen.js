@@ -34,7 +34,7 @@ import { useToast } from '../components/ui/Toast';
 import { useRegistrationTerm, resolveRegistrationTerm, scheduleTermOptions } from '../term';
 import { afterModalDismiss } from '../modal-sequencing';
 import { writeCacheFile } from '../ics-export';
-import { STONE, FONT, FONT_SEMI, FONT_MED } from '../theme';
+import { STONE, FONT, FONT_SEMI, FONT_MED, MAROON, OK, WARN, DANGER, PARCHMENT } from '../theme';
 
 // Same pattern as ProfileScreen: RN Modal covers the status bar / notch on iOS.
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
@@ -115,9 +115,9 @@ const normCode = (code) =>
   String(code || '').trim().replace(/\s+/g, ' ').toUpperCase();
 
 const PACING_DOT_COLORS = {
-  'on-track': '#065f46',
-  'at-risk': '#92400e',
-  'off-track': '#b91c1c',
+  'on-track': OK.fg,
+  'at-risk': WARN.fg,
+  'off-track': DANGER.fg,
 };
 
 const meetingSummary = (section) => {
@@ -162,7 +162,7 @@ const WatchToggle = ({ watching, disabled, onPress }) => (
       <Ionicons
         name={watching ? 'notifications' : 'notifications-outline'}
         size={12}
-        color={watching ? '#FFFFFF' : '#A30046'}
+        color={watching ? '#FFFFFF' : MAROON}
       />
       <Text style={[s.watchBtnText, watching && s.watchBtnTextActive]}>
         {watching ? 'Watching' : 'Watch'}
@@ -744,21 +744,21 @@ const ScheduleScreen = () => {
           )}
         </View>
         <TouchableOpacity style={s.headerBtn} onPress={exportIcs} accessibilityLabel="Export schedule">
-          <Ionicons name="share-outline" size={19} color="#A30046" />
+          <Ionicons name="share-outline" size={19} color={MAROON} />
         </TouchableOpacity>
         <TouchableOpacity
           style={s.headerBtn}
           onPress={() => setMapVisible(true)}
           accessibilityLabel="Day map"
         >
-          <Ionicons name="map-outline" size={18} color="#A30046" />
+          <Ionicons name="map-outline" size={18} color={MAROON} />
         </TouchableOpacity>
         <TouchableOpacity
           style={s.headerBtn}
           onPress={() => setGenVisible(true)}
           accessibilityLabel="Generate schedule"
         >
-          <Ionicons name="sparkles-outline" size={18} color="#A30046" />
+          <Ionicons name="sparkles-outline" size={18} color={MAROON} />
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.headerBtn, s.headerBtnPrimary]}
@@ -771,7 +771,7 @@ const ScheduleScreen = () => {
 
       {loading ? (
         <View style={s.centerWrap}>
-          <ActivityIndicator size="large" color="#A30046" />
+          <ActivityIndicator size="large" color={MAROON} />
           <Text style={s.loadingText}>Loading your schedule...</Text>
         </View>
       ) : loadFailed ? (
@@ -882,7 +882,7 @@ const ScheduleScreen = () => {
 
       {saving && (
         <View style={s.savingOverlay} pointerEvents="none">
-          <ActivityIndicator color="#A30046" />
+          <ActivityIndicator color={MAROON} />
         </View>
       )}
 
@@ -972,13 +972,13 @@ const ScheduleScreen = () => {
                   <Ionicons
                     name="flash"
                     size={13}
-                    color={pickedWarning.level === 'high' ? '#b91c1c' : '#92400e'}
+                    color={pickedWarning.level === 'high' ? DANGER.fg : WARN.fg}
                     style={{ marginTop: 2 }}
                   />
                   <Text
                     style={[
                       s.pickedFillWarnText,
-                      { color: pickedWarning.level === 'high' ? '#b91c1c' : '#92400e' },
+                      { color: pickedWarning.level === 'high' ? DANGER.fg : WARN.fg },
                     ]}
                   >
                     {pickedWarning.text}
@@ -986,7 +986,7 @@ const ScheduleScreen = () => {
                 </View>
               ) : null}
               {courseSectionsLoading ? (
-                <ActivityIndicator color="#A30046" style={{ marginTop: 24 }} />
+                <ActivityIndicator color={MAROON} style={{ marginTop: 24 }} />
               ) : courseSections && courseSections.length > 0 ? (
                 <FlatList
                   data={courseSections}
@@ -1008,7 +1008,7 @@ const ScheduleScreen = () => {
               )}
             </View>
           ) : searchLoading ? (
-            <ActivityIndicator color="#A30046" style={{ marginTop: 24 }} />
+            <ActivityIndicator color={MAROON} style={{ marginTop: 24 }} />
           ) : results.length > 0 ? (
             <FlatList
               data={results}
@@ -1023,7 +1023,7 @@ const ScheduleScreen = () => {
                       <Text style={s.courseRowName} numberOfLines={1}>{item.name}</Text>
                       {counts ? (
                         <View style={s.countsRow}>
-                          <Ionicons name="checkmark-circle" size={12} color="#065f46" />
+                          <Ionicons name="checkmark-circle" size={12} color={OK.fg} />
                           <Text style={s.countsMarker}>Counts toward your degree</Text>
                         </View>
                       ) : null}
@@ -1036,7 +1036,7 @@ const ScheduleScreen = () => {
                           <Ionicons
                             name="flash"
                             size={11}
-                            color={fw.level === 'high' ? '#b91c1c' : '#92400e'}
+                            color={fw.level === 'high' ? DANGER.fg : WARN.fg}
                           />
                           <Text
                             style={[
@@ -1102,10 +1102,10 @@ const ScheduleScreen = () => {
 // =============================================================================
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FBF9F4' },
+  container: { flex: 1, backgroundColor: PARCHMENT },
   centerWrap: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#FBF9F4', paddingHorizontal: 24,
+    backgroundColor: PARCHMENT, paddingHorizontal: 24,
   },
 
   // Header
@@ -1114,7 +1114,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8,
     borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
   },
-  title: { fontFamily: FONT, fontSize: 28, color: '#A30046' },
+  title: { fontFamily: FONT, fontSize: 28, color: MAROON },
   subtitle: { fontFamily: FONT, fontSize: 15, color: STONE, marginTop: -2 },
   // Term switcher (shown in place of the subtitle when two terms are open)
   termRow: { flexDirection: 'row', gap: 6, marginTop: 2 },
@@ -1122,16 +1122,16 @@ const s = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12,
     borderWidth: 1, borderColor: '#D8D8D8', backgroundColor: '#FFFFFF',
   },
-  termChipActive: { borderColor: '#A30046', backgroundColor: '#A30046' },
+  termChipActive: { borderColor: MAROON, backgroundColor: MAROON },
   termChipText: { fontFamily: FONT, fontSize: 14, color: '#666' },
   termChipTextActive: { color: '#FFFFFF' },
   headerBtn: {
     width: 38, height: 38, borderRadius: 19, marginLeft: 10,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: '#A30046', backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: MAROON, backgroundColor: '#FFFFFF',
   },
-  headerBtnPrimary: { backgroundColor: '#A30046' },
-  headerBtnText: { fontFamily: FONT, fontSize: 18, color: '#A30046', marginTop: -2 },
+  headerBtnPrimary: { backgroundColor: MAROON },
+  headerBtnText: { fontFamily: FONT, fontSize: 18, color: MAROON, marginTop: -2 },
   headerBtnTextPrimary: { color: '#FFFFFF', fontFamily: FONT, fontSize: 22 },
 
   // Warnings banner
@@ -1149,7 +1149,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 14, paddingVertical: 7,
     backgroundColor: '#FBF6F8',
-    borderLeftWidth: 3, borderLeftColor: '#A30046',
+    borderLeftWidth: 3, borderLeftColor: MAROON,
     borderBottomWidth: 1, borderBottomColor: '#F0E6EB',
   },
   pacingDot: { width: 8, height: 8, borderRadius: 4 },
@@ -1162,7 +1162,7 @@ const s = StyleSheet.create({
   },
   unschedTitle: {
     fontFamily: FONT_SEMI, fontSize: 17,
-    color: '#A30046', marginBottom: 4,
+    color: MAROON, marginBottom: 4,
   },
   unschedRow: { paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
   unschedCode: { fontSize: 13, fontWeight: 'bold', color: '#333' },
@@ -1175,7 +1175,7 @@ const s = StyleSheet.create({
   },
   watchTitle: {
     fontFamily: FONT_SEMI, fontSize: 17,
-    color: '#A30046', marginBottom: 4,
+    color: MAROON, marginBottom: 4,
   },
   watchHintText: { fontSize: 11, color: STONE, marginBottom: 4 },
   watchRow: {
@@ -1188,11 +1188,11 @@ const s = StyleSheet.create({
   watchBtn: {
     alignSelf: 'flex-start', marginTop: 6,
     borderRadius: 14, paddingVertical: 3, paddingHorizontal: 10,
-    borderWidth: 1, borderColor: '#A30046', backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: MAROON, backgroundColor: '#FFFFFF',
   },
-  watchBtnActive: { backgroundColor: '#A30046' },
+  watchBtnActive: { backgroundColor: MAROON },
   watchBtnDisabled: { opacity: 0.4 },
-  watchBtnText: { fontFamily: FONT_MED, fontSize: 14, color: '#A30046' },
+  watchBtnText: { fontFamily: FONT_MED, fontSize: 14, color: MAROON },
   watchBtnTextActive: { color: '#FFFFFF' },
 
   // Loading / empty
@@ -1201,7 +1201,7 @@ const s = StyleSheet.create({
   emptyHint: { fontFamily: FONT, fontSize: 15, color: STONE, marginTop: 6, textAlign: 'center' },
   retryBtn: {
     marginTop: 16, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 28,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
   },
   retryBtnText: { color: '#FFFFFF', fontFamily: FONT_SEMI, fontSize: 15, },
 
@@ -1216,15 +1216,15 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingBottom: 8,
   },
-  modalTitle: { flex: 1, fontFamily: FONT, fontSize: 26, color: '#A30046' },
+  modalTitle: { flex: 1, fontFamily: FONT, fontSize: 26, color: MAROON },
   modalClose: { padding: 6 },
-  modalCloseText: { fontFamily: FONT_SEMI, fontSize: 16, color: '#A30046', },
+  modalCloseText: { fontFamily: FONT_SEMI, fontSize: 16, color: MAROON, },
   searchInput: {
     fontFamily: FONT, fontSize: 17, color: '#333',
     backgroundColor: '#F5F5F5', borderRadius: 10, paddingHorizontal: 16,
     height: 44, marginHorizontal: 16, marginBottom: 8,
   },
-  backLink: { fontFamily: FONT, fontSize: 14, color: '#A30046', paddingHorizontal: 16, paddingVertical: 6 },
+  backLink: { fontFamily: FONT, fontSize: 14, color: MAROON, paddingHorizontal: 16, paddingVertical: 6 },
   pickedCode: {
     fontFamily: FONT_SEMI, fontSize: 22, 
     color: '#333', paddingHorizontal: 16,
@@ -1240,7 +1240,7 @@ const s = StyleSheet.create({
   // F-P4 recommended rail (add modal, pre-search)
   recWrap: { paddingTop: 8 },
   recTitle: {
-    fontFamily: FONT, fontSize: 20, color: '#A30046',
+    fontFamily: FONT, fontSize: 20, color: MAROON,
     paddingHorizontal: 16, marginBottom: 2,
   },
   recSub: {
@@ -1249,7 +1249,7 @@ const s = StyleSheet.create({
   },
   recCodeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   focusPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#A30046',
+    flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: MAROON,
     borderRadius: 8, paddingVertical: 1, paddingHorizontal: 7,
   },
   focusPillText: { fontSize: 13, color: '#FFFFFF' },
@@ -1264,16 +1264,16 @@ const s = StyleSheet.create({
   courseRowName: { fontFamily: FONT, fontSize: 14, color: STONE, marginTop: 1 },
   courseRowChevron: { fontFamily: FONT, fontSize: 20, color: STONE, marginLeft: 8 },
   countsRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
-  countsMarker: { fontSize: 13, color: '#065f46' },
+  countsMarker: { fontSize: 13, color: OK.fg },
   fillBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     borderRadius: 8, paddingVertical: 2, paddingHorizontal: 8, marginLeft: 8,
   },
-  fillBadgeHigh: { backgroundColor: '#fee2e2' },
-  fillBadgeAmber: { backgroundColor: '#fef3c7' },
+  fillBadgeHigh: { backgroundColor: DANGER.bg },
+  fillBadgeAmber: { backgroundColor: WARN.bg },
   fillBadgeText: { fontSize: 13 },
-  fillBadgeTextHigh: { color: '#b91c1c' },
-  fillBadgeTextAmber: { color: '#92400e' },
+  fillBadgeTextHigh: { color: DANGER.fg },
+  fillBadgeTextAmber: { color: WARN.fg },
   pickedFillWarn: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 4,
     paddingHorizontal: 16, marginBottom: 6,
@@ -1293,13 +1293,13 @@ const s = StyleSheet.create({
   },
   sectionNum: { fontFamily: FONT_SEMI, fontSize: 14, color: '#333' },
   badge: { borderRadius: 8, paddingVertical: 1, paddingHorizontal: 8 },
-  badgeOpen: { backgroundColor: '#d1fae5' },
-  badgeLow: { backgroundColor: '#fef3c7' },
-  badgeFull: { backgroundColor: '#fee2e2' },
+  badgeOpen: { backgroundColor: OK.bg },
+  badgeLow: { backgroundColor: WARN.bg },
+  badgeFull: { backgroundColor: DANGER.bg },
   badgeText: { fontSize: 11, fontWeight: 'bold', color: '#333' },
   sectionInfo: { fontFamily: FONT, fontSize: 14, color: '#555', marginBottom: 2 },
   sectionMeta: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
-  sectionInstructor: { fontSize: 13, color: '#A30046' },
+  sectionInstructor: { fontSize: 13, color: MAROON },
   sectionSeats: { fontSize: 13, color: '#555' },
   sectionRoom: { fontSize: 13, color: STONE, flexShrink: 1 },
 });

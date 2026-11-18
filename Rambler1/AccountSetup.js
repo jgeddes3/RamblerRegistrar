@@ -14,7 +14,7 @@ import PrivacyPolicyModal from './components/PrivacyPolicyModal';
 import TextField from './components/ui/TextField';
 import BackgroundImage from './styleComponents/BackgroundImage';
 import { validateSignup, MIN_PASSWORD } from './signup-validation';
-import { DANGER, FONT, FONT_SEMI } from './theme';
+import { DANGER, FONT, FONT_SEMI, MAROON } from './theme';
 import StepCounter from './components/ui/StepCounter';
 import useOnboardingDraft from './components/ui/useOnboardingDraft';
 import { clearDraft } from './onboarding';
@@ -196,7 +196,7 @@ const AccountSetup =() => {
                 accessibilityLabel="Honors student"
                 value={isHonors}
                 onValueChange={setIsHonorsLocal}
-                trackColor={{ false: '#B0B0B0', true: '#A30046' }}
+                trackColor={{ false: '#B0B0B0', true: MAROON }}
                 thumbColor="#FFFFFF"
               />
             </View>
@@ -206,7 +206,7 @@ const AccountSetup =() => {
                 accessibilityLabel="Student-athlete"
                 value={isAthlete}
                 onValueChange={setIsAthleteLocal}
-                trackColor={{ false: '#B0B0B0', true: '#A30046' }}
+                trackColor={{ false: '#B0B0B0', true: MAROON }}
                 thumbColor="#FFFFFF"
               />
             </View>
@@ -249,7 +249,7 @@ const AccountSetup =() => {
             <Text
               accessibilityRole="alert"
               accessibilityLiveRegion="polite"
-              style={{ color: '#A30046', marginTop: 10, fontFamily: FONT, fontSize: 16, textAlign: 'center' }}
+              style={{ color: MAROON, marginTop: 10, fontFamily: FONT, fontSize: 16, textAlign: 'center' }}
             >
               {errorMessage}
             </Text>
@@ -267,7 +267,7 @@ const AccountSetup =() => {
               <Ionicons
                 name={termsAccepted ? 'checkbox' : 'square-outline'}
                 size={20}
-                color="#A30046"
+                color={MAROON}
               />
               <Text style={s.consentText}>
                 I have read and agree to the{' '}
@@ -284,7 +284,7 @@ const AccountSetup =() => {
               <Ionicons
                 name={policyAccepted ? 'checkbox' : 'square-outline'}
                 size={20}
-                color="#A30046"
+                color={MAROON}
               />
               <Text style={s.consentText}>
                 I have read and agree to the{' '}
@@ -328,7 +328,7 @@ const AccountSetup =() => {
 const s = StyleSheet.create({
   headerBar: {
     height: 120,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
@@ -353,7 +353,7 @@ const s = StyleSheet.create({
   backButtonText: {
     fontFamily: FONT_SEMI,
     fontSize: 15,
-    color: '#A30046',
+    color: MAROON,
   },
   pageTitleBadge: {
     backgroundColor: '#FFFFFF',
@@ -457,13 +457,13 @@ const s = StyleSheet.create({
   },
   consentLink: {
     textDecorationLine: 'underline',
-    color: '#A30046',
+    color: MAROON,
   },
   nextButtonDisabled: {
     opacity: 0.4,
   },
   nextButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 2,

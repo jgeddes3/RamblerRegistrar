@@ -6,7 +6,7 @@ import { useAppContext } from './AppContext';
 import CustomLongButton1 from './styleComponents/CustomLongButton1';
 import { ScrollView } from 'react-native';
 import BackgroundImage from './styleComponents/BackgroundImage';
-import { STONE, FONT, FONT_SEMI } from './theme';
+import { STONE, FONT, FONT_SEMI, MAROON } from './theme';
 import StepCounter from './components/ui/StepCounter';
 import useOnboardingDraft from './components/ui/useOnboardingDraft';
 
@@ -275,7 +275,7 @@ const ProgramSelect =() => {
           </View>
         ))}
         {phase === 'minor' && selectedMinors.length >= 3 && (
-          <Text style={{ fontFamily: FONT, fontSize: 14, color: '#A30046', textAlign: 'center', marginTop: 4 }}>
+          <Text style={{ fontFamily: FONT, fontSize: 14, color: MAROON, textAlign: 'center', marginTop: 4 }}>
             Maximum of 3 minors selected
           </Text>
         )}
@@ -297,10 +297,10 @@ const ProgramSelect =() => {
           />
         </View>
         {loading ? (
-          <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 100 }} />
+          <ActivityIndicator size="large" color={MAROON} style={{ marginTop: 100 }} />
         ) : error ? (
           <View style={{ alignItems: 'center', marginTop: 100 }}>
-            <Text style={{ color: '#A30046', textAlign: 'center', fontFamily: FONT, fontSize: 18 }}>
+            <Text style={{ color: MAROON, textAlign: 'center', fontFamily: FONT, fontSize: 18 }}>
               {error}
             </Text>
             <TouchableOpacity onPress={loadPrograms} style={s.retryButton}>
@@ -333,7 +333,7 @@ const ProgramSelect =() => {
 const s = StyleSheet.create({
   headerBar: {
     height: 120,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
@@ -358,7 +358,7 @@ const s = StyleSheet.create({
   backButtonText: {
     fontFamily: FONT_SEMI,
     fontSize: 15,
-    color: '#A30046',
+    color: MAROON,
   },
   progressBar: {
     flexDirection: 'row',
@@ -378,7 +378,7 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   progressDotActive: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
   },
   progressDotCurrent: {
     width: 16,
@@ -392,7 +392,7 @@ const s = StyleSheet.create({
     color: STONE,
   },
   progressLabelActive: {
-    color: '#A30046',
+    color: MAROON,
     fontWeight: 'bold',
   },
   pageTitle: {
@@ -416,7 +416,7 @@ const s = StyleSheet.create({
   selectedBadgeText: {
     fontFamily: FONT,
     fontSize: 16,
-    color: '#A30046',
+    color: MAROON,
     flexShrink: 1,
   },
   selectedBadgeInfo: {
@@ -436,7 +436,7 @@ const s = StyleSheet.create({
     color: '#333',
   },
   removeButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderRadius: 4,
     paddingVertical: 4,
     paddingHorizontal: 10,
@@ -466,7 +466,7 @@ const s = StyleSheet.create({
     gap: 20,
   },
   choiceButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     paddingVertical: 16,
     paddingHorizontal: 40,
     borderRadius: 6,
@@ -476,7 +476,7 @@ const s = StyleSheet.create({
   choiceButtonSecondary: {
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#A30046',
+    borderColor: MAROON,
   },
   choiceButtonText: {
     fontFamily: FONT,
@@ -484,7 +484,7 @@ const s = StyleSheet.create({
     color: '#FFFFFF',
   },
   choiceButtonTextSecondary: {
-    color: '#A30046',
+    color: MAROON,
   },
   skipHint: {
     fontFamily: FONT,
@@ -496,7 +496,7 @@ const s = StyleSheet.create({
     alignSelf: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#A30046',
+    borderColor: MAROON,
     borderRadius: 6,
     paddingVertical: 12,
     paddingHorizontal: 24,
@@ -506,7 +506,7 @@ const s = StyleSheet.create({
   undecidedButtonText: {
     fontFamily: FONT_SEMI,
     fontSize: 20,
-    color: '#A30046',
+    color: MAROON,
   },
   undecidedHint: {
     fontSize: 13,
@@ -514,7 +514,7 @@ const s = StyleSheet.create({
     marginTop: 2,
   },
   retryButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: 4,
@@ -532,7 +532,7 @@ const s = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   nextButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 2,

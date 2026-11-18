@@ -5,10 +5,9 @@ import FeedbackModal from '../components/FeedbackModal';
 import PrivacyPolicyModal from '../components/PrivacyPolicyModal';
 import { TERMS_TITLE, TERMS_SECTIONS } from '../terms-content';
 import ProfileScreen from './ProfileScreen';
-import { STONE, FONT, FONT_SEMI } from '../theme';
+import { STONE, FONT, FONT_SEMI, MAROON, PARCHMENT, MAROON_WASH } from '../theme';
 import { CAMPUS_LINKS } from '../campus-links';
 
-const MAROON = '#A30046';
 
 const MENU_ROWS = [
   {
@@ -149,7 +148,7 @@ const MoreScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FBF9F4',
+    backgroundColor: PARCHMENT,
   },
   content: {
     padding: 20,
@@ -192,7 +191,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FBF0F5',
+    backgroundColor: MAROON_WASH,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,

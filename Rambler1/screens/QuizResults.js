@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAppContext } from '../AppContext';
 import { fetchQuizRecommendations, fetchQuizFocusAreas } from '../firestore-data';
 import BackgroundImage from '../styleComponents/BackgroundImage';
-import { STONE, FONT, FONT_SEMI } from '../theme';
+import { STONE, FONT, FONT_SEMI, MAROON } from '../theme';
 import StepCounter from '../components/ui/StepCounter';
 import useOnboardingDraft from '../components/ui/useOnboardingDraft';
 
@@ -128,7 +128,7 @@ const QuizResults = () => {
               <Text style={s.cardTitle}>Recommended Majors</Text>
               <Text style={s.cardSubtitle}>Based on your personality profile</Text>
               {loading ? (
-                <ActivityIndicator color="#A30046" style={{ marginTop: 16 }} />
+                <ActivityIndicator color={MAROON} style={{ marginTop: 16 }} />
               ) : recommendations.length > 0 ? (
                 recommendations.map((rec, i) => (
                   <View key={rec.program_id || i} style={s.recRow}>
@@ -157,7 +157,7 @@ const QuizResults = () => {
               <Text style={s.cardTitle}>Your Focus Within {selectedProgram.name}</Text>
               <Text style={s.cardSubtitle}>Ranked by fit with your personality</Text>
               {loading ? (
-                <ActivityIndicator color="#A30046" style={{ marginTop: 16 }} />
+                <ActivityIndicator color={MAROON} style={{ marginTop: 16 }} />
               ) : focusAreas.length > 0 ? (
                 focusAreas.map((area, i) => (
                   <View key={area.id || i} style={s.focusRow}>
@@ -219,7 +219,7 @@ const s = StyleSheet.create({
   errorText: {
     fontFamily: FONT,
     fontSize: 18,
-    color: '#A30046',
+    color: MAROON,
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -230,7 +230,7 @@ const s = StyleSheet.create({
   },
   // Profile card
   profileCard: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderRadius: 16,
     padding: 28,
     alignItems: 'center',
@@ -265,7 +265,7 @@ const s = StyleSheet.create({
   cardTitle: {
     fontFamily: FONT_SEMI,
     fontSize: 22,
-    color: '#A30046',
+    color: MAROON,
     marginBottom: 4,
   },
   cardSubtitle: {
@@ -332,7 +332,7 @@ const s = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -384,7 +384,7 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   focusBadgeTop: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
   },
   focusBadgeText: {
     fontSize: 13,
@@ -407,7 +407,7 @@ const s = StyleSheet.create({
   },
   focusCourses: {
     fontSize: 13,
-    color: '#A30046',
+    color: MAROON,
     marginTop: 6,
   },
   // Bottom
@@ -420,7 +420,7 @@ const s = StyleSheet.create({
     borderTopColor: '#E0E0E0',
   },
   continueButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 6,

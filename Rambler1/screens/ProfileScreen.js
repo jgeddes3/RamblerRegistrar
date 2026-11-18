@@ -13,7 +13,7 @@ import showAlert from '../alert';
 import { canEditProfile, programEdit, minorToggleEdit, priorityEdit } from '../profile-edits';
 import { filterCourses, setCourseSelected } from '../course-list';
 import { afterModalDismiss } from '../modal-sequencing';
-import { STONE, INK, DANGER, FONT_SEMI, FONT, FONT_MED } from '../theme';
+import { STONE, INK, DANGER, FONT_SEMI, FONT, FONT_MED, MAROON } from '../theme';
 import { slopTo } from '../components/ui/hitSlop';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
@@ -488,7 +488,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               onChangeText={setSearch}
             />
             {loading ? (
-              <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 40 }} />
+              <ActivityIndicator size="large" color={MAROON} style={{ marginTop: 40 }} />
             ) : (
               <ScrollView contentContainerStyle={s.listContent}>
                 {/* Recommendations section for undecided users */}
@@ -501,7 +501,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                       </Text>
                     )}
                     {recsLoading ? (
-                      <ActivityIndicator color="#A30046" style={{ marginTop: 12 }} />
+                      <ActivityIndicator color={MAROON} style={{ marginTop: 12 }} />
                     ) : (
                       recommendations.map((rec, i) => (
                         <TouchableOpacity
@@ -584,7 +584,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               onChangeText={setSearch}
             />
             {loading ? (
-              <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 40 }} />
+              <ActivityIndicator size="large" color={MAROON} style={{ marginTop: 40 }} />
             ) : (
               <ScrollView contentContainerStyle={s.listContent}>
                 {filteredMinors.map(minor => {
@@ -630,7 +630,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               onChangeText={setSearch}
             />
             {loading ? (
-              <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 40 }} />
+              <ActivityIndicator size="large" color={MAROON} style={{ marginTop: 40 }} />
             ) : (
               // FlatList, not ScrollView + map: only the rows near the viewport
               // are mounted. Rendering all ~2,000 (again on every tap and
@@ -703,7 +703,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               accessibilityLabel="Change major, add a major, or add a minor, and see the time cost"
             >
               <View style={s.navRowIconWrap}>
-                <Ionicons name="compass-outline" size={20} color="#A30046" />
+                <Ionicons name="compass-outline" size={20} color={MAROON} />
               </View>
               <Text style={s.navRowText}>Change major, add a major, or add a minor, and see the time cost</Text>
               <Ionicons name="chevron-forward" size={18} color="#C0C0C0" />
@@ -760,7 +760,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                   accessibilityLabel="Honors student"
                   value={isHonors === true}
                   onValueChange={(v) => handleTogglePriority('isHonors', v)}
-                  trackColor={{ false: '#D8D8D8', true: '#A30046' }}
+                  trackColor={{ false: '#D8D8D8', true: MAROON }}
                   thumbColor="#FFFFFF"
                 />
               </View>
@@ -773,7 +773,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                   accessibilityLabel="Student-athlete"
                   value={isAthlete === true}
                   onValueChange={(v) => handleTogglePriority('isAthlete', v)}
-                  trackColor={{ false: '#D8D8D8', true: '#A30046' }}
+                  trackColor={{ false: '#D8D8D8', true: MAROON }}
                   thumbColor="#FFFFFF"
                 />
               </View>
@@ -797,7 +797,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                   accessibilityLabel="Do not sell or share my personal information"
                   value={dataSaleOptOut === true}
                   onValueChange={(v) => handleToggleDataSale(v)}
-                  trackColor={{ false: '#D8D8D8', true: '#A30046' }}
+                  trackColor={{ false: '#D8D8D8', true: MAROON }}
                   thumbColor="#FFFFFF"
                 />
               </View>
@@ -858,7 +858,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               <View style={s.infoBlock}>
                 <Text style={s.label}>Your Focus</Text>
                 {focusLoading ? (
-                  <ActivityIndicator color="#A30046" size="small" style={{ marginTop: 8 }} />
+                  <ActivityIndicator color={MAROON} size="small" style={{ marginTop: 8 }} />
                 ) : focusAreas.length > 0 ? (
                   <View>
                     {selectedFocus ? (
@@ -967,7 +967,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               accessibilityLabel="Retake the quiz"
             >
               <View style={s.navRowIconWrap}>
-                <Ionicons name="refresh-outline" size={20} color="#A30046" />
+                <Ionicons name="refresh-outline" size={20} color={MAROON} />
               </View>
               <Text style={s.navRowText}>Retake the quiz</Text>
               <Ionicons name="chevron-forward" size={18} color="#C0C0C0" />
@@ -1039,7 +1039,7 @@ const s = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
@@ -1089,7 +1089,7 @@ const s = StyleSheet.create({
   },
   editHint: {
     fontSize: 12,
-    color: '#A30046',
+    color: MAROON,
     marginTop: 4,
   },
   // Home address (F-Q7)
@@ -1098,7 +1098,7 @@ const s = StyleSheet.create({
     fontFamily: FONT, fontSize: 15, color: '#333', marginTop: 8,
   },
   addressError: {
-    fontSize: 13, color: '#b91c1c', marginTop: 6,
+    fontSize: 13, color: DANGER.fg, marginTop: 6,
   },
   // Address autofill dropdown (rendered directly under the input)
   suggestList: {
@@ -1135,11 +1135,11 @@ const s = StyleSheet.create({
     flex: 1,
     fontFamily: FONT_SEMI,
     fontSize: 15,
-    color: '#A30046',
+    color: MAROON,
     paddingRight: 8,
   },
   addressSaveBtn: {
-    alignSelf: 'flex-start', backgroundColor: '#A30046', borderRadius: 10,
+    alignSelf: 'flex-start', backgroundColor: MAROON, borderRadius: 10,
     paddingVertical: 7, paddingHorizontal: 16, marginTop: 8,
   },
   addressSaveBtnText: {
@@ -1147,7 +1147,7 @@ const s = StyleSheet.create({
   },
   selectButton: {
     width: '100%',
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     paddingVertical: 16,
     borderRadius: 10,
     alignItems: 'center',
@@ -1161,7 +1161,7 @@ const s = StyleSheet.create({
   selectButtonOutline: {
     width: '100%',
     borderWidth: 2,
-    borderColor: '#A30046',
+    borderColor: MAROON,
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
@@ -1170,7 +1170,7 @@ const s = StyleSheet.create({
   selectButtonOutlineText: {
     fontFamily: FONT_SEMI,
     fontSize: 18,
-    color: '#A30046',
+    color: MAROON,
   },
   focusSelected: {
     flexDirection: 'row',
@@ -1185,7 +1185,7 @@ const s = StyleSheet.create({
   focusSelectedName: {
     fontFamily: FONT_SEMI,
     fontSize: 18,
-    color: '#A30046',
+    color: MAROON,
   },
   focusSelectedDesc: {
     fontFamily: FONT,
@@ -1228,7 +1228,7 @@ const s = StyleSheet.create({
   },
   focusBestBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderRadius: 10,
     paddingVertical: 2,
     paddingHorizontal: 8,
@@ -1248,7 +1248,7 @@ const s = StyleSheet.create({
   riasecCode: {
     fontFamily: FONT_SEMI,
     fontSize: 32,
-    color: '#A30046',
+    color: MAROON,
     letterSpacing: 4,
   },
   riasecProfileName: {
@@ -1292,7 +1292,7 @@ const s = StyleSheet.create({
   prioritySectionTitle: {
     fontFamily: FONT_SEMI,
     fontSize: 20,
-    color: '#A30046',
+    color: MAROON,
     marginBottom: 8,
   },
   priorityRow: {
@@ -1324,7 +1324,7 @@ const s = StyleSheet.create({
     marginBottom: 16,
   },
   changeButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 6,
@@ -1341,7 +1341,7 @@ const s = StyleSheet.create({
   recsSectionTitle: {
     fontFamily: FONT_SEMI,
     fontSize: 20,
-    color: '#A30046',
+    color: MAROON,
     marginBottom: 2,
   },
   recsSectionSub: {
@@ -1367,7 +1367,7 @@ const s = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1422,7 +1422,7 @@ const s = StyleSheet.create({
     color: STONE,
   },
   signOutButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     paddingVertical: 14,
     paddingHorizontal: 40,
     borderRadius: 8,
@@ -1459,7 +1459,7 @@ const s = StyleSheet.create({
   backText: {
     fontFamily: FONT_SEMI,
     fontSize: 16,
-    color: '#A30046',
+    color: MAROON,
   },
   headerTitle: {
     fontFamily: FONT_SEMI,
@@ -1469,7 +1469,7 @@ const s = StyleSheet.create({
   countBadge: {
     fontFamily: FONT_SEMI,
     fontSize: 16,
-    color: '#A30046',
+    color: MAROON,
     backgroundColor: '#F0F0F0',
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -1499,7 +1499,7 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   listItemSelected: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
   },
   listItemText: {
     fontFamily: FONT,

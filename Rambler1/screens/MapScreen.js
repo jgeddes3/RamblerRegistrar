@@ -16,9 +16,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { PARCHMENT, STONE, FONT } from '../theme';
+import { PARCHMENT, STONE, FONT, MAROON } from '../theme';
 
-const MAROON = '#A30046';
 
 const MapScreen = () => (
   <View style={s.centerWrap}>

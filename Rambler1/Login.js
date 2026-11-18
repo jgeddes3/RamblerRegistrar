@@ -11,7 +11,7 @@ import LogoImage from './styleComponents/LogoImage1';
 import CustomButton from './styleComponents/customButton1';
 import TextField from './components/ui/TextField';
 import TitleText1 from './styleComponents/TitleTextP1';
-import { FONT } from './theme';
+import { FONT, MAROON } from './theme';
 
 const Login = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -121,7 +121,7 @@ const Login = ({ navigation }) => {
           <Text
             accessibilityRole="alert"
             accessibilityLiveRegion="polite"
-            style={{ color: '#A30046', marginTop: 10, fontFamily: FONT, fontSize: 16 }}
+            style={{ color: MAROON, marginTop: 10, fontFamily: FONT, fontSize: 16 }}
           >
             {errorMessage}
           </Text>
@@ -148,10 +148,10 @@ const Login = ({ navigation }) => {
             accessibilityLabel="Continue setting up your account"
             style={{
               marginTop: 16, minHeight: 44, justifyContent: 'center', paddingHorizontal: 18,
-              backgroundColor: '#FFFFFF', borderRadius: 22, borderWidth: 1, borderColor: '#A30046',
+              backgroundColor: '#FFFFFF', borderRadius: 22, borderWidth: 1, borderColor: MAROON,
             }}
           >
-            <Text style={{ color: '#A30046', fontSize: 15, fontWeight: '600' }}>
+            <Text style={{ color: MAROON, fontSize: 15, fontWeight: '600' }}>
               Continue setting up your account
             </Text>
           </TouchableOpacity>

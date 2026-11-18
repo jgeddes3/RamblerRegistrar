@@ -6,8 +6,7 @@ import { useAppContext } from './AppContext';
 import Skeleton from './components/Skeleton';
 import ErrorState from './components/ErrorState';
 import {
-  FONT, FONT_MED, FONT_SEMI, FONT_ITALIC, MAROON, PARCHMENT, INK, STONE, HAIRLINE, GOLD,
-  CARD, EYEBROW,
+  FONT, FONT_MED, FONT_SEMI, FONT_ITALIC, MAROON, PARCHMENT, INK, STONE, HAIRLINE, GOLD, CARD, EYEBROW, OK, WARN, DANGER,
 } from './theme';
 import {
   fetchSchedule,
@@ -126,9 +125,9 @@ function eventTimeLabel(ev) {
 // Graduation-outlook status -> accent color (dot, left border, status text).
 // Strong tones from the app's badge palette (ok/warning/danger).
 const OUTLOOK_COLORS = {
-  'on-track': '#065f46',
-  'at-risk': '#92400e',
-  'off-track': '#b91c1c',
+  'on-track': OK.fg,
+  'at-risk': WARN.fg,
+  'off-track': DANGER.fg,
 };
 
 // One-line status label for the outlook card.

@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { STONE, FONT } from '../theme';
+import { STONE, FONT, MAROON } from '../theme';
 
 const styles = StyleSheet.create({
   container: {
@@ -7,14 +7,14 @@ const styles = StyleSheet.create({
   },
   topBar: {
     height: 110,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
   },
   sectionHeader: {
     fontFamily: FONT,
     fontSize: 24,
-    color: '#A30046',
+    color: MAROON,
     marginTop: 16,
     marginBottom: 8,
     marginHorizontal: 16,

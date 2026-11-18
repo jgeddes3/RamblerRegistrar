@@ -18,7 +18,7 @@ import Skeleton from '../components/Skeleton';
 import ErrorState from '../components/ErrorState';
 import { seatAge } from '../seat-age';
 import { useRegistrationTerm, resolveRegistrationTerm } from '../term';
-import { STONE, WARN, FONT, FONT_SEMI } from '../theme';
+import { STONE, WARN, FONT, FONT_SEMI, MAROON, DANGER, PARCHMENT, OK } from '../theme';
 import { slopTo } from '../components/ui/hitSlop';
 
 // =============================================================================
@@ -153,7 +153,7 @@ const SectionRow = ({ section, onPress, onAdd, courseCode }) => {
               accessibilityLabel={`Add ${courseCode} Sec ${section.section_number} to your schedule`}
               style={s.addBtn}
             >
-              <Ionicons name="add-circle-outline" size={26} color="#A30046" />
+              <Ionicons name="add-circle-outline" size={26} color={MAROON} />
             </TouchableOpacity>
           ) : null}
         </View>
@@ -241,7 +241,7 @@ const CourseCard = ({ course, sections, sectionsLoading, sectionsFailed, filters
                   <Ionicons
                     name="flash"
                     size={10}
-                    color={fillFlag.tone === 'danger' ? '#b91c1c' : '#92400e'}
+                    color={fillFlag.tone === 'danger' ? DANGER.fg : WARN.fg}
                   />
                   <Text
                     numberOfLines={1}
@@ -261,7 +261,7 @@ const CourseCard = ({ course, sections, sectionsLoading, sectionsFailed, filters
 
       <View style={s.cardSections}>
         {sectionsLoading ? (
-          <ActivityIndicator color="#A30046" style={{ padding: 12 }} />
+          <ActivityIndicator color={MAROON} style={{ padding: 12 }} />
         ) : sectionsFailed ? (
           <ErrorState
             variant="inline"
@@ -771,7 +771,7 @@ const SearchScreen = () => {
 // =============================================================================
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FBF9F4' },
+  container: { flex: 1, backgroundColor: PARCHMENT },
 
   // Seat-count age: the note above results, and the flag on an old count.
   seatNote: { fontSize: 13, color: STONE, marginHorizontal: 16, marginTop: 8, marginBottom: 2, lineHeight: 18 },
@@ -816,7 +816,7 @@ const s = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 14,
   },
-  chipActive: { backgroundColor: '#A30046' },
+  chipActive: { backgroundColor: MAROON },
   chipText: {
     fontFamily: FONT_SEMI,
     fontSize: 14,
@@ -843,7 +843,7 @@ const s = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     marginRight: 12,
   },
   cardInfo: { flex: 1 },
@@ -873,16 +873,16 @@ const s = StyleSheet.create({
     marginLeft: 8,
     flexShrink: 1,
   },
-  fillFlagDanger: { backgroundColor: '#fee2e2' },
-  fillFlagWarn: { backgroundColor: '#fef3c7' },
+  fillFlagDanger: { backgroundColor: DANGER.bg },
+  fillFlagWarn: { backgroundColor: WARN.bg },
   fillFlagText: {
     // System font, not Cormorant: an 11px serif chip is illegible and the
     // design rule reserves Cormorant for headings.
     fontSize: 11,
     fontWeight: 'bold',
   },
-  fillFlagTextDanger: { color: '#b91c1c' },
-  fillFlagTextWarn: { color: '#92400e' },
+  fillFlagTextDanger: { color: DANGER.fg },
+  fillFlagTextWarn: { color: WARN.fg },
   cardCredits: {
     fontFamily: FONT,
     fontSize: 14,
@@ -910,7 +910,7 @@ const s = StyleSheet.create({
     borderTopColor: '#F0F0F0',
   },
   showAll: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 14 },
-  showAllText: { fontSize: 14, fontWeight: '600', color: '#A30046' },
+  showAllText: { fontSize: 14, fontWeight: '600', color: MAROON },
   noMatchText: {
     fontFamily: FONT,
     fontSize: 14,
@@ -940,9 +940,9 @@ const s = StyleSheet.create({
     color: '#333',
   },
   badge: { borderRadius: 8, paddingVertical: 1, paddingHorizontal: 6 },
-  badgeOpen: { backgroundColor: '#d1fae5' },
-  badgeLow: { backgroundColor: '#fef3c7' },
-  badgeFull: { backgroundColor: '#fee2e2' },
+  badgeOpen: { backgroundColor: OK.bg },
+  badgeLow: { backgroundColor: WARN.bg },
+  badgeFull: { backgroundColor: DANGER.bg },
   badgeText: {
     fontSize: 11,
     fontWeight: 'bold',
@@ -960,7 +960,7 @@ const s = StyleSheet.create({
   },
   sectionInstructor: {
     fontSize: 13,
-    color: '#A30046',
+    color: MAROON,
   },
   sectionRoom: {
     fontSize: 13,
@@ -992,7 +992,7 @@ const s = StyleSheet.create({
   deptCode: {
     fontFamily: FONT_SEMI,
     fontSize: 18,
-    color: '#A30046',
+    color: MAROON,
   },
   deptName: {
     fontSize: 11,

@@ -1,3 +1,4 @@
+import { MAROON } from './theme';
 // schedule-utils.js — PURE schedule logic for the Schedule Builder.
 // Zero react/firebase/expo imports. Works on the LEGACY snake_case section
 // rows returned by firestore-data.js (meeting_days, meeting_time_start, ...).
@@ -11,7 +12,7 @@ export const COURSE_COLORS = [
   '#217A46', // green
   '#2E5E9E', // steel blue
   '#B07A21', // ochre
-  '#A30046', // Loyola maroon
+  MAROON, // Loyola maroon
   '#0A87A8', // teal
   '#B5542B', // rust
   '#6B4E8E', // plum

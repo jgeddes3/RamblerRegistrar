@@ -1,7 +1,7 @@
 // styleComponents/CustomButton.js
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { FONT } from '../theme';
+import { FONT, MAROON } from '../theme';
 
 const CustomButton = ({ onPress, children, width, height }) => {
   const buttonStyles = [
@@ -18,7 +18,7 @@ const CustomButton = ({ onPress, children, width, height }) => {
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 2,

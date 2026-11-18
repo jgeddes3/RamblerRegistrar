@@ -6,7 +6,7 @@ import {
   addCourseToPlan, removeCourseFromPlan, addSectionToSchedule, removeSectionFromSchedule, PLAN_TERM_CAP,
 } from './firestore-data';
 import { getInstructorRating, noRatingCopy, ratingsAttribution } from './ratings';
-import { FONT_ITALIC, STONE, WARN, FONT_SEMI, FONT, FONT_MED } from './theme';
+import { FONT_ITALIC, STONE, WARN, FONT_SEMI, FONT, FONT_MED, MAROON, DANGER, OK, MAROON_WASH } from './theme';
 import { useAppContext } from './AppContext';
 import { fillWarning } from './planning-insights';
 import { planSemesters } from './plan-utils';
@@ -294,7 +294,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                 <Ionicons
                   name="flash"
                   size={14}
-                  color={fillNotice.level === 'high' ? '#b91c1c' : '#92400e'}
+                  color={fillNotice.level === 'high' ? DANGER.fg : WARN.fg}
                   style={{ marginTop: 2 }}
                 />
                 <Text
@@ -318,9 +318,9 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                 accessibilityLabel="Add to plan"
               >
                 <View style={s.planBtnInner}>
-                  <Ionicons name="calendar-outline" size={15} color="#A30046" />
+                  <Ionicons name="calendar-outline" size={15} color={MAROON} />
                   <Text style={s.planBtnText}>Add to Plan</Text>
-                  <Ionicons name={planPicker ? 'chevron-up' : 'chevron-down'} size={13} color="#A30046" />
+                  <Ionicons name={planPicker ? 'chevron-up' : 'chevron-down'} size={13} color={MAROON} />
                 </View>
               </TouchableOpacity>
               {planPicker ? (
@@ -360,7 +360,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
 
           <ScrollView style={s.sectionsList} showsVerticalScrollIndicator={false}>
             {sectionsLoading ? (
-              <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 24 }} />
+              <ActivityIndicator size="large" color={MAROON} style={{ marginTop: 24 }} />
             ) : displaySections.length > 0 ? (
               displaySections.map((sec, i) => {
                 const hasEnrollment = sec.enrollment_cap > 0;
@@ -406,7 +406,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                         {prof && prof.rating >= 4 ? (
                           <View style={s.topProfBadge}>
                             <View style={s.topProfBadgeInner}>
-                              <Ionicons name="star" size={10} color="#92400E" />
+                              <Ionicons name="star" size={10} color={WARN.fg} />
                               <Text style={s.topProfBadgeText}>Top prof</Text>
                             </View>
                           </View>
@@ -495,7 +495,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                           <Ionicons
                             name={isWatched ? 'notifications' : 'notifications-outline'}
                             size={13}
-                            color={isWatched ? '#FFFFFF' : '#A30046'}
+                            color={isWatched ? '#FFFFFF' : MAROON}
                           />
                           <Text style={[s.watchBtnText, isWatched && s.watchBtnTextActive]}>
                             {isWatched ? 'Watching' : 'Watch for seats'}
@@ -512,7 +512,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                         accessibilityLabel="Remove from schedule"
                       >
                         <View style={s.btnInner}>
-                          <Ionicons name="trash-outline" size={13} color="#b91c1c" />
+                          <Ionicons name="trash-outline" size={13} color={DANGER.fg} />
                           <Text style={s.removeBtnText}>Remove from schedule</Text>
                         </View>
                       </TouchableOpacity>
@@ -624,7 +624,7 @@ const s = StyleSheet.create({
   courseCode: {
     fontFamily: FONT_SEMI,
     fontSize: 28,
-    color: '#A30046',
+    color: MAROON,
   },
   courseName: {
     fontFamily: FONT,
@@ -666,15 +666,15 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     marginTop: 10,
   },
-  fillBannerHigh: { backgroundColor: '#fee2e2' },
-  fillBannerWarn: { backgroundColor: '#fef3c7' },
+  fillBannerHigh: { backgroundColor: DANGER.bg },
+  fillBannerWarn: { backgroundColor: WARN.bg },
   fillBannerText: {
     fontFamily: FONT_SEMI,
     fontSize: 15,
     lineHeight: 20,
   },
-  fillBannerTextHigh: { color: '#b91c1c' },
-  fillBannerTextWarn: { color: '#92400e' },
+  fillBannerTextHigh: { color: DANGER.fg },
+  fillBannerTextWarn: { color: WARN.fg },
   fillInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -705,7 +705,7 @@ const s = StyleSheet.create({
   termLabel: {
     fontFamily: FONT_SEMI,
     fontSize: 20,
-    color: '#A30046',
+    color: MAROON,
     marginBottom: 10,
   },
   // Seat-count age + "confirm in LOCUS" (sans: it carries a time).
@@ -727,13 +727,13 @@ const s = StyleSheet.create({
   },
   sectionCardFull: { opacity: 0.5 },
   sectionCardRecommended: {
-    borderColor: '#A30046',
+    borderColor: MAROON,
     borderWidth: 2,
     backgroundColor: '#FFF8FA',
   },
   recommendedBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderRadius: 10,
     paddingVertical: 2,
     paddingHorizontal: 10,
@@ -756,9 +756,9 @@ const s = StyleSheet.create({
     color: '#333',
   },
   badge: { borderRadius: 10, paddingVertical: 2, paddingHorizontal: 8 },
-  badgeOpen: { backgroundColor: '#d1fae5' },
-  badgeLow: { backgroundColor: '#fef3c7' },
-  badgeFull: { backgroundColor: '#fee2e2' },
+  badgeOpen: { backgroundColor: OK.bg },
+  badgeLow: { backgroundColor: WARN.bg },
+  badgeFull: { backgroundColor: DANGER.bg },
   badgeText: {
     fontSize: 12,
     fontWeight: 'bold',
@@ -774,25 +774,25 @@ const s = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: '#A30046',
+    borderColor: MAROON,
     backgroundColor: '#FFFFFF',
   },
-  watchBtnActive: { backgroundColor: '#A30046' },
+  watchBtnActive: { backgroundColor: MAROON },
   watchBtnDisabled: { opacity: 0.4 },
-  watchBtnText: { fontFamily: FONT_MED, fontSize: 14, color: '#A30046' },
+  watchBtnText: { fontFamily: FONT_MED, fontSize: 14, color: MAROON },
   watchBtnTextActive: { color: '#FFFFFF' },
 
   // Section badges row (status + F-HI4 top-prof)
   badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   topProfBadge: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: WARN.bg,
     borderRadius: 10,
     paddingVertical: 2,
     paddingHorizontal: 8,
   },
   topProfBadgeInner: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   topProfBadgeText: {
-    fontSize: 13, color: '#92400E',
+    fontSize: 13, color: WARN.fg,
   },
   // Remove from schedule (schedule-opened single-section view)
   removeBtn: {
@@ -803,10 +803,10 @@ const s = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: '#b91c1c',
+    borderColor: DANGER.fg,
     backgroundColor: '#FFFFFF',
   },
-  removeBtnText: { fontFamily: FONT_MED, fontSize: 14, color: '#b91c1c' },
+  removeBtnText: { fontFamily: FONT_MED, fontSize: 14, color: DANGER.fg },
 
   // Quick add-to-schedule (F-P3)
   schedAddBtn: {
@@ -816,7 +816,7 @@ const s = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 3,
     paddingHorizontal: 10,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
   },
   schedAddBtnText: {
     fontFamily: FONT_MED, fontSize: 14, color: '#FFFFFF',
@@ -824,7 +824,7 @@ const s = StyleSheet.create({
 
   // Report a problem (#17)
   reportLink: {
-    fontFamily: FONT, fontSize: 14, color: '#A30046',
+    fontFamily: FONT, fontSize: 14, color: MAROON,
     textDecorationLine: 'underline', textAlign: 'center', marginTop: 14,
   },
 
@@ -836,15 +836,15 @@ const s = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#A30046',
+    borderColor: MAROON,
   },
   planBtnInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   planBtnText: {
-    fontFamily: FONT_MED, fontSize: 15, color: '#A30046',
+    fontFamily: FONT_MED, fontSize: 15, color: MAROON,
   },
   planChips: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
   planChip: {
-    backgroundColor: '#FBF0F5',
+    backgroundColor: MAROON_WASH,
     borderWidth: 1,
     borderColor: '#E8CDD9',
     borderRadius: 12,
@@ -854,7 +854,7 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   planChipText: {
-    fontFamily: FONT_SEMI, fontSize: 14, color: '#A30046', 
+    fontFamily: FONT_SEMI, fontSize: 14, color: MAROON, 
   },
 
   // Info rows
@@ -884,7 +884,7 @@ const s = StyleSheet.create({
   profName: {
     fontFamily: FONT_SEMI,
     fontSize: 16,
-    color: '#A30046',
+    color: MAROON,
   },
   profStats: {
     flexDirection: 'row',

@@ -48,7 +48,7 @@ import MapScreen from './screens/MapScreen';
 import LibraryScreen from './screens/LibraryScreen';
 import EventsScreen from './screens/EventsScreen';
 import PhoenixScreen from './screens/PhoenixScreen';
-import { STONE, FONT, FONT_SEMI } from './theme';
+import { STONE, FONT, FONT_SEMI, MAROON } from './theme';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -98,7 +98,7 @@ const TabIcon = ({ label, focused }) => {
     <Ionicons
       name={focused ? icons.focused : icons.unfocused}
       size={22}
-      color={focused ? '#A30046' : '#8e8e93'}
+      color={focused ? MAROON : '#8e8e93'}
     />
   );
 };
@@ -109,11 +109,11 @@ const TabIcon = ({ label, focused }) => {
 const MoreStack = () => (
   <Stack.Navigator
     screenOptions={{
-      headerTintColor: '#A30046',
+      headerTintColor: MAROON,
       headerTitleStyle: {
         fontFamily: FONT,
         fontSize: 22,
-        color: '#A30046',
+        color: MAROON,
       },
       headerShadowVisible: false,
       headerStyle: { backgroundColor: '#FFFFFF' },
@@ -163,7 +163,7 @@ const MainTabs = () => {
         screenOptions={({ route }) => ({
           headerShown: false,
           tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
-          tabBarActiveTintColor: '#A30046',
+          tabBarActiveTintColor: MAROON,
           tabBarInactiveTintColor: STONE,
           tabBarLabelStyle: {
             fontFamily: FONT_SEMI,
@@ -384,17 +384,17 @@ const App = () => {
     <AppProvider>
       <ToastProvider>
       <PushTokenGate />
-      <View style={{ flex: 1, backgroundColor: '#A30046' }} onLayout={onLayoutRootView}>
+      <View style={{ flex: 1, backgroundColor: MAROON }} onLayout={onLayoutRootView}>
         <NavigationContainer
           theme={{
             dark: false,
             colors: {
-              primary: '#A30046',
+              primary: MAROON,
               background: '#FFFFFF',
               card: '#FFFFFF',
               text: '#000',
               border: '#E0E0E0',
-              notification: '#A30046',
+              notification: MAROON,
             },
           }}
         >

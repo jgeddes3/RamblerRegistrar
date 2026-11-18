@@ -24,7 +24,7 @@ import { useAppContext } from '../AppContext';
 import showAlert from '../alert';
 import { canEditProfile } from '../profile-edits';
 import { afterModalDismiss } from '../modal-sequencing';
-import { FONT, MAROON, STONE, FONT_SEMI } from '../theme';
+import { FONT, MAROON, STONE, FONT_SEMI, OK, DANGER, NEUTRAL } from '../theme';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 const MAX_MINORS = 3;
@@ -299,9 +299,9 @@ const s = StyleSheet.create({
   rowName: { fontFamily: FONT_SEMI, fontSize: 17, color: '#333' },
   rowSub: { fontSize: 13, color: STONE, marginTop: 1 },
   badge: { borderRadius: 10, paddingVertical: 3, paddingHorizontal: 9 },
-  badgeFits: { backgroundColor: '#d1fae5' },
-  badgeStretch: { backgroundColor: '#fee2e2' },
-  badgeUnknown: { backgroundColor: '#f3f4f6' },
+  badgeFits: { backgroundColor: OK.bg },
+  badgeStretch: { backgroundColor: DANGER.bg },
+  badgeUnknown: { backgroundColor: NEUTRAL.bg },
   badgeText: { fontSize: 13, fontWeight: '700', color: '#333' },
 });
 

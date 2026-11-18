@@ -27,10 +27,9 @@ import {
   fetchUserPrimaryLocation,
 } from '../firestore-data';
 import { buildRouteLegs } from '../walk-route';
-import { PARCHMENT, STONE, FONT } from '../theme';
+import { PARCHMENT, STONE, FONT, MAROON } from '../theme';
 import { useRegistrationTerm } from '../term';
 
-const MAROON = '#A30046';
 const GOLD = '#FFB81C'; // Loyola gold — "your classes" pins
 const HOME_BLUE = '#2E5E9E';
 

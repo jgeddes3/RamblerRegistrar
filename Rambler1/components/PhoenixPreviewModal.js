@@ -9,9 +9,8 @@ import {
   View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { STONE, FONT_SEMI, FONT } from '../theme';
+import { STONE, FONT_SEMI, FONT, MAROON } from '../theme';
 
-const MAROON = '#A30046';
 
 function dateLine(item) {
   if (!item?.publishedAt) return null;

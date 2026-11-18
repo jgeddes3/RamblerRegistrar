@@ -9,14 +9,14 @@ import { afterModalDismiss } from '../modal-sequencing';
 import { programProgressSummary } from '../progress-summary';
 import CourseDetailModal from '../CourseDetailModal';
 import ErrorState from '../components/ErrorState';
-import { STONE, FONT_SEMI, FONT } from '../theme';
+import { STONE, FONT_SEMI, FONT, MAROON, OK, WARN, DANGER, PARCHMENT } from '../theme';
 import { slopTo } from '../components/ui/hitSlop';
 
 // Graduation Outlook banner design tokens (status -> colors)
 const OUTLOOK_COLORS = {
-  'on-track': { bg: '#d1fae5', fg: '#065f46' },
-  'at-risk': { bg: '#fef3c7', fg: '#92400e' },
-  'off-track': { bg: '#fee2e2', fg: '#b91c1c' },
+  'on-track': { bg: OK.bg, fg: OK.fg },
+  'at-risk': { bg: WARN.bg, fg: WARN.fg },
+  'off-track': { bg: DANGER.bg, fg: DANGER.fg },
 };
 const OUTLOOK_LABELS = {
   'on-track': 'On Track',
@@ -34,7 +34,7 @@ const ProgressBar = ({ label, percent, completed, total, unit, color }) => (
       <Text style={s.progressCardPercent}>{percent}%</Text>
     </View>
     <View style={s.progressBarBg}>
-      <View style={[s.progressBarFill, { width: `${Math.min(percent, 100)}%`, backgroundColor: color || '#A30046' }]} />
+      <View style={[s.progressBarFill, { width: `${Math.min(percent, 100)}%`, backgroundColor: color || MAROON }]} />
     </View>
     <Text style={s.progressCardDetail}>{completed} / {total} {unit}</Text>
   </View>
@@ -46,7 +46,7 @@ const ProgressBar = ({ label, percent, completed, total, unit, color }) => (
 const CourseRow = ({ icon, iconColor, code, name, detail, indent, onPress }) => {
   const content = (
     <View style={[s.courseRow, indent && { paddingLeft: 28 }]}>
-      <Text style={[s.rowIcon, { color: iconColor || '#A30046' }]}>{icon}</Text>
+      <Text style={[s.rowIcon, { color: iconColor || MAROON }]}>{icon}</Text>
       <View style={s.courseInfo}>
         <Text style={s.courseCode}>{code}</Text>
         {name ? <Text style={s.courseName}>{name}</Text> : null}
@@ -248,7 +248,7 @@ const ProgressScreen = () => {
   if (loading) {
     return (
       <View style={s.container}>
-        <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 80 }} />
+        <ActivityIndicator size="large" color={MAROON} style={{ marginTop: 80 }} />
       </View>
     );
   }
@@ -329,7 +329,7 @@ const ProgressScreen = () => {
             completed={progress.creditsCompleted}
             total={progress.totalCreditsRequired}
             unit="credits"
-            color="#A30046"
+            color={MAROON}
           />
         </TouchableOpacity>
       )}
@@ -422,7 +422,7 @@ const ProgressScreen = () => {
           completed={progress.completedCount}
           total={progress.totalRequired}
           unit="courses"
-          color="#A30046"
+          color={MAROON}
         />
         )}
 
@@ -440,7 +440,7 @@ const ProgressScreen = () => {
             <Text accessibilityRole="header" style={s.sectionHeader}>Up Next</Text>
             <Text style={s.sectionSub}>Prerequisites met, ready to take</Text>
             {upNext.map((c) => (
-              <CourseRow key={c.code || c.id} icon="○" iconColor="#A30046" code={c.code} name={c.name} onPress={() => openCourseModal(c)} />
+              <CourseRow key={c.code || c.id} icon="○" iconColor={MAROON} code={c.code} name={c.name} onPress={() => openCourseModal(c)} />
             ))}
           </View>
         )}
@@ -516,7 +516,7 @@ const ProgressScreen = () => {
             const done = a.status === 'completed' || a.status === 'satisfied';
             const waived = a.status === 'waived';
             const icon = done ? '✓' : waived ? '—' : '○';
-            const iconColor = done ? '#2d6a4f' : waived ? STONE : '#A30046';
+            const iconColor = done ? '#2d6a4f' : waived ? STONE : MAROON;
             const detail = done ? a.satisfiedBy
               : waived ? (a.override?.notes || 'Waived')
               : a.courseOptions?.find(o => o.is_required) ? `Required: ${a.courseOptions.find(o => o.is_required).course_code}`
@@ -538,7 +538,7 @@ const ProgressScreen = () => {
                 const done = a.status === 'completed' || a.status === 'satisfied';
                 const waived = a.status === 'waived';
                 const icon = done ? '✓' : waived ? '—' : '○';
-                const iconColor = done ? '#2d6a4f' : waived ? STONE : '#A30046';
+                const iconColor = done ? '#2d6a4f' : waived ? STONE : MAROON;
                 const tierLabel = a.tier === 'tier1' ? 'Tier 1' : 'Tier 2';
                 const detail = done ? a.satisfiedBy
                   : waived ? (a.override?.notes || 'Waived')
@@ -558,7 +558,7 @@ const ProgressScreen = () => {
             <Text accessibilityRole="header" style={s.sectionHeader}>Other Requirements</Text>
             {otherAreas.map((a) => {
               const icon = a.status === 'completed' ? '✓' : '○';
-              const iconColor = a.status === 'completed' ? '#2d6a4f' : '#A30046';
+              const iconColor = a.status === 'completed' ? '#2d6a4f' : MAROON;
               const detail = a.status === 'completed' ? a.satisfiedBy : a.description || 'Not yet completed';
               return <CourseRow key={a.id} icon={icon} iconColor={iconColor} code={a.name} name={`${a.credits} credit${a.credits !== 1 ? 's' : ''}`} detail={detail} />;
             })}
@@ -578,7 +578,7 @@ const ProgressScreen = () => {
       key: 'major',
       label: selectedProgram.name.length > 12 ? selectedProgram.name.substring(0, 12) + '...' : selectedProgram.name,
       percent: progress?.percentComplete || 0,
-      color: '#A30046',
+      color: MAROON,
     });
   }
 
@@ -641,7 +641,7 @@ const ProgressScreen = () => {
             <Text style={[s.tabText, view === tab.key && s.tabTextActive]}>{tab.label}</Text>
             {tab.percent !== null && (
               <View style={s.tabBarMini}>
-                <View style={[s.tabBarMiniFill, { width: `${Math.min(tab.percent, 100)}%`, backgroundColor: tab.color || '#A30046' }]} />
+                <View style={[s.tabBarMiniFill, { width: `${Math.min(tab.percent, 100)}%`, backgroundColor: tab.color || MAROON }]} />
               </View>
             )}
           </TouchableOpacity>
@@ -761,7 +761,7 @@ const ProgressScreen = () => {
                   completed={prog.completedCount}
                   total={prog.totalRequired}
                   unit="courses"
-                  color="#A30046"
+                  color={MAROON}
                 />
                 <Text style={s.sectionSub}>
                   Covers the specifically-listed requirements. Open electives in the
@@ -786,7 +786,7 @@ const ProgressScreen = () => {
                         )}
                         <CourseRow
                           icon="○"
-                          iconColor="#A30046"
+                          iconColor={MAROON}
                           code={c.code}
                           name={c.name}
                           onPress={c.is_placeholder ? undefined : () => openCourseModal(c)}
@@ -863,7 +863,7 @@ const ProgressScreen = () => {
 };
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FBF9F4' },
+  container: { flex: 1, backgroundColor: PARCHMENT },
 
   // Tab toggle
   tabScrollRow: {
@@ -885,7 +885,7 @@ const s = StyleSheet.create({
     backgroundColor: '#F0F0F0',
     minWidth: 70,
   },
-  tabButtonActive: { backgroundColor: '#A30046' },
+  tabButtonActive: { backgroundColor: MAROON },
   tabText: {
     fontFamily: FONT_SEMI,
     fontSize: 14,
@@ -962,7 +962,7 @@ const s = StyleSheet.create({
   heading: {
     fontFamily: FONT_SEMI,
     fontSize: 26,
-    color: '#A30046',
+    color: MAROON,
     marginBottom: 2,
   },
   subheading: {
@@ -993,7 +993,7 @@ const s = StyleSheet.create({
   progressCardPercent: {
     fontFamily: FONT_SEMI,
     fontSize: 16,
-    color: '#A30046',
+    color: MAROON,
   },
   progressBarBg: {
     height: 10,
@@ -1016,7 +1016,7 @@ const s = StyleSheet.create({
   sectionHeader: {
     fontFamily: FONT_SEMI,
     fontSize: 20,
-    color: '#A30046',
+    color: MAROON,
     marginBottom: 4,
   },
   sectionSub: {
@@ -1086,7 +1086,7 @@ const s = StyleSheet.create({
     color: '#666',
   },
   overlapBadge: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderRadius: 8,
     paddingVertical: 1,
     paddingHorizontal: 6,
@@ -1151,7 +1151,7 @@ const s = StyleSheet.create({
   modalTitle: {
     fontFamily: FONT_SEMI,
     fontSize: 22,
-    color: '#A30046',
+    color: MAROON,
   },
   modalSubtitle: {
     fontFamily: FONT,
@@ -1207,9 +1207,9 @@ const s = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 8,
   },
-  spotsBadgeOpen: { backgroundColor: '#d1fae5' },
-  spotsBadgeLow: { backgroundColor: '#fef3c7' },
-  spotsBadgeFull: { backgroundColor: '#fee2e2' },
+  spotsBadgeOpen: { backgroundColor: OK.bg },
+  spotsBadgeLow: { backgroundColor: WARN.bg },
+  spotsBadgeFull: { backgroundColor: DANGER.bg },
   spotsBadgeText: {
     fontSize: 12,
     fontWeight: 'bold',
@@ -1239,7 +1239,7 @@ const s = StyleSheet.create({
   sectionInstructor: {
     fontFamily: FONT_SEMI,
     fontSize: 15,
-    color: '#A30046',
+    color: MAROON,
   },
   profRatingRow: {
     flexDirection: 'row',

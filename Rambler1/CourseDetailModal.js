@@ -442,10 +442,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                     {/* Enrollment + waitlist trend (single-section view only —
                         F-QW1 sparkline / F-HI3 waitlist movement) */}
                     {singleSection && Array.isArray(sec.recent_history) && sec.recent_history.length > 1 ? (
-                      <View>
-                        <Text style={s.trendLabel}>Enrollment trend (last {sec.recent_history.length} snapshots)</Text>
-                        <TrendChart history={sec.recent_history} />
-                      </View>
+                      <TrendChart history={sec.recent_history} />
                     ) : null}
 
                     {/* Quick add to the registration-term schedule (F-P3).
@@ -780,11 +777,6 @@ const s = StyleSheet.create({
   topProfBadgeText: {
     fontFamily: 'CormorantGaramond-Medium', fontSize: 13, color: '#92400E',
   },
-  // Trend chart label (F-QW1/F-HI3)
-  trendLabel: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: STONE, marginTop: 8,
-  },
-
   // Remove from schedule (schedule-opened single-section view)
   removeBtn: {
     alignSelf: 'flex-start',

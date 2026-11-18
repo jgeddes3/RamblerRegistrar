@@ -141,3 +141,29 @@ describe('sections beyond the first batch', () => {
     expect(mockGetCourseSections).toHaveBeenCalledTimes(35);
   });
 });
+
+describe('failed reads show an error with Try again', () => {
+  test('a failed catalog search says so instead of "No courses found"', async () => {
+    mockSearchCourses.mockResolvedValueOnce(null); // read failed
+    await render(<SearchScreen />);
+    await search('COMP 170');
+    expect(await screen.findByText("Couldn't search the catalog")).toBeTruthy();
+    expect(screen.queryByText('No courses found')).toBeNull();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByText('COMP 170')).toBeTruthy();
+    expect(mockSearchCourses).toHaveBeenCalledTimes(2);
+  });
+
+  test("a course whose sections failed to load offers Try again on its card", async () => {
+    mockGetCourseSections.mockResolvedValueOnce(null); // read failed
+    await render(<SearchScreen />);
+    await search('COMP 170');
+    expect(await screen.findByText("Couldn't load sections.")).toBeTruthy();
+
+    mockGetCourseSections.mockResolvedValueOnce([]);
+    await fireEvent.press(screen.getByRole('button', { name: 'Try again loading sections for COMP 170' }));
+    await waitFor(() => expect(mockGetCourseSections).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText(/No sections for/)).toBeTruthy();
+  });
+});

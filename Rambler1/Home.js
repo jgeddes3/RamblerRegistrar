@@ -4,6 +4,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from './AppContext';
 import Skeleton from './components/Skeleton';
+import ErrorState from './components/ErrorState';
 import {
   FONT, FONT_MED, FONT_SEMI, FONT_ITALIC, MAROON, PARCHMENT, INK, STONE, HAIRLINE, GOLD,
   CARD, EYEBROW,
@@ -170,6 +171,10 @@ const Home = () => {
   // Library-hours state: null = loading/unavailable, [] = unavailable, rows = ready
   const [libLoading, setLibLoading] = useState(true);
   const [libLocations, setLibLocations] = useState([]);
+  const [libFailed, setLibFailed] = useState(false); // read failed, vs. no hours listed
+
+  // The current focus's isActive, so a Try again press can reload one card.
+  const focusActiveRef = useRef(() => false);
 
   // Campus-events state: [] = section hidden (loading, no events today, or the
   // web/CORS case where getEventsToday() resolves []).
@@ -265,6 +270,7 @@ const Home = () => {
     if (isActive()) setLibLoading(true);
     const data = await getLibraryHours(); // campus-api: null on failure
     if (!isActive()) return;
+    setLibFailed(data === null);
     const locations = data && Array.isArray(data.locations) ? data.locations : [];
     // LibCal returns parent + child desks with duplicate display names
     // (e.g. two "Research Help Desk Hours" rows) — keep the first of each name.
@@ -339,6 +345,7 @@ const Home = () => {
     useCallback(() => {
       let active = true;
       const isActive = () => active;
+      focusActiveRef.current = isActive;
       loadToday(isActive);
       loadLibrary(isActive);
       loadEvents(isActive);
@@ -397,10 +404,12 @@ const Home = () => {
               ))}
             </View>
           ) : schedState === 'unavailable' ? (
-            <View style={s.cardCenter}>
-              <Text style={s.cardEmptyText}>Couldn't load your schedule</Text>
-              <Text style={s.cardHintText}>Check your connection and try again.</Text>
-            </View>
+            <ErrorState
+              title="Couldn't load your schedule"
+              message="Check your connection, then try again."
+              onRetry={() => loadToday(focusActiveRef.current)}
+              retryLabel="Try again loading your schedule"
+            />
           ) : schedState === 'summer' ? (
             <View style={s.cardCenter}>
               <Text style={s.cardEmptyText}>No term in session</Text>
@@ -622,6 +631,13 @@ const Home = () => {
                 </View>
               ))}
             </View>
+          ) : libFailed ? (
+            <ErrorState
+              title="Couldn't load library hours"
+              message="Check your connection, then try again."
+              onRetry={() => loadLibrary(focusActiveRef.current)}
+              retryLabel="Try again loading library hours"
+            />
           ) : libLocations.length === 0 ? (
             <View style={s.cardCenter}>
               <Text style={s.cardEmptyText}>Hours unavailable</Text>

@@ -12,6 +12,7 @@ import { fillWarning } from './planning-insights';
 import { planSemesters } from './plan-utils';
 import TrendChart from './components/TrendChart';
 import FeedbackModal from './components/FeedbackModal';
+import ErrorState from './components/ErrorState';
 import showAlert from './alert';
 import { useRegistrationTerm, resolveRegistrationTerm } from './term';
 
@@ -37,6 +38,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
 
   const [sections, setSections] = useState([]);
   const [sectionsLoading, setSectionsLoading] = useState(false);
+  const [sectionsFailed, setSectionsFailed] = useState(false);
   const [profRatings, setProfRatings] = useState({});
   const [selectedSection, setSelectedSection] = useState(null);
   // Seat watches for this term: Set of watched class_number strings. Only the
@@ -135,6 +137,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
     if (!visible || !course) return;
     resolveRegistrationTerm(); // retries if the published terms weren't reachable earlier
 
+    setSectionsFailed(false);
     if (singleSection) {
       fetchProfRatings([singleSection]);
     } else if (preSections && preSections.length > 0) {
@@ -213,11 +216,16 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
 
   const loadSections = async () => {
     setSectionsLoading(true);
+    setSectionsFailed(false);
     try {
-      const data = await getCourseSections(TERM.code, course.code);
+      const data = await getCourseSections(TERM.code, course.code); // null = read failed
       setSections(data || []);
+      setSectionsFailed(data === null);
       if (data && data.length > 0) fetchProfRatings(data);
-    } catch (e) {}
+    } catch (e) {
+      setSections([]);
+      setSectionsFailed(true);
+    }
     setSectionsLoading(false);
   };
 
@@ -505,6 +513,12 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                   </TouchableOpacity>
                 );
               })
+            ) : sectionsFailed ? (
+              <ErrorState
+                title="Couldn't load sections"
+                message="Check your connection, then try again."
+                onRetry={loadSections}
+              />
             ) : (
               <View style={s.empty}>
                 <Text style={s.emptyTitle}>No sections found</Text>

@@ -10,6 +10,7 @@ import { searchCourses as apiSearchCourses, getCourseSections, searchByInstructo
 import { fetchCourses as fetchLocalCourses } from '../Database';
 import CourseDetailModal from '../CourseDetailModal';
 import Skeleton from '../components/Skeleton';
+import ErrorState from '../components/ErrorState';
 import { useRegistrationTerm, resolveRegistrationTerm } from '../term';
 import { STONE } from '../theme';
 
@@ -162,7 +163,7 @@ function getFillFlag(fillStats) {
   return null;
 }
 
-const CourseCard = ({ course, sections, sectionsLoading, filters, onCoursePress, onSectionPress }) => {
+const CourseCard = ({ course, sections, sectionsLoading, sectionsFailed, filters, onCoursePress, onSectionPress, onRetrySections }) => {
   const TERM = useRegistrationTerm();
   // Filter sections by active filters
   const filteredSections = (sections || []).filter(sec => {
@@ -224,6 +225,13 @@ const CourseCard = ({ course, sections, sectionsLoading, filters, onCoursePress,
       <View style={s.cardSections}>
         {sectionsLoading ? (
           <ActivityIndicator color="#A30046" style={{ padding: 12 }} />
+        ) : sectionsFailed ? (
+          <ErrorState
+            variant="inline"
+            title="Couldn't load sections."
+            onRetry={() => onRetrySections(course)}
+            retryLabel={`Try again loading sections for ${course.code}`}
+          />
         ) : filteredSections.length > 0 ? (
           filteredSections.map((sec, i) => (
             <SectionRow
@@ -303,6 +311,10 @@ const SearchScreen = () => {
   const [loading, setLoading] = useState(false);
   const [sections, setSections] = useState({});
   const [sectionsLoading, setSectionsLoading] = useState({});
+  // Course codes whose last sections read failed (shown with Try again).
+  const [sectionsFailed, setSectionsFailed] = useState({});
+  // The catalog search itself failed: shown instead of "No courses found".
+  const [searchFailed, setSearchFailed] = useState(false);
   const [recentSearches, setRecentSearches] = useState([]);
   const [filters, setFilters] = useState({ timeOfDay: null, days: null, openOnly: false });
   const [detailModal, setDetailModal] = useState({ visible: false, course: null, section: null, sections: null });
@@ -382,16 +394,20 @@ const SearchScreen = () => {
 
     const newSections = {};
     const doneLoading = {};
+    const failed = {};
     toLoad.forEach(c => { doneLoading[c.code] = false; });
     results.forEach((r, i) => {
       if (r.status === 'fulfilled' && Array.isArray(r.value.data)) {
         newSections[r.value.code] = r.value.data;
+        failed[r.value.code] = false;
       } else {
         requested.delete(toLoad[i].code); // failed read: let a later search retry
+        failed[toLoad[i].code] = true;
       }
     });
     setSections(prev => ({ ...prev, ...newSections }));
     setSectionsLoading(prev => ({ ...prev, ...doneLoading }));
+    setSectionsFailed(prev => ({ ...prev, ...failed }));
   }, []);
 
   // The registration term was corrected: sections on screen belong to the old
@@ -403,6 +419,7 @@ const SearchScreen = () => {
     sectionsRequestedRef.current = new Set();
     setSections({});
     setSectionsLoading({});
+    setSectionsFailed({});
     loadSectionsForCourses(resultsRef.current);
   }, [TERM.code, loadSectionsForCourses]);
 
@@ -420,7 +437,8 @@ const SearchScreen = () => {
     // Phase 2: API search
     setLoading(true);
     try {
-      const apiResults = await apiSearchCourses(q) || [];
+      const fetched = await apiSearchCourses(q); // null = the read failed
+      const apiResults = fetched || [];
       // Merge: API results may have data local doesn't
       const apiByCode = new Map(apiResults.map(r => [r.code, r]));
       // Local sqlite rows have no fill_stats — copy it from the matching API
@@ -469,12 +487,17 @@ const SearchScreen = () => {
 
       const finalResults = sortResults(merged, q);
       setResults(finalResults);
+      setSearchFailed(fetched === null);
 
       // Pre-load sections for all results in background
       loadSectionsForCourses(finalResults);
-    } catch (e) {}
+    } catch (e) {
+      if (gen === searchGenRef.current) setSearchFailed(true);
+    }
     if (gen === searchGenRef.current) setLoading(false);
   }, [sortResults, loadSectionsForCourses]);
+
+  const retrySections = useCallback((course) => loadSectionsForCourses([course]), [loadSectionsForCourses]);
 
   // A query becomes a "recent search" only when the user commits to it:
   // submits the box, opens a result, or picks a department/recent. Saving on
@@ -499,6 +522,7 @@ const SearchScreen = () => {
     if (!text.trim()) {
       setResults([]);
       setLoading(false);
+      setSearchFailed(false);
       return;
     }
     debounceRef.current = setTimeout(() => performSearch(text.trim()), 250);
@@ -507,6 +531,7 @@ const SearchScreen = () => {
   const clearSearch = () => {
     setQuery('');
     setResults([]);
+    setSearchFailed(false);
     inputRef.current?.focus();
   };
 
@@ -596,6 +621,12 @@ const SearchScreen = () => {
             </View>
           ))}
         </View>
+      ) : results.length === 0 && !loading && searchFailed ? (
+        <ErrorState
+          title="Couldn't search the catalog"
+          message="Check your connection, then try again."
+          onRetry={() => performSearch(query.trim())}
+        />
       ) : results.length === 0 && !loading ? (
         <View style={s.emptyWrap}>
           <Text style={s.emptyTitle}>No courses found</Text>
@@ -610,9 +641,11 @@ const SearchScreen = () => {
               course={item}
               sections={sections[item.code]}
               sectionsLoading={sectionsLoading[item.code]}
+              sectionsFailed={sectionsFailed[item.code]}
               filters={filters}
               onCoursePress={handleCoursePress}
               onSectionPress={handleSectionPress}
+              onRetrySections={retrySections}
             />
           )}
           onViewableItemsChanged={onViewableItemsChanged}

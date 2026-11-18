@@ -8,6 +8,7 @@ import { saveCoursesConcurrently } from '../course-sync';
 import { afterModalDismiss } from '../modal-sequencing';
 import { programProgressSummary } from '../progress-summary';
 import CourseDetailModal from '../CourseDetailModal';
+import ErrorState from '../components/ErrorState';
 import { STONE } from '../theme';
 
 // Graduation Outlook banner design tokens (status -> colors)
@@ -72,6 +73,8 @@ const ProgressScreen = () => {
   const [needsPrereqs, setNeedsPrereqs] = useState([]);
   const [coreProgress, setCoreProgress] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [synced, setSynced] = useState(false);
  // { "instructor name": { avgRating, avgDifficulty, wouldTakeAgainPercent, numRatings } }
   const [coreAreaModal, setCoreAreaModal] = useState(null);
@@ -195,7 +198,7 @@ const ProgressScreen = () => {
     } catch (e) { return null; }
   }, [user, synced, selectedProgram]);
 
-  // Load everything
+  // Load everything (again when Try again bumps reloadKey)
   useEffect(() => {
     if (!synced) return;
     setLoading(true);
@@ -218,9 +221,16 @@ const ProgressScreen = () => {
       }
       if (coreData) setCoreProgress(coreData);
       setOtherProgress((otherData || []).filter((p) => p && !p.error));
+      // Both loaders resolve null on a failed read. An undecided major has
+      // nothing to load, so its null isn't a failure.
+      const majorFailed = !!(user && selectedProgram && selectedProgram.id !== 'undecided' && !majorData);
+      const coreFailed = !!(user && !coreData);
+      setLoadFailed(majorFailed || coreFailed);
       setLoading(false);
     });
-  }, [synced, user, selectedProgram, selectedProgram2, selectedMinors, loadMajorProgress, loadCoreProgress]);
+  }, [synced, user, selectedProgram, selectedProgram2, selectedMinors, loadMajorProgress, loadCoreProgress, reloadKey]);
+
+  const retryLoad = () => setReloadKey((k) => k + 1);
 
   // Graduation outlook heuristic — recomputed whenever the underlying progress data
   // changes. Includes 2nd major + minors so the 'All' banner covers every program.
@@ -238,6 +248,20 @@ const ProgressScreen = () => {
     return (
       <View style={s.container}>
         <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 80 }} />
+      </View>
+    );
+  }
+
+  // Nothing loaded: an error, not a screen of zeros.
+  if (loadFailed && !progress && !coreProgress) {
+    return (
+      <View style={s.container}>
+        <ErrorState
+          style={{ marginTop: 60 }}
+          title="Couldn't load your progress"
+          message="Check your connection, then try again."
+          onRetry={retryLoad}
+        />
       </View>
     );
   }
@@ -622,6 +646,15 @@ const ProgressScreen = () => {
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {loadFailed ? (
+        <ErrorState
+          variant="banner"
+          title="Some of your progress didn't load."
+          message="Numbers below may be incomplete."
+          onRetry={retryLoad}
+        />
+      ) : null}
 
       {view === 'all' && renderAllView()}
       {view === 'major' && renderMajorView()}

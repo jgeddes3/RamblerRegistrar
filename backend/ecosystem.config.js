@@ -17,7 +17,10 @@ module.exports = {
         //   ALLOWED_ORIGINS - comma-separated browser origins for CORS (mobile app needs none)
         //   RATE_LIMIT_MAX  - per-15-min global request cap (default 1000)
         // (ADMIN_UIDS removed with the /api/admin/* + /api/scrape endpoints in
-        //  the Phase 1 cleanup — manual scrapes run via CLI: node scraper-puppeteer.js)
+        //  the Phase 1 cleanup — manual scrapes run via CLI: node scraper-puppeteer.js.
+        //  The CLI refuses to run while this server is up, because both hold the
+        //  whole locus.db image and the last save wins: `pm2 stop rambler-backend`
+        //  first, or pass --force. See cli-guard.js.)
       },
       autorestart: true,
       max_memory_restart: '600M',

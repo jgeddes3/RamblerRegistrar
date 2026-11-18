@@ -168,7 +168,7 @@ const s = StyleSheet.create({
   emptyHint: { fontFamily: FONT, fontSize: 15, color: STONE, marginTop: 6, textAlign: 'center' },
 
   headerWrap: { padding: 16, paddingBottom: 8 },
-  headerText: { fontFamily: FONT, fontSize: 15, color: '#777', lineHeight: 21 },
+  headerText: { fontFamily: FONT, fontSize: 15, color: STONE, lineHeight: 21 },
   sectionLabel: { ...EYEBROW, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 },
   noteBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -188,7 +188,7 @@ const s = StyleSheet.create({
   daysBadgeNum: { fontFamily: FONT, fontSize: 20, fontWeight: '700', color: MAROON },
   daysBadgeUnit: { fontFamily: FONT, fontSize: 11, color: MAROON, marginTop: -3 },
   rowCode: { fontFamily: FONT, fontSize: 17, fontWeight: '700', color: '#333' },
-  rowName: { fontFamily: FONT, fontSize: 14, color: '#777' },
+  rowName: { fontFamily: FONT, fontSize: 14, color: STONE },
   rowClass: { fontFamily: FONT, fontSize: 13, color: '#B45309', marginTop: 1 },
   chevron: { fontFamily: FONT, fontSize: 24, color: STONE },
 });

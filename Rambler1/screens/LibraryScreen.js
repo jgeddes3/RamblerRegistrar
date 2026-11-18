@@ -329,7 +329,7 @@ const s = StyleSheet.create({
   },
   bookName: { fontFamily: 'CormorantGaramond-Regular', fontSize: 17, color: '#333' },
   bookCampus: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: STONE },
-  bookHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: '#AAA', fontStyle: 'italic', marginBottom: 4 },
+  bookHint: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: STONE, fontStyle: 'italic', marginBottom: 4 },
 
   // Weekly grid
   weekCard: {

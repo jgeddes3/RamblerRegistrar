@@ -542,7 +542,7 @@ const st = StyleSheet.create({
   candTitle: { fontFamily: FONT, fontWeight: '700', color: '#1a1a1a', fontSize: 17 },
   candStats: { fontFamily: FONT, color: '#666', fontSize: 15, marginTop: 2 },
   candCourses: { fontFamily: FONT, color: STONE, fontSize: 14, marginTop: 3 },
-  candChevron: { color: '#bbb', fontSize: 24, paddingLeft: 8 },
+  candChevron: { color: STONE, fontSize: 24, paddingLeft: 8 },
 
   adjustBtn: { padding: 14, alignItems: 'center' },
   adjustBtnText: { fontFamily: FONT, fontSize: 16, color: '#A30046', fontWeight: '600' },

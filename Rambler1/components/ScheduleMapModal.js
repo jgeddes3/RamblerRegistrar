@@ -316,7 +316,7 @@ const s = StyleSheet.create({
   },
   orderBubbleText: { fontFamily: FONT, fontSize: 14, fontWeight: '700', color: '#FFF' },
   classCode: { fontFamily: FONT, fontSize: 17, fontWeight: '700', color: '#333' },
-  classMeta: { fontFamily: FONT, fontSize: 13, color: '#777' },
+  classMeta: { fontFamily: FONT, fontSize: 13, color: STONE },
 
   transRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingLeft: 12 },
   transBadge: { borderRadius: 10, paddingVertical: 2, paddingHorizontal: 9 },

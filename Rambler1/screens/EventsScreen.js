@@ -193,7 +193,7 @@ const s = StyleSheet.create({
   cardBody: { flex: 1 },
   cardTitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 18, color: '#333' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
-  metaText: { flex: 1, fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: '#777' },
+  metaText: { flex: 1, fontFamily: 'CormorantGaramond-Regular', fontSize: 12, color: STONE },
 });
 
 export default EventsScreen;

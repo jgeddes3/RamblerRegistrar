@@ -297,7 +297,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#F0F0F0', borderRadius: 10, padding: 12, marginBottom: 8,
   },
   rowName: { fontFamily: FONT, fontSize: 17, fontWeight: '700', color: '#333' },
-  rowSub: { fontFamily: FONT, fontSize: 13, color: '#777', marginTop: 1 },
+  rowSub: { fontFamily: FONT, fontSize: 13, color: STONE, marginTop: 1 },
   badge: { borderRadius: 10, paddingVertical: 3, paddingHorizontal: 9 },
   badgeFits: { backgroundColor: '#d1fae5' },
   badgeStretch: { backgroundColor: '#fee2e2' },

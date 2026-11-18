@@ -430,7 +430,7 @@ const s = StyleSheet.create({
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FBF9F4', padding: 24 },
   loadingText: { fontFamily: FONT, fontSize: 16, color: STONE, marginTop: 12 },
   emptyTitle: { fontFamily: FONT, fontSize: 22, color: STONE, textAlign: 'center' },
-  introText: { fontFamily: FONT, fontSize: 15, color: '#777', marginBottom: 14, lineHeight: 21 },
+  introText: { fontFamily: FONT, fontSize: 15, color: STONE, marginBottom: 14, lineHeight: 21 },
 
   coverageBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -460,7 +460,7 @@ const s = StyleSheet.create({
     paddingVertical: 4, paddingHorizontal: 12,
   },
   addBtnText: { fontFamily: FONT, fontSize: 15, color: MAROON, fontWeight: '600' },
-  semEmpty: { fontFamily: FONT, fontSize: 14, color: '#AAA' },
+  semEmpty: { fontFamily: FONT, fontSize: 14, color: STONE },
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap' },
   chip: {
     backgroundColor: '#FBF0F5', borderRadius: 14, paddingVertical: 5, paddingHorizontal: 11,

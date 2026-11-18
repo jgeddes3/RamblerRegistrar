@@ -1237,7 +1237,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#F5F5F5',
   },
   courseRowCode: { fontFamily: 'CormorantGaramond-Regular', fontSize: 17, fontWeight: 'bold', color: '#333' },
-  courseRowName: { fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#777', marginTop: 1 },
+  courseRowName: { fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: STONE, marginTop: 1 },
   courseRowChevron: { fontFamily: 'CormorantGaramond-Regular', fontSize: 20, color: STONE, marginLeft: 8 },
   countsRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   countsMarker: { fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#065f46' },

@@ -6,26 +6,25 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../AppContext';
-import { searchCourses as apiSearchCourses, getCourseSections, searchByInstructor } from '../firestore-data';
+import {
+  searchCourses as apiSearchCourses, getCourseSections, searchByInstructor,
+  addSectionToSchedule, removeSectionFromSchedule,
+} from '../firestore-data';
+import { useToast } from '../components/ui/Toast';
+import showAlert from '../alert';
 import { fetchCourses as fetchLocalCourses } from '../Database';
 import CourseDetailModal from '../CourseDetailModal';
 import Skeleton from '../components/Skeleton';
+import ErrorState from '../components/ErrorState';
+import { seatAge } from '../seat-age';
+import { useRegistrationTerm, resolveRegistrationTerm } from '../term';
+import { STONE, WARN, FONT, FONT_SEMI, MAROON, DANGER, PARCHMENT, OK } from '../theme';
+import { slopTo } from '../components/ui/hitSlop';
+import Tappable from '../components/ui/Tappable';
 
 // =============================================================================
 // CONSTANTS
 // =============================================================================
-
-function getRegistrationTerm() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const yy = year % 100;
-  if (month >= 10) return { code: `1${yy + 1}2`, label: `Spring ${year + 1}` };
-  if (month >= 3) return { code: `1${yy}6`, label: `Fall ${year}` };
-  return { code: `1${yy}2`, label: `Spring ${year}` };
-}
-
-const TERM = getRegistrationTerm();
 
 const DEPARTMENTS = [
   { code: 'COMP', name: 'Computer Science' },
@@ -62,6 +61,15 @@ const DEPARTMENTS = [
 
 const RECENT_KEY = '@rambler_recent_searches';
 
+// A search used to read and draw every section of up to 30 courses at once
+// (about 50 Firestore reads). Now the first few results load their sections
+// up front and the rest load as they scroll into view, and a card draws its
+// first few sections with "Show all" for the rest. Sections are still read
+// whole per course: the filters (open only, time, days) run on the phone and
+// need every section to be right.
+export const PRELOAD_COURSES = 8;
+export const SECTIONS_SHOWN = 3;
+
 // =============================================================================
 // FILTER CHIPS
 // =============================================================================
@@ -75,7 +83,7 @@ const FILTER_OPTIONS = [
   { key: 'openOnly', label: 'Open Seats', group: 'toggle' },
 ];
 
-const FilterChips = ({ filters, onFilterChange }) => (
+export const FilterChips = ({ filters, onFilterChange }) => (
   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipRow} contentContainerStyle={s.chipRowContent}>
     {FILTER_OPTIONS.map((opt) => {
       let active = false;
@@ -84,9 +92,10 @@ const FilterChips = ({ filters, onFilterChange }) => (
       else if (opt.group === 'toggle') active = filters.openOnly;
 
       return (
-        <TouchableOpacity
+        <Tappable selected={active}
           key={opt.key}
           style={[s.chip, active && s.chipActive]}
+          hitSlop={slopTo(44, 30)}
           onPress={() => {
             if (opt.group === 'time') {
               onFilterChange(f => ({ ...f, timeOfDay: f.timeOfDay === opt.key ? null : opt.key }));
@@ -98,7 +107,7 @@ const FilterChips = ({ filters, onFilterChange }) => (
           }}
         >
           <Text style={[s.chipText, active && s.chipTextActive]}>{opt.label}</Text>
-        </TouchableOpacity>
+        </Tappable>
       );
     })}
   </ScrollView>
@@ -108,7 +117,9 @@ const FilterChips = ({ filters, onFilterChange }) => (
 // SECTION ROW
 // =============================================================================
 
-const SectionRow = ({ section, onPress }) => {
+// onAdd (signed-in only): the "+" that puts this section on the schedule
+// without opening two modals first.
+const SectionRow = ({ section, onPress, onAdd, courseCode }) => {
   const hasEnrollment = section.enrollment_cap > 0;
   const statusText = (section.status || '').toLowerCase();
   const isClosed = statusText.includes('closed');
@@ -131,8 +142,21 @@ const SectionRow = ({ section, onPress }) => {
     <TouchableOpacity style={[s.sectionRow, isFull && { opacity: 0.5 }]} onPress={onPress}>
       <View style={s.sectionTop}>
         <Text style={s.sectionNum}>Sec {section.section_number}</Text>
-        <View style={[s.badge, badgeStyle]}>
-          <Text style={s.badgeText}>{badgeLabel}</Text>
+        <View style={s.sectionTopRight}>
+          <View style={[s.badge, badgeStyle]}>
+            <Text style={s.badgeText}>{badgeLabel}</Text>
+          </View>
+          {onAdd ? (
+            <TouchableOpacity
+              onPress={onAdd}
+              hitSlop={slopTo(28)}
+              accessibilityRole="button"
+              accessibilityLabel={`Add ${courseCode} Sec ${section.section_number} to your schedule`}
+              style={s.addBtn}
+            >
+              <Ionicons name="add-circle-outline" size={26} color={MAROON} />
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
       {section.meeting_days || section.meeting_time_start ? (
@@ -151,6 +175,10 @@ const SectionRow = ({ section, onPress }) => {
           </Text>
         ) : null}
       </View>
+      {/* The spots badge is only as good as its last read: flag old ones. */}
+      {hasEnrollment && seatAge(section.enrollment_read_at)?.stale ? (
+        <Text style={s.staleSeats}>{seatAge(section.enrollment_read_at).label}, may have changed</Text>
+      ) : null}
     </TouchableOpacity>
   );
 };
@@ -172,7 +200,9 @@ function getFillFlag(fillStats) {
   return null;
 }
 
-const CourseCard = ({ course, sections, sectionsLoading, filters, onCoursePress, onSectionPress }) => {
+const CourseCard = ({ course, sections, sectionsLoading, sectionsFailed, filters, onCoursePress, onSectionPress, onRetrySections, onAddSection }) => {
+  const TERM = useRegistrationTerm();
+  const [expanded, setExpanded] = useState(false);
   // Filter sections by active filters
   const filteredSections = (sections || []).filter(sec => {
     if (filters.openOnly) {
@@ -212,7 +242,7 @@ const CourseCard = ({ course, sections, sectionsLoading, filters, onCoursePress,
                   <Ionicons
                     name="flash"
                     size={10}
-                    color={fillFlag.tone === 'danger' ? '#b91c1c' : '#92400e'}
+                    color={fillFlag.tone === 'danger' ? DANGER.fg : WARN.fg}
                   />
                   <Text
                     numberOfLines={1}
@@ -232,15 +262,41 @@ const CourseCard = ({ course, sections, sectionsLoading, filters, onCoursePress,
 
       <View style={s.cardSections}>
         {sectionsLoading ? (
-          <ActivityIndicator color="#A30046" style={{ padding: 12 }} />
+          <ActivityIndicator color={MAROON} style={{ padding: 12 }} />
+        ) : sectionsFailed ? (
+          <ErrorState
+            variant="inline"
+            title="Couldn't load sections."
+            onRetry={() => onRetrySections(course)}
+            retryLabel={`Try again loading sections for ${course.code}`}
+          />
         ) : filteredSections.length > 0 ? (
-          filteredSections.map((sec, i) => (
-            <SectionRow
-              key={sec.id || sec.class_number || i}
-              section={sec}
-              onPress={() => onSectionPress(sec, course)}
-            />
-          ))
+          <>
+            {(expanded ? filteredSections : filteredSections.slice(0, SECTIONS_SHOWN)).map((sec, i) => (
+              <SectionRow
+                key={sec.id || sec.class_number || i}
+                section={sec}
+                courseCode={course.code}
+                onPress={() => onSectionPress(sec, course)}
+                onAdd={onAddSection ? () => onAddSection(sec, course) : undefined}
+              />
+            ))}
+            {filteredSections.length > SECTIONS_SHOWN ? (
+              <TouchableOpacity
+                style={s.showAll}
+                onPress={() => setExpanded((v) => !v)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded }}
+                accessibilityLabel={expanded
+                  ? `Show fewer sections of ${course.code}`
+                  : `Show all ${filteredSections.length} sections of ${course.code}`}
+              >
+                <Text style={s.showAllText}>
+                  {expanded ? 'Show fewer' : `Show all ${filteredSections.length} sections`}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </>
         ) : sections && sections.length > 0 ? (
           <Text style={s.noMatchText}>No sections match current filters</Text>
         ) : sections ? (
@@ -257,7 +313,7 @@ const CourseCard = ({ course, sections, sectionsLoading, filters, onCoursePress,
 
 const DepartmentGrid = ({ onSelect }) => (
   <View style={s.deptSection}>
-    <Text style={s.deptTitle}>Browse by Department</Text>
+    <Text accessibilityRole="header" style={s.deptTitle}>Browse by Department</Text>
     <View style={s.deptGrid}>
       {DEPARTMENTS.map((dept) => (
         <TouchableOpacity key={dept.code} style={s.deptCard} onPress={() => onSelect(dept.code)}>
@@ -277,13 +333,13 @@ const RecentSearches = ({ searches, onSelect, onRemove }) => {
   if (!searches || searches.length === 0) return null;
   return (
     <View style={s.recentSection}>
-      <Text style={s.recentTitle}>Recent Searches</Text>
+      <Text accessibilityRole="header" style={s.recentTitle}>Recent Searches</Text>
       {searches.map((term, i) => (
         <View key={`${term}-${i}`} style={s.recentRow}>
           <TouchableOpacity style={s.recentTerm} onPress={() => onSelect(term)}>
             <Text style={s.recentText}>{term}</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => onRemove(term)} style={s.recentX}>
+          <TouchableOpacity onPress={() => onRemove(term)} style={s.recentX} hitSlop={slopTo(22)} accessibilityRole="button" accessibilityLabel={`Remove ${term} from recent searches`}>
             <Text style={s.recentXText}>X</Text>
           </TouchableOpacity>
         </View>
@@ -296,14 +352,28 @@ const RecentSearches = ({ searches, onSelect, onRemove }) => {
 // MAIN SEARCH SCREEN
 // =============================================================================
 
+// A result counts as in view once any part of its card shows.
+const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 1 };
+
 const SearchScreen = () => {
-  const { selectedProgram } = useAppContext();
+  const { selectedProgram, user } = useAppContext();
+  const signedIn = !!user && !user.isAnonymous; // anonymous users have no schedule
+  const toast = useToast();
+  const TERM = useRegistrationTerm();
+  // Callbacks read the term through a ref so a term correction never leaves
+  // an old code captured in a memoized closure.
+  const termCodeRef = useRef(TERM.code);
+  termCodeRef.current = TERM.code;
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sections, setSections] = useState({});
   const [sectionsLoading, setSectionsLoading] = useState({});
+  // Course codes whose last sections read failed (shown with Try again).
+  const [sectionsFailed, setSectionsFailed] = useState({});
+  // The catalog search itself failed: shown instead of "No courses found".
+  const [searchFailed, setSearchFailed] = useState(false);
   const [recentSearches, setRecentSearches] = useState([]);
   const [filters, setFilters] = useState({ timeOfDay: null, days: null, openOnly: false });
   const [detailModal, setDetailModal] = useState({ visible: false, course: null, section: null, sections: null });
@@ -314,6 +384,12 @@ const SearchScreen = () => {
   // Monotonic token: a slower API response for an OLD query must not
   // overwrite the results of a newer one.
   const searchGenRef = useRef(0);
+  // Course codes whose sections are loaded or loading for the current term.
+  // A ref, not the `sections` state: performSearch is memoized, so reading
+  // state here saw a stale empty map and refetched every course every search.
+  const sectionsRequestedRef = useRef(new Set());
+  const resultsRef = useRef([]);
+  resultsRef.current = results;
 
   // Load local courses + recent searches on mount
   useEffect(() => {
@@ -357,8 +433,58 @@ const SearchScreen = () => {
     });
   }, []);
 
+  // Batch-load sections for a list of courses (skips ones already requested)
+  const loadSectionsForCourses = useCallback(async (courses) => {
+    const termCode = termCodeRef.current;
+    const requested = sectionsRequestedRef.current;
+    const toLoad = courses.filter(c => c.code && !requested.has(c.code)).slice(0, 30); // Cap at 30
+    if (toLoad.length === 0) return;
+
+    const loading = {};
+    toLoad.forEach(c => { loading[c.code] = true; requested.add(c.code); });
+    setSectionsLoading(prev => ({ ...prev, ...loading }));
+
+    const results = await Promise.allSettled(
+      toLoad.map(c => getCourseSections(termCode, c.code).then(data => ({ code: c.code, data })))
+    );
+    // The term was corrected while these were in flight: they belong to the
+    // old term, and the term-change effect has already started a fresh load.
+    if (termCodeRef.current !== termCode) return;
+
+    const newSections = {};
+    const doneLoading = {};
+    const failed = {};
+    toLoad.forEach(c => { doneLoading[c.code] = false; });
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled' && Array.isArray(r.value.data)) {
+        newSections[r.value.code] = r.value.data;
+        failed[r.value.code] = false;
+      } else {
+        requested.delete(toLoad[i].code); // failed read: let a later search retry
+        failed[toLoad[i].code] = true;
+      }
+    });
+    setSections(prev => ({ ...prev, ...newSections }));
+    setSectionsLoading(prev => ({ ...prev, ...doneLoading }));
+    setSectionsFailed(prev => ({ ...prev, ...failed }));
+  }, []);
+
+  // The registration term was corrected: sections on screen belong to the old
+  // term. Drop them and reload for the results currently showing.
+  const loadedTermRef = useRef(TERM.code);
+  useEffect(() => {
+    if (loadedTermRef.current === TERM.code) return;
+    loadedTermRef.current = TERM.code;
+    sectionsRequestedRef.current = new Set();
+    setSections({});
+    setSectionsLoading({});
+    setSectionsFailed({});
+    loadSectionsForCourses(resultsRef.current);
+  }, [TERM.code, loadSectionsForCourses]);
+
   const performSearch = useCallback(async (q) => {
     const gen = ++searchGenRef.current;
+    resolveRegistrationTerm(); // retries if the published terms weren't reachable earlier
     // Phase 1: instant local search
     const qLower = q.toLowerCase();
     const localMatches = allCoursesRef.current.filter(c =>
@@ -370,7 +496,8 @@ const SearchScreen = () => {
     // Phase 2: API search
     setLoading(true);
     try {
-      const apiResults = await apiSearchCourses(q) || [];
+      const fetched = await apiSearchCourses(q); // null = the read failed
+      const apiResults = fetched || [];
       // Merge: API results may have data local doesn't
       const apiByCode = new Map(apiResults.map(r => [r.code, r]));
       // Local sqlite rows have no fill_stats — copy it from the matching API
@@ -393,7 +520,7 @@ const SearchScreen = () => {
       // If query looks like an instructor name (letters/spaces only, no digits)
       if (/^[a-zA-Z\s.]+$/.test(q) && q.length > 2 && !DEPARTMENTS.some(d => d.code === q.toUpperCase())) {
         try {
-          const instrSections = await searchByInstructor(TERM.code, q);
+          const instrSections = await searchByInstructor(termCodeRef.current, q);
           if (instrSections && instrSections.length > 0) {
             // Convert instructor sections to course-like entries
             const instrCourses = {};
@@ -419,57 +546,92 @@ const SearchScreen = () => {
 
       const finalResults = sortResults(merged, q);
       setResults(finalResults);
+      setSearchFailed(fetched === null);
 
-      // Pre-load sections for all results in background
-      loadSectionsForCourses(finalResults);
-    } catch (e) {}
-    if (gen === searchGenRef.current) setLoading(false);
-    saveRecent(q);
-  }, [sortResults, saveRecent]);
-
-  // Batch-load sections for a list of courses
-  const loadSectionsForCourses = useCallback(async (courses) => {
-    const toLoad = courses.filter(c => c.code && !sections[c.code]).slice(0, 30); // Cap at 30
-    if (toLoad.length === 0) return;
-
-    const loading = {};
-    toLoad.forEach(c => { loading[c.code] = true; });
-    setSectionsLoading(prev => ({ ...prev, ...loading }));
-
-    const results = await Promise.allSettled(
-      toLoad.map(c => getCourseSections(TERM.code, c.code).then(data => ({ code: c.code, data })))
-    );
-
-    const newSections = {};
-    const doneLoading = {};
-    for (const r of results) {
-      if (r.status === 'fulfilled') {
-        newSections[r.value.code] = r.value.data || [];
-        doneLoading[r.value.code] = false;
-      }
+      // Sections for the first results now; the rest as they scroll into view.
+      loadSectionsForCourses(finalResults.slice(0, PRELOAD_COURSES));
+    } catch (e) {
+      if (gen === searchGenRef.current) setSearchFailed(true);
     }
-    setSections(prev => ({ ...prev, ...newSections }));
-    setSectionsLoading(prev => ({ ...prev, ...doneLoading }));
-  }, [sections]);
+    if (gen === searchGenRef.current) setLoading(false);
+  }, [sortResults, loadSectionsForCourses]);
+
+  const retrySections = useCallback((course) => loadSectionsForCourses([course]), [loadSectionsForCourses]);
+
+  // "+" on a section row: straight onto the registration-term schedule, with
+  // a toast to undo it. A second tap while one add is in flight is ignored.
+  const addingRef = useRef(new Set());
+  const quickAdd = async (sec, course) => {
+    const classNumber = String(sec.class_number);
+    if (!signedIn || addingRef.current.has(classNumber)) return;
+    addingRef.current.add(classNumber);
+    rememberQuery();
+    const termCode = termCodeRef.current;
+    const code = course.code || `${sec.subject} ${sec.catalog_number}`;
+    const res = await addSectionToSchedule(user.uid, termCode, classNumber);
+    addingRef.current.delete(classNumber);
+    if (res?.added) {
+      toast.show({
+        message: `${code} Sec ${sec.section_number} added to your ${TERM.label} schedule.`,
+        actionLabel: 'Undo',
+        onAction: async () => {
+          const undone = await removeSectionFromSchedule(user.uid, termCode, classNumber);
+          if (!undone) showAlert("Couldn't undo", 'The section is still on your schedule. Remove it on the Schedule tab.');
+        },
+      });
+    } else if (res?.already) {
+      toast.show({ message: `${code} Sec ${sec.section_number} is already on your schedule.` });
+    } else if (res?.full) {
+      showAlert('Schedule full', 'A schedule holds at most 40 sections. Remove one on the Schedule tab first.');
+    } else {
+      showAlert('Save failed', 'Could not update your schedule. Please try again.');
+    }
+  };
+
+  // A query becomes a "recent search" only when the user commits to it:
+  // submits the box, opens a result, or picks a department/recent. Saving on
+  // every debounced keystroke filled the list with half-typed fragments.
+  const rememberQuery = () => {
+    const q = query.trim();
+    if (q) saveRecent(q);
+  };
+
+  // Results past the first preloaded batch get their sections as they scroll
+  // into view (they used to stay blank forever). loadSectionsForCourses skips
+  // anything already requested, so this is cheap to call repeatedly. FlatList
+  // requires this callback's identity never to change: its only dependency is
+  // itself stable.
+  const onViewableItemsChanged = useCallback(({ viewableItems }) => {
+    loadSectionsForCourses((viewableItems || []).map((v) => v.item).filter(Boolean));
+  }, [loadSectionsForCourses]);
 
   const onSearchChange = (text) => {
     setQuery(text);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!text.trim()) {
+      searchGenRef.current += 1; // a search in flight must not fill the emptied box
       setResults([]);
       setLoading(false);
+      setSearchFailed(false);
       return;
     }
     debounceRef.current = setTimeout(() => performSearch(text.trim()), 250);
   };
 
   const clearSearch = () => {
+    // A search typed in the last 250 ms hasn't started yet: cancel it, and
+    // drop the results of one still in flight, or they'd land on a cleared box.
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    searchGenRef.current += 1;
     setQuery('');
     setResults([]);
+    setLoading(false);
+    setSearchFailed(false);
     inputRef.current?.focus();
   };
 
   const handleCoursePress = (course) => {
+    rememberQuery();
     setDetailModal({
       visible: true,
       course: {
@@ -485,6 +647,7 @@ const SearchScreen = () => {
   };
 
   const handleSectionPress = (section, course) => {
+    rememberQuery();
     setDetailModal({
       visible: true,
       course: {
@@ -501,6 +664,7 @@ const SearchScreen = () => {
 
   const handleDeptSelect = (code) => {
     setQuery(code);
+    saveRecent(code);
     performSearch(code);
   };
 
@@ -513,14 +677,15 @@ const SearchScreen = () => {
           ref={inputRef}
           style={s.searchInput}
           placeholder="Search courses, departments, professors..."
-          placeholderTextColor="#999"
+          placeholderTextColor={STONE}
           value={query}
           onChangeText={onSearchChange}
+          onSubmitEditing={rememberQuery}
           autoCorrect={false}
           returnKeyType="search"
         />
         {query.length > 0 && (
-          <TouchableOpacity style={s.clearBtn} onPress={clearSearch}>
+          <TouchableOpacity style={s.clearBtn} onPress={clearSearch} hitSlop={slopTo(24)} accessibilityRole="button" accessibilityLabel="Clear search">
             <Text style={s.clearBtnText}>X</Text>
           </TouchableOpacity>
         )}
@@ -551,6 +716,12 @@ const SearchScreen = () => {
             </View>
           ))}
         </View>
+      ) : results.length === 0 && !loading && searchFailed ? (
+        <ErrorState
+          title="Couldn't search the catalog"
+          message="Check your connection, then try again."
+          onRetry={() => performSearch(query.trim())}
+        />
       ) : results.length === 0 && !loading ? (
         <View style={s.emptyWrap}>
           <Text style={s.emptyTitle}>No courses found</Text>
@@ -565,11 +736,21 @@ const SearchScreen = () => {
               course={item}
               sections={sections[item.code]}
               sectionsLoading={sectionsLoading[item.code]}
+              sectionsFailed={sectionsFailed[item.code]}
               filters={filters}
               onCoursePress={handleCoursePress}
               onSectionPress={handleSectionPress}
+              onRetrySections={retrySections}
+              onAddSection={signedIn ? quickAdd : undefined}
             />
           )}
+          ListHeaderComponent={
+            <Text style={s.seatNote}>
+              Seat counts are read from LOCUS once a day. Confirm in LOCUS before you register.
+            </Text>
+          }
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={VIEWABILITY_CONFIG}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           contentContainerStyle={{ paddingBottom: 30 }}
@@ -592,7 +773,11 @@ const SearchScreen = () => {
 // =============================================================================
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FBF9F4' },
+  container: { flex: 1, backgroundColor: PARCHMENT },
+
+  // Seat-count age: the note above results, and the flag on an old count.
+  seatNote: { fontSize: 13, color: STONE, marginHorizontal: 16, marginTop: 8, marginBottom: 2, lineHeight: 18 },
+  staleSeats: { fontSize: 12, color: WARN.fg, marginTop: 4 },
 
   // Search bar
   searchBarWrap: {
@@ -602,8 +787,8 @@ const s = StyleSheet.create({
     position: 'relative',
   },
   searchInput: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 17,
+    fontFamily: FONT,
+    fontSize: 17,
     color: '#333',
     backgroundColor: '#F5F5F5',
     borderRadius: 10,
@@ -622,7 +807,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  clearBtnText: { fontFamily: 'CormorantGaramond-Regular', fontSize: 12, fontWeight: 'bold', color: '#666' },
+  clearBtnText: { fontSize: 12, fontWeight: 'bold', color: '#666' },
 
   // Filter chips
   chipRow: { flexGrow: 0, marginBottom: 6 },
@@ -633,12 +818,11 @@ const s = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 14,
   },
-  chipActive: { backgroundColor: '#A30046' },
+  chipActive: { backgroundColor: MAROON },
   chipText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT_SEMI,
+    fontSize: 14,
     color: '#555',
-    fontWeight: 'bold',
   },
   chipTextActive: { color: '#FFFFFF' },
 
@@ -661,7 +845,7 @@ const s = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     marginRight: 12,
   },
   cardInfo: { flex: 1 },
@@ -671,9 +855,8 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   cardCode: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 17,
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 17,
     color: '#333',
   },
   cardCodeRow: {
@@ -692,47 +875,48 @@ const s = StyleSheet.create({
     marginLeft: 8,
     flexShrink: 1,
   },
-  fillFlagDanger: { backgroundColor: '#fee2e2' },
-  fillFlagWarn: { backgroundColor: '#fef3c7' },
+  fillFlagDanger: { backgroundColor: DANGER.bg },
+  fillFlagWarn: { backgroundColor: WARN.bg },
   fillFlagText: {
     // System font, not Cormorant: an 11px serif chip is illegible and the
     // design rule reserves Cormorant for headings.
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 11,
+    fontSize: 11,
     fontWeight: 'bold',
   },
-  fillFlagTextDanger: { color: '#b91c1c' },
-  fillFlagTextWarn: { color: '#92400e' },
+  fillFlagTextDanger: { color: DANGER.fg },
+  fillFlagTextWarn: { color: WARN.fg },
   cardCredits: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
-    color: '#999',
+    fontFamily: FONT,
+    fontSize: 14,
+    color: STONE,
   },
   cardName: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
+    fontFamily: FONT,
+    fontSize: 15,
     color: '#555',
     marginTop: 2,
   },
   cardSub: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
-    color: '#999',
+    fontSize: 13,
+    color: STONE,
     marginTop: 2,
   },
   cardChevron: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 20,
-    color: '#CCC',
+    fontFamily: FONT,
+    fontSize: 20,
+    color: STONE,
     marginLeft: 8,
   },
   cardSections: {
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
   },
+  showAll: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 14 },
+  showAllText: { fontSize: 14, fontWeight: '600', color: MAROON },
   noMatchText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
-    color: '#999',
+    fontFamily: FONT,
+    fontSize: 14,
+    color: STONE,
     textAlign: 'center',
     padding: 16,
   },
@@ -750,25 +934,25 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
+  sectionTopRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  addBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   sectionNum: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 14,
     color: '#333',
   },
   badge: { borderRadius: 8, paddingVertical: 1, paddingHorizontal: 6 },
-  badgeOpen: { backgroundColor: '#d1fae5' },
-  badgeLow: { backgroundColor: '#fef3c7' },
-  badgeFull: { backgroundColor: '#fee2e2' },
+  badgeOpen: { backgroundColor: OK.bg },
+  badgeLow: { backgroundColor: WARN.bg },
+  badgeFull: { backgroundColor: DANGER.bg },
   badgeText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 11,
+    fontSize: 11,
     fontWeight: 'bold',
     color: '#333',
   },
   sectionInfo: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
+    fontFamily: FONT,
+    fontSize: 14,
     color: '#555',
     marginBottom: 2,
   },
@@ -777,23 +961,20 @@ const s = StyleSheet.create({
     gap: 12,
   },
   sectionInstructor: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
-    color: '#A30046',
+    fontSize: 13,
+    color: MAROON,
   },
   sectionRoom: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13,
-    color: '#888',
+    fontSize: 13,
+    color: STONE,
   },
 
   // Department grid
   deptSection: { paddingHorizontal: 16, marginTop: 16 },
   deptTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 20,
+    fontFamily: FONT_SEMI,
+    fontSize: 20,
     color: '#333',
-    fontWeight: 'bold',
     marginBottom: 12,
   },
   deptGrid: {
@@ -811,15 +992,13 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   deptCode: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 18,
-    color: '#A30046',
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 18,
+    color: MAROON,
   },
   deptName: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 11,
-    color: '#888',
+    fontSize: 11,
+    color: STONE,
     textAlign: 'center',
     marginTop: 2,
   },
@@ -827,10 +1006,9 @@ const s = StyleSheet.create({
   // Recent searches
   recentSection: { paddingHorizontal: 16, marginTop: 8 },
   recentTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
-    color: '#999',
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 16,
+    color: STONE,
     marginBottom: 8,
   },
   recentRow: {
@@ -842,44 +1020,43 @@ const s = StyleSheet.create({
   },
   recentTerm: { flex: 1 },
   recentText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
+    fontFamily: FONT,
+    fontSize: 16,
     color: '#333',
   },
   recentX: { padding: 4 },
   recentXText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14,
-    color: '#CCC',
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 14,
+    color: STONE,
   },
 
   // Empty / loading states
   emptyContent: { paddingBottom: 40 },
   hintText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
-    color: '#CCC',
+    fontFamily: FONT,
+    fontSize: 15,
+    color: STONE,
     textAlign: 'center',
     marginTop: 30,
   },
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 16,
-    color: '#999',
+    fontFamily: FONT,
+    fontSize: 16,
+    color: STONE,
     marginTop: 12,
   },
   emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 22,
-    color: '#999',
+    fontFamily: FONT,
+    fontSize: 22,
+    color: STONE,
   },
   emptyHint: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15,
-    color: '#CCC',
+    fontFamily: FONT,
+    fontSize: 15,
+    color: STONE,
     marginTop: 6,
   },
 });

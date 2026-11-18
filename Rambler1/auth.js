@@ -7,6 +7,8 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
   updateProfile,
+  reauthenticateWithCredential,
+  deleteUser,
 } from 'firebase/auth';
 import { auth } from './firebaseConfig';
 
@@ -33,6 +35,35 @@ export const signOut = async () => {
     await signInAnonymously(auth);
   } catch (error) {
     console.log('Anonymous re-sign-in after sign-out skipped:', error.message);
+  }
+};
+
+const signedInAccount = () => {
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous || !user.email) {
+    throw Object.assign(new Error('No signed-in account'), { code: 'auth/no-current-user' });
+  }
+  return user;
+};
+
+// Confirm the password of the signed-in account. Firebase refuses to delete
+// an account that hasn't signed in recently (auth/requires-recent-login);
+// this counts as a fresh sign-in. Throws the Firebase error (e.g.
+// auth/invalid-credential) when the password is wrong.
+export const reauthenticate = async (password) => {
+  const user = signedInAccount();
+  await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+};
+
+// Delete the signed-in account's login, after its data is gone
+// (firestore-data deleteAllUserData). Then sign in anonymously, as signOut
+// does, so catalog reads keep working on the logged-out screens.
+export const deleteCurrentAccount = async () => {
+  await deleteUser(signedInAccount());
+  try {
+    await signInAnonymously(auth);
+  } catch (error) {
+    console.log('Anonymous sign-in after account deletion skipped:', error.message);
   }
 };
 

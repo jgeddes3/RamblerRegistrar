@@ -306,6 +306,8 @@ const URL_OVERRIDES = {
   const APPLY = args.includes('--apply');
   const MAJORS = args.includes('--majors');
   const nameArg = (args.find((a) => a.startsWith('--name=')) || '').split('=')[1] || null;
+  // Dry runs only read locus.db; --apply rewrites the whole image.
+  if (APPLY) await require('./cli-guard').requireServerStopped('scrape-requirements.js --apply');
 
   const SQL = await initSqlJs();
   const db = new SQL.Database(fs.readFileSync(DB_PATH));

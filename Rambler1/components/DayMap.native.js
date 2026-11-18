@@ -11,6 +11,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { buildSegments, routeForSegments } from '../route-utils';
+import { MAROON } from '../theme';
 
 // stops: [{ latitude, longitude, campus, title, description }] in visit order.
 // home: { latitude, longitude } | null.
@@ -60,7 +61,7 @@ const DayMap = ({ stops = [], home = null }) => {
           coordinate={{ latitude: p.latitude, longitude: p.longitude }}
           title={p.title}
           description={p.description}
-          pinColor="#A30046"
+          pinColor={MAROON}
         />
       ))}
       {segments.map((seg, i) => {
@@ -76,7 +77,7 @@ const DayMap = ({ stops = [], home = null }) => {
           <Polyline
             key={`leg-${i}`}
             coordinates={coords}
-            strokeColor={driving ? '#2563eb' : '#A30046'}
+            strokeColor={driving ? '#2563eb' : MAROON}
             strokeWidth={3}
             lineDashPattern={driving || !loaded ? [6, 6] : undefined}
           />

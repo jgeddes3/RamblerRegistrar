@@ -2,7 +2,8 @@ const initSqlJs = require('sql.js');
 const fs = require('fs');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, 'locus.db');
+// LOCUS_DB_PATH lets tests point at a throwaway file instead of the live DB.
+const DB_PATH = process.env.LOCUS_DB_PATH || path.join(__dirname, 'locus.db');
 let db = null;
 
 // =============================================================================
@@ -58,6 +59,10 @@ async function initDb() {
       UNIQUE(term_code, class_number)
     )
   `);
+  // When this section's enrollment numbers were last actually read from
+  // LOCUS (ISO 8601). A failed read carries the numbers AND this time forward,
+  // so the app can say how old a seat count is. NULL = never read.
+  try { db.run('ALTER TABLE sections ADD COLUMN enrollment_read_at TEXT'); } catch (e) { /* exists */ }
 
   db.run('CREATE INDEX IF NOT EXISTS idx_sections_term ON sections(term_code)');
   db.run('CREATE INDEX IF NOT EXISTS idx_sections_subject ON sections(subject)');
@@ -354,14 +359,29 @@ module.exports = {
   initDb,
 
   insertSection(termCode, section) {
+    // No enrollment read this run (detail page failed, or a scrape without
+    // --enrollment): keep the section's last known numbers instead of
+    // overwriting them with 0. A successful read of 0 is still saved as 0.
+    // The read time travels with the numbers: stamped on a read (the scraper
+    // passes the moment it read the page), carried forward on a failed one.
+    let enrollment = section;
+    let readAt = section.enrollment_read_at || new Date().toISOString();
+    if (section.enrollment_cap === undefined || section.enrollment_cap === null) {
+      enrollment = queryAll(
+        `SELECT enrollment_cap, enrollment_total, waitlist_cap, waitlist_total, enrollment_read_at
+         FROM sections WHERE term_code = ? AND class_number = ?`,
+        [termCode, section.class_number || '']
+      )[0] || {};
+      readAt = enrollment.enrollment_read_at || null;
+    }
     db.run(`
       INSERT OR REPLACE INTO sections (
         term_code, subject, catalog_number, section_number, class_number,
         title, instructor, meeting_days, meeting_time_start, meeting_time_end,
         room, building, enrollment_cap, enrollment_total,
         waitlist_cap, waitlist_total, instruction_mode, component, status,
-        start_date, end_date, raw_data
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        start_date, end_date, raw_data, enrollment_read_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       termCode,
       section.subject || '',
@@ -375,16 +395,17 @@ module.exports = {
       section.meeting_time_end || '',
       section.room || '',
       section.building || '',
-      section.enrollment_cap || 0,
-      section.enrollment_total || 0,
-      section.waitlist_cap || 0,
-      section.waitlist_total || 0,
+      enrollment.enrollment_cap || 0,
+      enrollment.enrollment_total || 0,
+      enrollment.waitlist_cap || 0,
+      enrollment.waitlist_total || 0,
       section.instruction_mode || '',
       section.component || '',
       section.status || '',
       section.start_date || section.dates || '',
       section.end_date || '',
       JSON.stringify(section.raw_data || section),
+      readAt,
     ]);
     // No save() here (B5): a full scrape inserts ~2,500 sections and a full-DB
     // serialize per insert stalls the event loop for the whole run. Callers
@@ -722,13 +743,19 @@ module.exports = {
   // ENROLLMENT HISTORY (tracking which courses fill up fast)
   // ===========================================================================
 
-  // Take a snapshot of current enrollment for all sections in a term
-  snapshotEnrollment(termCode) {
+  // Take a snapshot of current enrollment for a term's sections.
+  // freshClassNumbers (a Set of class_number strings) limits the snapshot to
+  // sections whose numbers were actually read this run: a section whose read
+  // failed keeps its previous numbers in `sections`, and recording those here
+  // with today's date would pass stale data off as a fresh reading. Omit it
+  // to snapshot every section.
+  snapshotEnrollment(termCode, freshClassNumbers) {
     const now = new Date();
     const today = now.toISOString().split('T')[0] + 'T' + String(now.getUTCHours()).padStart(2, '0');
     const sections = this.getAllSections(termCode);
     let count = 0;
     for (const s of sections) {
+      if (freshClassNumbers && !freshClassNumbers.has(String(s.class_number))) continue;
       const cap = parseInt(s.enrollment_cap) || 0;
       const total = parseInt(s.enrollment_total) || 0;
       const percentFull = cap > 0 ? Math.round((total / cap) * 100) : 0;

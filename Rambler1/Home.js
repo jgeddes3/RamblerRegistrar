@@ -4,9 +4,9 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from './AppContext';
 import Skeleton from './components/Skeleton';
+import ErrorState from './components/ErrorState';
 import {
-  FONT, FONT_MED, FONT_SEMI, FONT_ITALIC, MAROON, PARCHMENT, INK, STONE, HAIRLINE, GOLD,
-  CARD, EYEBROW,
+  FONT, FONT_MED, FONT_SEMI, FONT_ITALIC, MAROON, PARCHMENT, INK, STONE, HAIRLINE, GOLD, CARD, EYEBROW, OK, WARN, DANGER,
 } from './theme';
 import {
   fetchSchedule,
@@ -21,24 +21,13 @@ import PhoenixPreviewModal from './components/PhoenixPreviewModal';
 import { nearestStation, getTrainArrivals, groupArrivalsBothWays } from './cta';
 import { walkMinutesFromMeters } from './commute-utils';
 import { computeGraduationOutlook } from './graduation-outlook';
+import { inSessionTermFor } from './term';
 
-// Term currently IN SESSION — deliberately different from the
-// getRegistrationTerm() helper used by ScheduleScreen/SearchScreen/
-// ProgressScreen, which targets the term students are registering FOR.
-// "Today's Schedule" must show the term happening now:
-//   Jan-May -> Spring of the current year, Aug-Dec -> Fall of the current
-//   year, Jun-Jul -> null (no in-session term; the card shows a summer state).
-function getCurrentTerm() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const yy = year % 100;
-  if (month >= 8) return { code: `1${yy}6`, label: `Fall ${year}` };
-  if (month <= 5) return { code: `1${yy}2`, label: `Spring ${year}` };
-  return null; // June/July: summer break
-}
-
-const TERM = getCurrentTerm();
+// Term currently IN SESSION — deliberately different from the registration
+// term used by Schedule/Search, which targets the term students are
+// registering FOR. "Today's Schedule" must show the term happening now
+// (null in June/July: the card shows a summer state). See term.js.
+const TERM = inSessionTermFor();
 
 // JS Date.getDay() (Sun=0..Sat=6) -> LOCUS day token.
 const JS_DOW_TO_DAY = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -136,9 +125,9 @@ function eventTimeLabel(ev) {
 // Graduation-outlook status -> accent color (dot, left border, status text).
 // Strong tones from the app's badge palette (ok/warning/danger).
 const OUTLOOK_COLORS = {
-  'on-track': '#065f46',
-  'at-risk': '#92400e',
-  'off-track': '#b91c1c',
+  'on-track': OK.fg,
+  'at-risk': WARN.fg,
+  'off-track': DANGER.fg,
 };
 
 // One-line status label for the outlook card.
@@ -181,6 +170,10 @@ const Home = () => {
   // Library-hours state: null = loading/unavailable, [] = unavailable, rows = ready
   const [libLoading, setLibLoading] = useState(true);
   const [libLocations, setLibLocations] = useState([]);
+  const [libFailed, setLibFailed] = useState(false); // read failed, vs. no hours listed
+
+  // The current focus's isActive, so a Try again press can reload one card.
+  const focusActiveRef = useRef(() => false);
 
   // Campus-events state: [] = section hidden (loading, no events today, or the
   // web/CORS case where getEventsToday() resolves []).
@@ -276,6 +269,7 @@ const Home = () => {
     if (isActive()) setLibLoading(true);
     const data = await getLibraryHours(); // campus-api: null on failure
     if (!isActive()) return;
+    setLibFailed(data === null);
     const locations = data && Array.isArray(data.locations) ? data.locations : [];
     // LibCal returns parent + child desks with duplicate display names
     // (e.g. two "Research Help Desk Hours" rows) — keep the first of each name.
@@ -350,6 +344,7 @@ const Home = () => {
     useCallback(() => {
       let active = true;
       const isActive = () => active;
+      focusActiveRef.current = isActive;
       loadToday(isActive);
       loadLibrary(isActive);
       loadEvents(isActive);
@@ -384,7 +379,7 @@ const Home = () => {
       <ScrollView contentContainerStyle={s.scrollContent}>
         {/* ------------------------------ Masthead --------------------------- */}
         <Text style={s.mastheadDate}>{mastheadDate}</Text>
-        <Text style={s.greeting}>
+        <Text accessibilityRole="header" style={s.greeting}>
           {firstName ? `Good ${now.getHours() < 12 ? 'morning' : now.getHours() < 17 ? 'afternoon' : 'evening'}, ${firstName}` : 'Welcome'}
         </Text>
         {identityBits.length > 0 ? (
@@ -393,7 +388,7 @@ const Home = () => {
         <View style={s.mastheadRule} />
 
         {/* ------------------------------- Today's Schedule ------------------ */}
-        <Text style={s.eyebrow}>Today's classes</Text>
+        <Text accessibilityRole="header" style={s.eyebrow}>Today's classes</Text>
         <View style={s.card}>
           {schedState === 'loading' ? (
             <View>
@@ -408,10 +403,12 @@ const Home = () => {
               ))}
             </View>
           ) : schedState === 'unavailable' ? (
-            <View style={s.cardCenter}>
-              <Text style={s.cardEmptyText}>Couldn't load your schedule</Text>
-              <Text style={s.cardHintText}>Check your connection and try again.</Text>
-            </View>
+            <ErrorState
+              title="Couldn't load your schedule"
+              message="Check your connection, then try again."
+              onRetry={() => loadToday(focusActiveRef.current)}
+              retryLabel="Try again loading your schedule"
+            />
           ) : schedState === 'summer' ? (
             <View style={s.cardCenter}>
               <Text style={s.cardEmptyText}>No term in session</Text>
@@ -483,7 +480,7 @@ const Home = () => {
         {/* -------------------------------- Your train ----------------------- */}
         {train ? (
           <>
-            <Text style={s.eyebrow}>Your train</Text>
+            <Text accessibilityRole="header" style={s.eyebrow}>Your train</Text>
             <View style={s.card}>
               <View style={[s.trainHeaderRow, train.arrivalGroups.length > 0 && s.rowBorder]}>
                 <Ionicons name="train-outline" size={15} color={MAROON} />
@@ -519,7 +516,7 @@ const Home = () => {
         {/* ---------------------------- Happening on campus ------------------ */}
         {todayEvents.length > 0 ? (
           <>
-            <Text style={s.eyebrow}>Happening on campus</Text>
+            <Text accessibilityRole="header" style={s.eyebrow}>Happening on campus</Text>
             <View style={s.card}>
               {todayEvents.map((ev, i) => (
                 <View
@@ -550,7 +547,7 @@ const Home = () => {
         {/* ----------------------------- From the Phoenix -------------------- */}
         {phoenixToday.length > 0 ? (
           <>
-            <Text style={s.eyebrow}>From the Phoenix</Text>
+            <Text accessibilityRole="header" style={s.eyebrow}>From the Phoenix</Text>
             <View style={s.card}>
               {phoenixToday.map((story, i) => (
                 <TouchableOpacity
@@ -584,7 +581,7 @@ const Home = () => {
         {/* ----------------------------- Graduation Outlook ------------------ */}
         {outlook ? (
           <>
-            <Text style={s.eyebrow}>Graduation outlook</Text>
+            <Text accessibilityRole="header" style={s.eyebrow}>Graduation outlook</Text>
             <View
               style={[
                 s.card,
@@ -622,7 +619,7 @@ const Home = () => {
         ) : null}
 
         {/* -------------------------------- Library Hours -------------------- */}
-        <Text style={s.eyebrow}>Library hours</Text>
+        <Text accessibilityRole="header" style={s.eyebrow}>Library hours</Text>
         <View style={s.card}>
           {libLoading ? (
             <View>
@@ -633,6 +630,13 @@ const Home = () => {
                 </View>
               ))}
             </View>
+          ) : libFailed ? (
+            <ErrorState
+              title="Couldn't load library hours"
+              message="Check your connection, then try again."
+              onRetry={() => loadLibrary(focusActiveRef.current)}
+              retryLabel="Try again loading library hours"
+            />
           ) : libLocations.length === 0 ? (
             <View style={s.cardCenter}>
               <Text style={s.cardEmptyText}>Hours unavailable</Text>
@@ -786,13 +790,11 @@ const s = StyleSheet.create({
   },
   classBuilding: {
     flex: 1,
-    fontFamily: FONT,
     fontSize: 13,
     color: STONE,
   },
   classInstructor: {
     flex: 1,
-    fontFamily: FONT,
     fontSize: 13,
     color: STONE,
   },
@@ -847,15 +849,15 @@ const s = StyleSheet.create({
   },
   trainNoTrains: {
     flexShrink: 0,
-    fontFamily: FONT_ITALIC,
     fontSize: 13,
     color: '#B3ABA1',
+    fontStyle: 'italic',
   },
   trainHint: {
-    fontFamily: FONT_ITALIC,
     fontSize: 13,
     color: '#B3ABA1',
     paddingVertical: 10,
+    fontStyle: 'italic',
   },
 
   // Happening on campus — sans time slot, serif title/location, see-all footer
@@ -880,7 +882,6 @@ const s = StyleSheet.create({
     color: INK,
   },
   eventLocation: {
-    fontFamily: FONT,
     fontSize: 13,
     color: STONE,
     marginTop: 1,
@@ -917,7 +918,6 @@ const s = StyleSheet.create({
     color: INK,
   },
   phoenixMeta: {
-    fontFamily: FONT,
     fontSize: 13,
     color: STONE,
     marginTop: 1,
@@ -947,11 +947,11 @@ const s = StyleSheet.create({
     lineHeight: 19,
   },
   outlookDisclaimer: {
-    fontFamily: FONT_ITALIC,
     fontSize: 13,
     color: '#B3ABA1',
     marginTop: 6,
     marginLeft: 23,
+    fontStyle: 'italic',
   },
 
   // Library hours rows

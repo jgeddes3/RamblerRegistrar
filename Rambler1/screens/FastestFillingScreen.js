@@ -14,7 +14,7 @@ import { useAppContext } from '../AppContext';
 import { fetchFastestFilling, fetchDegreeProgress, fetchPlans } from '../firestore-data';
 import { allPlannedCodes, normCode } from '../plan-utils';
 import CourseDetailModal from '../CourseDetailModal';
-import { FONT, MAROON, EYEBROW } from '../theme';
+import { FONT, MAROON, EYEBROW, STONE, FONT_SEMI, WARN, PARCHMENT, MAROON_WASH } from '../theme';
 
 const CLASS_LABELS = {
   'day1-2': 'Filled in 1–2 days',
@@ -106,7 +106,7 @@ const FastestFillingScreen = () => {
             </Text>
             {isUnderclass && !hasPriority ? (
               <View style={s.noteBanner}>
-                <Ionicons name="flash-outline" size={16} color="#92400E" />
+                <Ionicons name="flash-outline" size={16} color={WARN.fg} />
                 <Text style={s.noteText}>
                   Day-1/2 courses were full before sophomore registration
                   opened last term. Have backups ready for anything here.
@@ -161,20 +161,20 @@ const FastestFillingScreen = () => {
 };
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FBF9F4' },
+  container: { flex: 1, backgroundColor: PARCHMENT },
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  loadingText: { fontFamily: FONT, fontSize: 16, color: '#999', marginTop: 12 },
-  emptyTitle: { fontFamily: FONT, fontSize: 22, color: '#999', textAlign: 'center' },
-  emptyHint: { fontFamily: FONT, fontSize: 15, color: '#CCC', marginTop: 6, textAlign: 'center' },
+  loadingText: { fontFamily: FONT, fontSize: 16, color: STONE, marginTop: 12 },
+  emptyTitle: { fontFamily: FONT, fontSize: 22, color: STONE, textAlign: 'center' },
+  emptyHint: { fontFamily: FONT, fontSize: 15, color: STONE, marginTop: 6, textAlign: 'center' },
 
   headerWrap: { padding: 16, paddingBottom: 8 },
-  headerText: { fontFamily: FONT, fontSize: 15, color: '#777', lineHeight: 21 },
+  headerText: { fontFamily: FONT, fontSize: 15, color: STONE, lineHeight: 21 },
   sectionLabel: { ...EYEBROW, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 },
   noteBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#FEF3C7', borderRadius: 10, padding: 10, marginTop: 10,
+    backgroundColor: WARN.bg, borderRadius: 10, padding: 10, marginTop: 10,
   },
-  noteText: { flex: 1, fontFamily: FONT, fontSize: 14, color: '#92400E' },
+  noteText: { flex: 1, fontFamily: FONT, fontSize: 14, color: WARN.fg },
 
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -182,15 +182,15 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
   },
   daysBadge: {
-    width: 52, height: 52, borderRadius: 12, backgroundColor: '#FBF0F5',
+    width: 52, height: 52, borderRadius: 12, backgroundColor: MAROON_WASH,
     alignItems: 'center', justifyContent: 'center',
   },
-  daysBadgeNum: { fontFamily: FONT, fontSize: 20, fontWeight: '700', color: MAROON },
-  daysBadgeUnit: { fontFamily: FONT, fontSize: 11, color: MAROON, marginTop: -3 },
-  rowCode: { fontFamily: FONT, fontSize: 17, fontWeight: '700', color: '#333' },
-  rowName: { fontFamily: FONT, fontSize: 14, color: '#777' },
-  rowClass: { fontFamily: FONT, fontSize: 13, color: '#B45309', marginTop: 1 },
-  chevron: { fontFamily: FONT, fontSize: 24, color: '#CCC' },
+  daysBadgeNum: { fontFamily: FONT_SEMI, fontSize: 20, color: MAROON },
+  daysBadgeUnit: { fontSize: 11, color: MAROON, marginTop: -3 },
+  rowCode: { fontFamily: FONT_SEMI, fontSize: 17, color: '#333' },
+  rowName: { fontFamily: FONT, fontSize: 14, color: STONE },
+  rowClass: { fontSize: 13, color: '#B45309', marginTop: 1 },
+  chevron: { fontFamily: FONT, fontSize: 24, color: STONE },
 });
 
 export default FastestFillingScreen;

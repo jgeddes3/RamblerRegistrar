@@ -209,6 +209,7 @@ const batch2 = [
 // =============================================================================
 
 async function seed() {
+  await require('./cli-guard').requireServerStopped('seed-riasec-batch2.js');
   const database = await db.initDb();
 
   // Helper to find program ID by name — prefer exact match, then partial

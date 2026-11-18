@@ -1,9 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, Platform, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppContext } from '../AppContext';
+import StepCounter from '../components/ui/StepCounter';
+import { useFocused } from '../components/ui/useOnboardingDraft';
+import { loadDraft, saveDraft } from '../onboarding';
 import { saveQuizResults } from '../firestore-data';
 import BackgroundImage from '../styleComponents/BackgroundImage';
+import { STONE, FONT_SEMI, FONT, MAROON } from '../theme';
+import { slopTo } from '../components/ui/hitSlop';
+import Tappable from '../components/ui/Tappable';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -65,6 +72,39 @@ const SchedulingPrefs = () => {
   const [currentQ, setCurrentQ] = useState(0);
   const navigation = useNavigation();
   const { setQuizResults, quizResults, user, isLoggedIn } = useAppContext();
+  // In sign-up (not a retake from More): a saved draft and Skip for now.
+  const onboarding = !isLoggedIn;
+  const restoredRef = useRef(!onboarding);
+  const skipSaveRef = useRef(false); // the restore's own render must not write (see the quiz)
+  const focused = useFocused();
+
+  useEffect(() => {
+    if (!onboarding) return undefined;
+    let alive = true;
+    loadDraft(AsyncStorage).then((draft) => {
+      if (!alive) return;
+      const p = draft && draft.prefsProgress;
+      if (p && p.answers) {
+        skipSaveRef.current = true;
+        setAnswers(p.answers);
+        if (Number.isInteger(p.current)) setCurrentQ(Math.min(p.current, QUESTIONS.length - 1));
+      }
+      restoredRef.current = true;
+    });
+    return () => { alive = false; };
+  }, [onboarding]);
+
+  useEffect(() => {
+    if (!onboarding || !restoredRef.current) return;
+    if (skipSaveRef.current) { skipSaveRef.current = false; return; }
+    if (!focused) return; // see the quiz
+    saveDraft(AsyncStorage, { step: 'SchedulingPrefs', prefsProgress: { answers, current: currentQ } });
+  }, [onboarding, focused, answers, currentQ]);
+
+  const skipPrefs = () => {
+    saveDraft(AsyncStorage, { step: 'AccountSetup' });
+    navigation.navigate('AccountSetup');
+  };
 
   const q = QUESTIONS[currentQ];
   const currentAnswer = answers[q.key];
@@ -77,9 +117,14 @@ const SchedulingPrefs = () => {
     if (currentQ < QUESTIONS.length - 1) {
       setCurrentQ(currentQ + 1);
     } else {
-      // Save scheduling prefs into quiz results
-      const merged = quizResults ? { ...quizResults, schedulingPrefs: answers } : null;
+      // Save scheduling prefs into quiz results. A skipped quiz has none:
+      // keep the prefs anyway, under empty scores (Profile shows a quiz
+      // profile only when there is a code).
+      const merged = quizResults
+        ? { ...quizResults, schedulingPrefs: answers }
+        : (onboarding ? { scores: {}, schedulingPrefs: answers } : null);
       if (merged) setQuizResults(merged);
+      if (onboarding && merged) saveDraft(AsyncStorage, { step: 'AccountSetup', quizResults: merged });
 
       // RETAKE path (quiz relaunched from Profile/More while signed in):
       // there is no AccountSetup ahead — persist straight to Firestore and
@@ -115,12 +160,14 @@ const SchedulingPrefs = () => {
         {/* Header */}
         <View style={s.headerBar}>
           <View style={s.headerSide}>
-            <TouchableOpacity onPress={handleBack} style={s.backButton}>
+            <TouchableOpacity onPress={handleBack} style={s.backButton} hitSlop={slopTo(60, 36)} accessibilityRole="button">
               <Text style={s.backButtonText}>Back</Text>
             </TouchableOpacity>
           </View>
           <Image source={require('../assets/Icons/Logo2-02.png')} style={s.headerLogo} />
-          <View style={s.headerSide} />
+          <View style={s.headerSide}>
+            <StepCounter route="SchedulingPrefs" />
+          </View>
         </View>
 
         {/* Progress */}
@@ -128,7 +175,7 @@ const SchedulingPrefs = () => {
           <View style={s.progressBarBg}>
             <View style={[s.progressBarFill, { width: `${((currentQ + 1) / QUESTIONS.length) * 100}%` }]} />
           </View>
-          <Text style={s.progressText}>{currentQ + 1} / {QUESTIONS.length}</Text>
+          <Text style={s.progressText} accessibilityLabel={`Question ${currentQ + 1} of ${QUESTIONS.length}`}>{currentQ + 1} / {QUESTIONS.length}</Text>
         </View>
 
         <View style={s.sectionBadge}>
@@ -138,12 +185,12 @@ const SchedulingPrefs = () => {
         {/* Question */}
         <ScrollView contentContainerStyle={s.scrollContent}>
           <View style={s.questionCard}>
-            <Text style={s.question}>{q.question}</Text>
+            <Text style={s.question} accessibilityRole="header">{q.question}</Text>
 
             {q.options.map((option) => {
               const selected = currentAnswer === option.value;
               return (
-                <TouchableOpacity
+                <Tappable role="radio" checked={selected}
                   key={option.value}
                   style={[s.option, selected ? s.optionSelected : s.optionUnselected]}
                   onPress={() => handleSelect(option.value)}
@@ -152,7 +199,7 @@ const SchedulingPrefs = () => {
                   <Text style={selected ? s.optionTextSelected : s.optionTextUnselected}>
                     {option.label}
                   </Text>
-                </TouchableOpacity>
+                </Tappable>
               );
             })}
           </View>
@@ -169,6 +216,16 @@ const SchedulingPrefs = () => {
           ) : (
             <Text style={s.hintText}>Select an option to continue</Text>
           )}
+          {onboarding ? (
+            <TouchableOpacity
+              onPress={skipPrefs}
+              style={s.skipButton}
+              accessibilityRole="button"
+              accessibilityLabel="Skip scheduling preferences for now"
+            >
+              <Text style={s.skipText}>Skip for now</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
     </BackgroundImage>
@@ -176,9 +233,15 @@ const SchedulingPrefs = () => {
 };
 
 const s = StyleSheet.create({
+  // Same as the quiz's: a text button on a white pill, 44 pt tall.
+  skipButton: {
+    alignSelf: 'center', minHeight: 44, justifyContent: 'center', marginTop: 8,
+    paddingHorizontal: 16, backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 22,
+  },
+  skipText: { fontSize: 15, fontWeight: '600', color: MAROON },
   headerBar: {
     height: 120,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
@@ -194,10 +257,9 @@ const s = StyleSheet.create({
     borderRadius: 4,
   },
   backButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 15,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
   },
   progressContainer: {
     paddingHorizontal: 20,
@@ -216,11 +278,11 @@ const s = StyleSheet.create({
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderRadius: 4,
   },
   progressText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: '#666',
     width: 50,
@@ -228,17 +290,16 @@ const s = StyleSheet.create({
   },
   sectionBadge: {
     alignSelf: 'center',
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderRadius: 16,
     paddingVertical: 4,
     paddingHorizontal: 14,
     marginBottom: 4,
   },
   sectionText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 14,
     color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -251,7 +312,7 @@ const s = StyleSheet.create({
     padding: 18,
   },
   question: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 26,
     color: '#000',
     marginBottom: 20,
@@ -268,17 +329,17 @@ const s = StyleSheet.create({
     borderColor: '#D9D9D9',
   },
   optionSelected: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderWidth: 1,
-    borderColor: '#A30046',
+    borderColor: MAROON,
   },
   optionTextUnselected: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     color: '#333',
   },
   optionTextSelected: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     color: '#FFFFFF',
   },
@@ -291,7 +352,7 @@ const s = StyleSheet.create({
     borderTopColor: '#E0E0E0',
   },
   nextButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 6,
@@ -299,15 +360,14 @@ const s = StyleSheet.create({
     height: 50,
   },
   nextButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 20,
     color: 'white',
-    fontWeight: 'bold',
   },
   hintText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 15,
-    color: '#999',
+    color: STONE,
     marginBottom: 4,
   },
 });

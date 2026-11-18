@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Image, ActivityIndicator, TouchableOpacity, Platform, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { fetchPrograms } from './Database';
+import { fetchPrograms, ensureCatalog } from './Database';
 import { useAppContext } from './AppContext';
 import CustomLongButton1 from './styleComponents/CustomLongButton1';
 import { ScrollView } from 'react-native';
 import BackgroundImage from './styleComponents/BackgroundImage';
+import { STONE, FONT, FONT_SEMI, MAROON } from './theme';
+import StepCounter from './components/ui/StepCounter';
+import useOnboardingDraft from './components/ui/useOnboardingDraft';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -28,14 +31,19 @@ const ProgramSelect =() => {
     setSelectedCourses, setQuizTags, setUser, setIsLoggedIn,
   } = useAppContext();
   const navigation = useNavigation();
+  useOnboardingDraft('ProgramSelect', { selectedProgram, selectedProgram2, selectedMinors });
 
   const loadPrograms = () => {
     setLoading(true);
     setError('');
-    Promise.all([fetchPrograms('major'), fetchPrograms('minor')])
+    // ensureCatalog: if the local catalog is empty (first launch was offline),
+    // try the download again now instead of showing an empty list forever.
+    ensureCatalog()
+      .then(() => Promise.all([fetchPrograms('major'), fetchPrograms('minor')]))
       .then(([majorData, minorData]) => {
         setPrograms(majorData);
         setMinors(minorData);
+        if (majorData.length === 0) setError("Couldn't load programs. Check your connection and retry.");
       })
       .catch(() => setError('Failed to load programs'))
       .finally(() => setLoading(false));
@@ -172,7 +180,9 @@ const ProgramSelect =() => {
         </TouchableOpacity>
       </View>
       <Image source={require('./assets/Icons/Logo2-02.png')} style={s.headerLogo} />
-      <View style={s.headerSide} />
+      <View style={s.headerSide}>
+        <StepCounter route="ProgramSelect" />
+      </View>
     </View>
   );
 
@@ -200,7 +210,7 @@ const ProgramSelect =() => {
         <View style={{ flex: 1 }}>
           {renderHeader()}
           {renderProgress()}
-          <Text style={s.pageTitle}>{getTitle()}</Text>
+          <Text accessibilityRole="header" style={s.pageTitle}>{getTitle()}</Text>
           <View style={s.choiceContainer}>
             <TouchableOpacity style={s.choiceButton} onPress={() => handleMinorChoice(true)}>
               <Text style={s.choiceButtonText}>Minor</Text>
@@ -220,7 +230,7 @@ const ProgramSelect =() => {
       <View style={{ flex: 1 }}>
         {renderHeader()}
         {renderProgress()}
-        <Text style={s.pageTitle}>{getTitle()}</Text>
+        <Text accessibilityRole="header" style={s.pageTitle}>{getTitle()}</Text>
 
         {/* Major phase: show selected major with remove */}
         {phase === 'major' && selectedProgram && (
@@ -265,7 +275,7 @@ const ProgramSelect =() => {
           </View>
         ))}
         {phase === 'minor' && selectedMinors.length >= 3 && (
-          <Text style={{ fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#A30046', textAlign: 'center', marginTop: 4 }}>
+          <Text style={{ fontFamily: FONT, fontSize: 14, color: MAROON, textAlign: 'center', marginTop: 4 }}>
             Maximum of 3 minors selected
           </Text>
         )}
@@ -287,10 +297,10 @@ const ProgramSelect =() => {
           />
         </View>
         {loading ? (
-          <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 100 }} />
+          <ActivityIndicator size="large" color={MAROON} style={{ marginTop: 100 }} />
         ) : error ? (
           <View style={{ alignItems: 'center', marginTop: 100 }}>
-            <Text style={{ color: '#A30046', textAlign: 'center', fontFamily: 'CormorantGaramond-Regular', fontSize: 18 }}>
+            <Text style={{ color: MAROON, textAlign: 'center', fontFamily: FONT, fontSize: 18 }}>
               {error}
             </Text>
             <TouchableOpacity onPress={loadPrograms} style={s.retryButton}>
@@ -323,7 +333,7 @@ const ProgramSelect =() => {
 const s = StyleSheet.create({
   headerBar: {
     height: 120,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
@@ -346,10 +356,9 @@ const s = StyleSheet.create({
     borderRadius: 4,
   },
   backButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 15,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
   },
   progressBar: {
     flexDirection: 'row',
@@ -369,7 +378,7 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   progressDotActive: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
   },
   progressDotCurrent: {
     width: 16,
@@ -379,16 +388,15 @@ const s = StyleSheet.create({
     borderColor: '#FFFFFF',
   },
   progressLabel: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
-    color: '#999',
+    color: STONE,
   },
   progressLabelActive: {
-    color: '#A30046',
+    color: MAROON,
     fontWeight: 'bold',
   },
   pageTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 36,
     textAlign: 'center',
     color: 'black',
@@ -406,9 +414,9 @@ const s = StyleSheet.create({
     marginTop: 8,
   },
   selectedBadgeText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 16,
-    color: '#A30046',
+    color: MAROON,
     flexShrink: 1,
   },
   selectedBadgeInfo: {
@@ -423,25 +431,25 @@ const s = StyleSheet.create({
     opacity: 0.7,
   },
   selectedBadgeInfoText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: '#333',
   },
   removeButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderRadius: 4,
     paddingVertical: 4,
     paddingHorizontal: 10,
     marginLeft: 10,
   },
   removeButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: '#FFFFFF',
   },
   searchInput: {
     fontSize: 17,
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     color: '#000000',
     backgroundColor: '#D9D9D9',
     borderWidth: 1,
@@ -458,7 +466,7 @@ const s = StyleSheet.create({
     gap: 20,
   },
   choiceButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     paddingVertical: 16,
     paddingHorizontal: 40,
     borderRadius: 6,
@@ -468,18 +476,18 @@ const s = StyleSheet.create({
   choiceButtonSecondary: {
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#A30046',
+    borderColor: MAROON,
   },
   choiceButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 24,
     color: '#FFFFFF',
   },
   choiceButtonTextSecondary: {
-    color: '#A30046',
+    color: MAROON,
   },
   skipHint: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: '#666',
     marginTop: 10,
@@ -488,7 +496,7 @@ const s = StyleSheet.create({
     alignSelf: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#A30046',
+    borderColor: MAROON,
     borderRadius: 6,
     paddingVertical: 12,
     paddingHorizontal: 24,
@@ -496,26 +504,24 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   undecidedButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 20,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
   },
   undecidedHint: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#888',
+    color: STONE,
     marginTop: 2,
   },
   retryButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: 4,
     marginTop: 16,
   },
   retryButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     color: '#FFFFFF',
   },
@@ -526,7 +532,7 @@ const s = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   nextButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 2,
@@ -535,7 +541,7 @@ const s = StyleSheet.create({
     height: 53,
   },
   nextButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 19,
     color: '#FFFFFF',
   },

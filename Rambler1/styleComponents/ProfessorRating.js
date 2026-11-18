@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { STONE, FONT, FONT_SEMI } from '../theme';
 
 const ProfessorRating = ({ professor }) => {
   const rating = professor.avg_rating ? professor.avg_rating.toFixed(1) : 'N/A';
@@ -19,7 +20,7 @@ const ProfessorRating = ({ professor }) => {
         <Text style={styles.name}>
           {professor.first_name} {professor.last_name}
         </Text>
-        <View style={[styles.ratingBadge, { backgroundColor: professor.avg_rating ? ratingColor : '#999' }]}>
+        <View style={[styles.ratingBadge, { backgroundColor: professor.avg_rating ? ratingColor : STONE }]}>
           <Text style={styles.ratingText}>{rating}</Text>
         </View>
       </View>
@@ -48,7 +49,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   name: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     color: '#000',
     flex: 1,
@@ -61,10 +62,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ratingText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 16,
     color: '#fff',
-    fontWeight: 'bold',
   },
   statsRow: {
     flexDirection: 'row',
@@ -72,18 +72,17 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   stat: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: '#555',
   },
   statSeparator: {
     marginHorizontal: 8,
-    color: '#ccc',
+    color: STONE,
   },
   ratingsCount: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
-    color: '#999',
+    color: STONE,
   },
 });
 

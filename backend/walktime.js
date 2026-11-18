@@ -105,12 +105,12 @@ function analyzeSchedule(sections, buildings) {
   // Parse each section into structured time blocks
   const timeBlocks = [];
   for (const section of sections) {
-    const days = parseDays(section.meeting_days || section.days_times);
-    const timeMatch = (section.days_times || '').match(/(\d+:\d+[AP]M)\s*-\s*(\d+:\d+[AP]M)/i);
-    if (!timeMatch || days.length === 0) continue;
-
-    const startMin = parseTime(timeMatch[1]);
-    const endMin = parseTime(timeMatch[2]);
+    // Sections store meeting_days / meeting_time_start / meeting_time_end (there
+    // is no days_times column in the DB; that is only the scraper's raw field).
+    const days = parseDays(section.meeting_days);
+    const startMin = parseTime(section.meeting_time_start);
+    const endMin = parseTime(section.meeting_time_end);
+    if (startMin === null || endMin === null || days.length === 0) continue;
     const buildingName = parseBuildingName(section.room);
 
     for (const day of days) {

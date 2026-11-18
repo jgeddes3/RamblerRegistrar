@@ -2,14 +2,23 @@
 // Use on screens whose loaded layout is known (rows, cards) so content fades
 // in where it will appear instead of popping in after a spinner. Spinners stay
 // correct for in-button/action feedback; this is for content areas.
+// With Reduce Motion on, the block holds still at a middle opacity.
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing } from 'react-native';
 import { HAIRLINE } from '../theme';
+import useReduceMotion from './ui/useReduceMotion';
+
+const STILL_OPACITY = 0.7;
 
 const Skeleton = ({ width, height = 12, radius = 4, style }) => {
   const opacity = useRef(new Animated.Value(0.45)).current;
+  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
+    if (reduceMotion) {
+      opacity.setValue(STILL_OPACITY);
+      return undefined;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, {
@@ -28,7 +37,7 @@ const Skeleton = ({ width, height = 12, radius = 4, style }) => {
     );
     loop.start();
     return () => loop.stop();
-  }, [opacity]);
+  }, [opacity, reduceMotion]);
 
   return (
     <Animated.View

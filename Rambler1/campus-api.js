@@ -14,6 +14,10 @@
 // so callers must handle the empty/null case gracefully.
 // =============================================================================
 
+// Every request goes through fetchWithTimeout: a bare fetch() never times out
+// in React Native, which left these screens spinning on a stalled connection.
+import { fetchWithTimeout } from './fetch-timeout';
+
 const LIBCAL_BASE = 'https://api3.libcal.com';
 const INSTITUTION_ID = 3076;
 const EVENTS_BASE = 'https://events.luc.edu/api/2';
@@ -30,7 +34,7 @@ let weeklyCacheTime = 0;
 let eventsCache = {};
 
 async function fetchJson(url) {
-  const response = await fetch(url);
+  const response = await fetchWithTimeout(url);
   if (!response.ok) throw new Error(`Campus API error: ${response.status}`);
   return await response.json();
 }
@@ -281,7 +285,7 @@ export async function getPhoenixHeadlines() {
     return phoenixCache;
   }
   try {
-    const response = await fetch(PHOENIX_FEED_URL, { headers: { Accept: 'application/rss+xml, text/xml' } });
+    const response = await fetchWithTimeout(PHOENIX_FEED_URL, { headers: { Accept: 'application/rss+xml, text/xml' } });
     if (!response.ok) return [];
     const rows = parsePhoenixFeed(await response.text());
     if (rows.length > 0) {
@@ -314,7 +318,7 @@ export async function suggestAddresses(query) {
       'https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=us' +
       '&email=johngeddes%40pm.me&addressdetails=0' +
       `&viewbox=-87.95,42.10,-87.50,41.60&bounded=0&q=${encodeURIComponent(q)}`;
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    const res = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) return [];
     const rows = await res.json();
     if (!Array.isArray(rows)) return [];
@@ -345,7 +349,7 @@ export async function geocodeAddress(address) {
       'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us' +
       '&email=johngeddes%40pm.me' +
       `&viewbox=-87.95,42.10,-87.50,41.60&q=${encodeURIComponent(q)}`;
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: { Accept: 'application/json' },
     });
     if (!res.ok) {

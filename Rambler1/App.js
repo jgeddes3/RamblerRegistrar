@@ -1,6 +1,6 @@
 // App.js
 import React, { useEffect, useState, useCallback } from 'react';
-import { View } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
@@ -16,7 +16,11 @@ import { saveUserProfile } from './firestore-data';
 import { POLICY_VERSION } from './privacy-policy-content';
 import { TERMS_VERSION, TERMS_TITLE, TERMS_SECTIONS } from './terms-content';
 import showAlert from './alert';
+import { resolveRegistrationTerm } from './term';
+import { afterModalDismiss } from './modal-sequencing';
 import TopBar from './components/TopBar';
+import PendingSaveBanner from './components/PendingSaveBanner';
+import { ToastProvider, ToastHost } from './components/ui/Toast';
 import MenuOverlay from './components/MenuOverlay';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
 import ProfileScreen from './screens/ProfileScreen';
@@ -44,6 +48,7 @@ import MapScreen from './screens/MapScreen';
 import LibraryScreen from './screens/LibraryScreen';
 import EventsScreen from './screens/EventsScreen';
 import PhoenixScreen from './screens/PhoenixScreen';
+import { STONE, FONT, FONT_SEMI, MAROON } from './theme';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -93,7 +98,7 @@ const TabIcon = ({ label, focused }) => {
     <Ionicons
       name={focused ? icons.focused : icons.unfocused}
       size={22}
-      color={focused ? '#A30046' : '#8e8e93'}
+      color={focused ? MAROON : '#8e8e93'}
     />
   );
 };
@@ -104,11 +109,11 @@ const TabIcon = ({ label, focused }) => {
 const MoreStack = () => (
   <Stack.Navigator
     screenOptions={{
-      headerTintColor: '#A30046',
+      headerTintColor: MAROON,
       headerTitleStyle: {
-        fontFamily: 'CormorantGaramond-Regular',
+        fontFamily: FONT,
         fontSize: 22,
-        color: '#A30046',
+        color: MAROON,
       },
       headerShadowVisible: false,
       headerStyle: { backgroundColor: '#FFFFFF' },
@@ -153,16 +158,16 @@ const MainTabs = () => {
         onMenuPress={() => setMenuVisible(true)}
         onProfilePress={() => setProfileVisible(true)}
       />
+      <PendingSaveBanner />
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
           tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
-          tabBarActiveTintColor: '#A30046',
-          tabBarInactiveTintColor: '#999',
+          tabBarActiveTintColor: MAROON,
+          tabBarInactiveTintColor: STONE,
           tabBarLabelStyle: {
-            fontFamily: 'CormorantGaramond-Regular',
+            fontFamily: FONT_SEMI,
             fontSize: 14,
-            fontWeight: 'bold',
           },
           tabBarItemStyle: {
             paddingBottom: 14,
@@ -265,17 +270,29 @@ const LegalConsentGate = () => {
     }
   };
 
-  const declineWith = (docName) => async () => {
-    // signOut fires onAuthChange -> AppContext resets -> AuthStack replaces
-    // MainTabs, which unmounts this gate.
-    await signOut();
-    showAlert('Signed out', `Using an account requires accepting the ${docName}. You can sign back in and accept any time.`);
+  // Declining signs the user out, and signOut fires onAuthChange -> AppContext
+  // resets -> AuthStack replaces MainTabs, which unmounts this gate. Take the
+  // consent modal down FIRST and let it finish dismissing: unmounting a native
+  // Modal that is still presented is the iOS dead-overlay freeze (see
+  // modal-sequencing.js).
+  const [declining, setDeclining] = useState(false);
+  const declineWith = (docName) => () => {
+    setDeclining(true);
+    afterModalDismiss(async () => {
+      try {
+        await signOut();
+      } catch (e) {
+        setDeclining(false); // still signed in: bring the gate back
+        return;
+      }
+      showAlert('Signed out', `Using an account requires accepting the ${docName}. You can sign back in and accept any time.`);
+    });
   };
 
   return (
     <>
       <PrivacyPolicyModal
-        visible={needsTerms}
+        visible={needsTerms && !declining}
         mode="consent"
         title={TERMS_TITLE}
         sections={TERMS_SECTIONS}
@@ -284,7 +301,7 @@ const LegalConsentGate = () => {
         onDecline={declineWith('Terms of Service')}
       />
       <PrivacyPolicyModal
-        visible={!needsTerms && needsPrivacy}
+        visible={!needsTerms && needsPrivacy && !declining}
         mode="consent"
         onAccept={acceptPrivacy}
         onDecline={declineWith('Privacy Policy')}
@@ -299,7 +316,15 @@ const LegalConsentGate = () => {
 const RootNavigator = () => {
   const { isLoggedIn, authLoading } = useAppContext();
 
-  if (authLoading) return null; // Still checking Firebase auth state
+  // Still checking Firebase auth state. Show that something is happening:
+  // a bare maroon screen looked like a hang.
+  if (authLoading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color="#FFFFFF" />
+      </View>
+    );
+  }
 
   return isLoggedIn ? (
     <>
@@ -331,6 +356,9 @@ const App = () => {
     ensureAnonymousSignIn()
       .catch(() => {})
       .finally(() => {
+        // Not awaited: settle which term has sections before the user reaches
+        // Schedule/Search, without holding up the splash for it.
+        resolveRegistrationTerm();
         initDatabase()
           .then(() => setDbReady(true))
           .catch((error) => {
@@ -354,24 +382,28 @@ const App = () => {
 
   return (
     <AppProvider>
+      <ToastProvider>
       <PushTokenGate />
-      <View style={{ flex: 1, backgroundColor: '#A30046' }} onLayout={onLayoutRootView}>
+      <View style={{ flex: 1, backgroundColor: MAROON }} onLayout={onLayoutRootView}>
         <NavigationContainer
           theme={{
             dark: false,
             colors: {
-              primary: '#A30046',
+              primary: MAROON,
               background: '#FFFFFF',
               card: '#FFFFFF',
               text: '#000',
               border: '#E0E0E0',
-              notification: '#A30046',
+              notification: MAROON,
             },
           }}
         >
           <RootNavigator />
         </NavigationContainer>
+        {/* Above the 90 pt tab bar. Modals that toast carry their own host. */}
+        <ToastHost bottom={104} />
       </View>
+      </ToastProvider>
     </AppProvider>
   );
 };

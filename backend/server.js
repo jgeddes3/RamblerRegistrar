@@ -21,9 +21,12 @@ const cron = require('node-cron');
 const db = require('./db');
 const { scrape } = require('./scraper-puppeteer');
 const { analyzeSchedule } = require('./walktime');
+const { buildHealth } = require('./health');
+const { bindHost } = require('./bind-host');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const HOST = bindHost(process.env);
 
 // Behind a reverse proxy in production so express-rate-limit sees the real
 // client IP. Trust the first hop.
@@ -56,6 +59,9 @@ app.use('/api/', globalLimiter);
 // Guards against overlapping heavyweight Puppeteer runs (cron re-entry).
 let scrapeInProgress = false;
 let pollInProgress = false;
+// When each lock was taken / last good run, for /api/health (a lock held far
+// longer than a run can take means a hung browser or LOCUS call).
+const runState = { scrapeStartedAt: null, pollStartedAt: null, lastScrapeOkAt: null, lastPollDoneAt: null };
 
 // =============================================================================
 // API ROUTES
@@ -63,7 +69,7 @@ let pollInProgress = false;
 
 // Health check (also used by ops/health-monitor.ps1 self-heal)
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json(buildHealth(runState));
 });
 
 // =============================================================================
@@ -219,6 +225,7 @@ cron.schedule('0 10 * * *', async () => {
   // Claim the lock first so the poll cron skips while we wait for an
   // in-flight poll to drain (poll cron checks scrapeInProgress).
   scrapeInProgress = true;
+  runState.scrapeStartedAt = Date.now();
 
   const MAX_RETRIES = 3;
   const RETRY_DELAY_MS = 5 * 60 * 1000; // 5 minutes
@@ -241,6 +248,7 @@ cron.schedule('0 10 * * *', async () => {
       console.log(`[${new Date().toISOString()}] Running scheduled scrape (attempt ${attempt}/${MAX_RETRIES})...`);
       try {
         await scrape(null, null, true);
+        runState.lastScrapeOkAt = Date.now();
         console.log('Scheduled scrape complete.');
         return; // Success — exit retry loop (finally still clears the lock)
       } catch (err) {
@@ -255,6 +263,7 @@ cron.schedule('0 10 * * *', async () => {
     }
   } finally {
     scrapeInProgress = false;
+    runState.scrapeStartedAt = null;
   }
 }, { timezone: 'America/Chicago' });
 
@@ -275,16 +284,19 @@ cron.schedule('*/20 9-21 * * *', async () => {
     return;
   }
   pollInProgress = true;
+  runState.pollStartedAt = Date.now();
   try {
     // Lazy require (mirrors the scrape pattern) so firebase-admin only
     // initializes when a poll actually runs.
     const { pollWatches } = require('./watch-poller');
     const result = await pollWatches();
+    runState.lastPollDoneAt = Date.now();
     console.log(`[${new Date().toISOString()}] Watch poll:`, JSON.stringify(result));
   } catch (err) {
     console.error('Watch poll failed:', err.message || err);
   } finally {
     pollInProgress = false;
+    runState.pollStartedAt = null;
   }
 }, { timezone: 'America/Chicago' });
 
@@ -293,8 +305,8 @@ cron.schedule('*/20 9-21 * * *', async () => {
 // =============================================================================
 
 db.initDb().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Rambler Backend running on port ${PORT}`);
+  app.listen(PORT, HOST, () => {
+    console.log(`Rambler Backend running on ${HOST}:${PORT}`);
     console.log(`Role: daily LOCUS scraper (10 AM cron -> SQLite + Firestore) + campus API proxy`);
     console.log(`\nEndpoints:`);
     console.log(`  GET  /api/health`);

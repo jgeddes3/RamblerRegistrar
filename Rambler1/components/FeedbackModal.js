@@ -10,7 +10,9 @@ import {
 } from 'react-native';
 import { submitFeedback } from '../firestore-data';
 import showAlert from '../alert';
-import { FONT, MAROON } from '../theme';
+import { afterModalDismiss } from '../modal-sequencing';
+import { FONT, MAROON, STONE, FONT_SEMI } from '../theme';
+import Tappable from './ui/Tappable';
 
 // Bottom sheet must ride above the keyboard: iOS pads, Android shrinks.
 // (react-native-web ignores `behavior`, so web is unaffected.)
@@ -41,7 +43,8 @@ const FeedbackModal = ({ visible, onClose, context = '' }) => {
     setSending(false);
     if (res) {
       close();
-      showAlert('Thanks!', 'Your feedback is in. It genuinely helps.');
+      // Thank them once the sheet is gone (see modal-sequencing.js).
+      afterModalDismiss(() => showAlert('Thanks!', 'Your feedback is in. It genuinely helps.'));
     } else {
       showAlert('Send failed', 'Could not send feedback. Please try again.');
     }
@@ -49,10 +52,10 @@ const FeedbackModal = ({ visible, onClose, context = '' }) => {
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={close}>
-      <KeyboardAvoidingView style={s.overlay} behavior={KAV_BEHAVIOR}>
+      <KeyboardAvoidingView accessibilityViewIsModal style={s.overlay} behavior={KAV_BEHAVIOR}>
         <View style={s.panel}>
           <View style={s.header}>
-            <Text style={s.title}>Send Feedback</Text>
+            <Text accessibilityRole="header" style={s.title}>Send Feedback</Text>
             <TouchableOpacity onPress={close} style={s.closeBtn} accessibilityLabel="Close feedback">
               <Text style={s.closeText}>Cancel</Text>
             </TouchableOpacity>
@@ -61,21 +64,21 @@ const FeedbackModal = ({ visible, onClose, context = '' }) => {
 
           <View style={s.typeRow}>
             {TYPES.map((t) => (
-              <TouchableOpacity
+              <Tappable role="radio" checked={type === t.key}
                 key={t.key}
                 style={[s.typeChip, type === t.key && s.typeChipOn]}
                 onPress={() => setType(t.key)}
                 accessibilityLabel={`Feedback type ${t.label}`}
               >
                 <Text style={[s.typeChipText, type === t.key && s.typeChipTextOn]}>{t.label}</Text>
-              </TouchableOpacity>
+              </Tappable>
             ))}
           </View>
 
           <TextInput
             style={s.messageInput}
             placeholder="What happened? What should be different?"
-            placeholderTextColor="#999"
+            placeholderTextColor={STONE}
             value={message}
             onChangeText={setMessage}
             multiline
@@ -106,8 +109,8 @@ const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontFamily: FONT, fontSize: 22, color: '#1a1a1a' },
   closeBtn: { padding: 6 },
-  closeText: { fontFamily: FONT, fontSize: 16, color: MAROON, fontWeight: '600' },
-  contextText: { fontFamily: FONT, fontSize: 14, color: '#888', marginTop: 2 },
+  closeText: { fontFamily: FONT_SEMI, fontSize: 16, color: MAROON, },
+  contextText: { fontFamily: FONT, fontSize: 14, color: STONE, marginTop: 2 },
 
   typeRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
   typeChip: {
@@ -115,7 +118,7 @@ const s = StyleSheet.create({
     paddingVertical: 6, paddingHorizontal: 14,
   },
   typeChipOn: { backgroundColor: MAROON, borderColor: MAROON },
-  typeChipText: { fontFamily: FONT, fontSize: 15, fontWeight: '600', color: '#444' },
+  typeChipText: { fontFamily: FONT_SEMI, fontSize: 15, color: '#444' },
   typeChipTextOn: { color: '#FFF' },
 
   messageInput: {
@@ -126,7 +129,7 @@ const s = StyleSheet.create({
     backgroundColor: MAROON, borderRadius: 12, paddingVertical: 13,
     alignItems: 'center', marginTop: 12, marginBottom: 8,
   },
-  sendBtnText: { fontFamily: FONT, fontSize: 17, fontWeight: '700', color: '#FFF' },
+  sendBtnText: { fontFamily: FONT_SEMI, fontSize: 17, color: '#FFF' },
 });
 
 export default FeedbackModal;

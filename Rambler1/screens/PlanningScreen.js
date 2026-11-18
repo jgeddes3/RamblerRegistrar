@@ -24,7 +24,7 @@ import {
 import { planSemesters, allPlannedCodes, planOrderingIssues, termLabelFor } from '../plan-utils';
 import { requirementCoverage } from '../planning-insights';
 import { buildRecommendations } from '../recommend';
-import { FONT, MAROON, EYEBROW } from '../theme';
+import { FONT, MAROON, EYEBROW, STONE, FONT_SEMI, OK, WARN, PARCHMENT, MAROON_WASH } from '../theme';
 import showAlert from '../alert';
 import WhatIfModal from '../components/WhatIfModal';
 
@@ -262,7 +262,7 @@ const PlanningScreen = () => {
     <ScrollView style={s.container} contentContainerStyle={s.content}>
       {coverage ? (
         <View style={s.coverageBanner}>
-          <Ionicons name="checkmark-circle-outline" size={18} color="#065f46" />
+          <Ionicons name="checkmark-circle-outline" size={18} color={OK.fg} />
           <Text style={s.coverageText}>
             Your plan covers {coverage.covered} of your remaining requirements
             ({coverage.planned} course{coverage.planned === 1 ? '' : 's'} planned
@@ -294,7 +294,7 @@ const PlanningScreen = () => {
         <View style={s.orderBanner}>
           {orderingIssues.slice(0, 4).map((iss, i) => (
             <View key={`${iss.code}-${iss.prereq}-${i}`} style={s.orderRow}>
-              <Ionicons name="warning-outline" size={13} color="#92400E" style={{ marginTop: 2 }} />
+              <Ionicons name="warning-outline" size={13} color={WARN.fg} style={{ marginTop: 2 }} />
               <Text style={s.orderText}>
                 {iss.code} ({termLabelFor(iss.term)}) needs {iss.prereq}
                 {iss.reason === 'later' ? ' (planned AFTER it)'
@@ -314,7 +314,7 @@ const PlanningScreen = () => {
         return (
           <View key={sem.code} style={s.semCard}>
             <View style={s.semHeader}>
-              <Text style={s.semTitle}>{sem.label}</Text>
+              <Text accessibilityRole="header" style={s.semTitle}>{sem.label}</Text>
               <TouchableOpacity
                 style={s.addBtn}
                 onPress={() => openAdd(sem.code)}
@@ -354,10 +354,10 @@ const PlanningScreen = () => {
 
       {/* ------------------------- ADD-COURSE MODAL ------------------------- */}
       <Modal visible={!!addTarget} animationType="slide" transparent onRequestClose={closeAdd}>
-        <KeyboardAvoidingView style={s.modalOverlay} behavior={KAV_BEHAVIOR}>
+        <KeyboardAvoidingView accessibilityViewIsModal style={s.modalOverlay} behavior={KAV_BEHAVIOR}>
           <View style={s.modalPanel}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>
+              <Text accessibilityRole="header" style={s.modalTitle}>
                 Add to {semesters.find((x) => x.code === addTarget)?.label || 'semester'}
               </Text>
               <TouchableOpacity onPress={closeAdd} style={s.modalClose} accessibilityLabel="Close add course">
@@ -367,7 +367,7 @@ const PlanningScreen = () => {
             <TextInput
               style={s.searchInput}
               placeholder="Search courses (e.g. PHIL 181)"
-              placeholderTextColor="#999"
+              placeholderTextColor={STONE}
               value={query}
               onChangeText={onSearchChange}
               autoCorrect={false}
@@ -378,7 +378,7 @@ const PlanningScreen = () => {
               {/* Empty query → surface remaining requirements, focus-first. */}
               {!query.trim() && recommendations.length > 0 ? (
                 <>
-                  <Text style={s.recHeading}>Recommended for you</Text>
+                  <Text accessibilityRole="header" style={s.recHeading}>Recommended for you</Text>
                   {recommendations.map((rec) => (
                     <TouchableOpacity
                       key={rec.code}
@@ -425,29 +425,29 @@ const PlanningScreen = () => {
 };
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FBF9F4' },
+  container: { flex: 1, backgroundColor: PARCHMENT },
   content: { padding: 16, paddingBottom: 32 },
-  centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FBF9F4', padding: 24 },
-  loadingText: { fontFamily: FONT, fontSize: 16, color: '#999', marginTop: 12 },
-  emptyTitle: { fontFamily: FONT, fontSize: 22, color: '#999', textAlign: 'center' },
-  introText: { fontFamily: FONT, fontSize: 15, color: '#777', marginBottom: 14, lineHeight: 21 },
+  centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: PARCHMENT, padding: 24 },
+  loadingText: { fontFamily: FONT, fontSize: 16, color: STONE, marginTop: 12 },
+  emptyTitle: { fontFamily: FONT, fontSize: 22, color: STONE, textAlign: 'center' },
+  introText: { fontFamily: FONT, fontSize: 15, color: STONE, marginBottom: 14, lineHeight: 21 },
 
   coverageBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#d1fae5', borderRadius: 10, padding: 12, marginBottom: 14,
+    backgroundColor: OK.bg, borderRadius: 10, padding: 12, marginBottom: 14,
   },
-  coverageText: { flex: 1, fontFamily: FONT, fontSize: 15, color: '#065f46' },
+  coverageText: { flex: 1, fontFamily: FONT, fontSize: 15, color: OK.fg },
   orderBanner: {
-    backgroundColor: '#FEF3C7', borderRadius: 10, padding: 12, marginBottom: 14,
+    backgroundColor: WARN.bg, borderRadius: 10, padding: 12, marginBottom: 14,
   },
   orderRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 5, marginBottom: 3 },
-  orderText: { flex: 1, fontFamily: FONT, fontSize: 14, color: '#92400E', lineHeight: 19 },
+  orderText: { flex: 1, fontFamily: FONT, fontSize: 14, color: WARN.fg, lineHeight: 19 },
   whatIfBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    borderWidth: 1, borderColor: '#E8CDD9', backgroundColor: '#FBF0F5',
+    borderWidth: 1, borderColor: '#E8CDD9', backgroundColor: MAROON_WASH,
     borderRadius: 10, padding: 12, marginBottom: 14,
   },
-  whatIfBtnText: { flex: 1, fontFamily: FONT, fontSize: 15, color: MAROON, fontWeight: '600' },
+  whatIfBtnText: { flex: 1, fontFamily: FONT_SEMI, fontSize: 15, color: MAROON, },
 
   semCard: {
     borderWidth: 1, borderColor: '#E8E8E8', borderRadius: 12,
@@ -459,14 +459,14 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: MAROON, borderRadius: 14,
     paddingVertical: 4, paddingHorizontal: 12,
   },
-  addBtnText: { fontFamily: FONT, fontSize: 15, color: MAROON, fontWeight: '600' },
-  semEmpty: { fontFamily: FONT, fontSize: 14, color: '#AAA' },
+  addBtnText: { fontFamily: FONT_SEMI, fontSize: 15, color: MAROON, },
+  semEmpty: { fontFamily: FONT, fontSize: 14, color: STONE },
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap' },
   chip: {
-    backgroundColor: '#FBF0F5', borderRadius: 14, paddingVertical: 5, paddingHorizontal: 11,
+    backgroundColor: MAROON_WASH, borderRadius: 14, paddingVertical: 5, paddingHorizontal: 11,
     marginRight: 8, marginBottom: 8, borderWidth: 1, borderColor: '#E8CDD9',
   },
-  chipText: { fontFamily: FONT, fontSize: 15, color: MAROON, fontWeight: '600' },
+  chipText: { fontFamily: FONT_SEMI, fontSize: 15, color: MAROON, },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
   modalPanel: {
@@ -476,7 +476,7 @@ const s = StyleSheet.create({
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   modalTitle: { fontFamily: FONT, fontSize: 22, color: '#1a1a1a' },
   modalClose: { padding: 6 },
-  modalCloseText: { fontFamily: FONT, fontSize: 17, color: MAROON, fontWeight: '600' },
+  modalCloseText: { fontFamily: FONT_SEMI, fontSize: 17, color: MAROON, },
   searchInput: {
     borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 12,
     fontFamily: FONT, fontSize: 17, color: '#1a1a1a', marginBottom: 6,
@@ -485,7 +485,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
     borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
   },
-  resultCode: { fontFamily: FONT, fontSize: 16, fontWeight: '700', color: MAROON, width: 104 },
+  resultCode: { fontFamily: FONT_SEMI, fontSize: 16, color: MAROON, width: 104 },
   resultName: { fontFamily: FONT, fontSize: 16, flex: 1, color: '#444' },
   recHeading: { ...EYEBROW, marginTop: 8, marginBottom: 2 },
   focusBadge: {
@@ -493,7 +493,7 @@ const s = StyleSheet.create({
     backgroundColor: MAROON, borderRadius: 9,
     paddingVertical: 2, paddingHorizontal: 7, marginLeft: 8,
   },
-  focusBadgeText: { fontFamily: FONT, fontSize: 13, color: '#FFF', fontWeight: '600' },
+  focusBadgeText: { fontSize: 13, color: '#FFF', fontWeight: '600' },
 });
 
 export default PlanningScreen;

@@ -29,7 +29,8 @@ export const MAROON_WASH = '#FBF0F5'; // tinted chips/fills (existing)
 export const OK = { fg: '#065f46', bg: '#d1fae5' };
 export const WARN = { fg: '#92400e', bg: '#fef3c7' };
 export const DANGER = { fg: '#b91c1c', bg: '#fee2e2' };
-export const NEUTRAL = { fg: '#6b7280', bg: '#f3f4f6' };
+// NEUTRAL fg was #6b7280 (4.3:1 on its bg, under AA); #4b5563 is 6.8:1.
+export const NEUTRAL = { fg: '#4b5563', bg: '#f3f4f6' };
 
 // Shared building blocks (spread into StyleSheet entries)
 export const CARD = {

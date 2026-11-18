@@ -1,8 +1,16 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, Animated, Platform, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppContext } from './AppContext';
 import BackgroundImage from './styleComponents/BackgroundImage';
+import useReduceMotion from './components/ui/useReduceMotion';
+import StepCounter from './components/ui/StepCounter';
+import { useFocused } from './components/ui/useOnboardingDraft';
+import { loadDraft, saveDraft } from './onboarding';
+import { STONE, FONT_SEMI, FONT, MAROON } from './theme';
+import { slopTo } from './components/ui/hitSlop';
+import Tappable from './components/ui/Tappable';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -353,10 +361,48 @@ function calculateRIASEC(answers) {
 const PreferenceQuiz = () => {
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const { setQuizResults } = useAppContext();
+  const { setQuizResults, isLoggedIn } = useAppContext();
   const navigation = useNavigation();
   const scrollRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const reduceMotion = useReduceMotion();
+  // In sign-up (not a retake from More): keep answers in the draft, so
+  // closing the app mid-quiz doesn't lose them, and offer Skip for now.
+  const onboarding = !isLoggedIn;
+  const restoredRef = useRef(!onboarding); // retakes have nothing to restore
+  // The render the restore itself causes must not write: on resume this
+  // screen may be mounted under the one the user is on.
+  const skipSaveRef = useRef(false);
+  const focused = useFocused();
+
+  useEffect(() => {
+    if (!onboarding) return undefined;
+    let alive = true;
+    loadDraft(AsyncStorage).then((draft) => {
+      if (!alive) return;
+      const p = draft && draft.quizProgress;
+      if (p && p.answers) {
+        skipSaveRef.current = true;
+        setSelectedAnswers(p.answers);
+        if (Number.isInteger(p.current)) setCurrentQuestion(Math.min(p.current, QUESTIONS.length - 1));
+      }
+      restoredRef.current = true;
+    });
+    return () => { alive = false; };
+  }, [onboarding]);
+
+  useEffect(() => {
+    if (!onboarding || !restoredRef.current) return;
+    if (skipSaveRef.current) { skipSaveRef.current = false; return; }
+    // Only while on screen; coming back with Back records it as the step again.
+    if (!focused) return;
+    saveDraft(AsyncStorage, { step: 'PreferenceQuiz', quizProgress: { answers: selectedAnswers, current: currentQuestion } });
+  }, [onboarding, focused, selectedAnswers, currentQuestion]);
+
+  const skipQuiz = () => {
+    saveDraft(AsyncStorage, { step: 'SchedulingPrefs' });
+    navigation.navigate('SchedulingPrefs');
+  };
 
   const q = QUESTIONS[currentQuestion];
   const totalQuestions = QUESTIONS.length;
@@ -394,7 +440,12 @@ const PreferenceQuiz = () => {
 
   const currentAnswered = isAnswered(currentQuestion);
 
+  // Cross-fade between questions; with Reduce Motion on, switch at once.
   const animateTransition = (callback) => {
+    if (reduceMotion) {
+      callback();
+      return;
+    }
     Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
       callback();
       Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
@@ -408,6 +459,9 @@ const PreferenceQuiz = () => {
       // All done — calculate and navigate
       const results = calculateRIASEC(selectedAnswers);
       setQuizResults({ ...results, answers: selectedAnswers });
+      if (onboarding) {
+        saveDraft(AsyncStorage, { step: 'QuizResults', quizResults: { ...results, answers: selectedAnswers } });
+      }
       navigation.navigate('QuizResults');
     }
   };
@@ -435,12 +489,14 @@ const PreferenceQuiz = () => {
         {/* Header */}
         <View style={s.headerBar}>
           <View style={s.headerSide}>
-            <TouchableOpacity onPress={handleBack} style={s.backButton}>
+            <TouchableOpacity onPress={handleBack} style={s.backButton} hitSlop={slopTo(60, 36)} accessibilityRole="button">
               <Text style={s.backButtonText}>Back</Text>
             </TouchableOpacity>
           </View>
           <Image source={require('./assets/Icons/Logo2-02.png')} style={s.headerLogo} />
-          <View style={s.headerSide} />
+          <View style={s.headerSide}>
+            <StepCounter route="PreferenceQuiz" />
+          </View>
         </View>
 
         {/* Progress bar */}
@@ -448,7 +504,7 @@ const PreferenceQuiz = () => {
           <View style={s.progressBarBg}>
             <View style={[s.progressBarFill, { width: `${((currentQuestion + 1) / totalQuestions) * 100}%` }]} />
           </View>
-          <Text style={s.progressText}>
+          <Text style={s.progressText} accessibilityLabel={`Question ${currentQuestion + 1} of ${totalQuestions}`}>
             {currentQuestion + 1} / {totalQuestions}
           </Text>
         </View>
@@ -468,7 +524,7 @@ const PreferenceQuiz = () => {
             showsVerticalScrollIndicator={false}
           >
             <View style={s.questionCard}>
-              <Text style={s.question}>{q.question}</Text>
+              <Text style={s.question} accessibilityRole="header">{q.question}</Text>
 
               {q.multiSelect && (
                 <Text style={s.multiHint}>Select {q.maxSelections || 3} topics</Text>
@@ -477,7 +533,7 @@ const PreferenceQuiz = () => {
               {q.options.map((option, optIndex) => {
                 const selected = isOptionSelected(optIndex);
                 return (
-                  <TouchableOpacity
+                  <Tappable role={q.multiSelect ? 'checkbox' : 'radio'} checked={selected}
                     key={optIndex}
                     style={[s.option, selected ? s.optionSelected : s.optionUnselected]}
                     onPress={() => handleOptionPress(optIndex)}
@@ -486,7 +542,7 @@ const PreferenceQuiz = () => {
                     <Text style={selected ? s.optionTextSelected : s.optionTextUnselected}>
                       {option.label}
                     </Text>
-                  </TouchableOpacity>
+                  </Tappable>
                 );
               })}
             </View>
@@ -500,6 +556,10 @@ const PreferenceQuiz = () => {
             {QUESTIONS.map((_, i) => (
               <TouchableOpacity
                 key={i}
+                hitSlop={{ top: 18, bottom: 18, left: 3, right: 3 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Question ${i + 1}${isAnswered(i) ? ', answered' : ''}`}
+                accessibilityState={{ selected: i === currentQuestion }}
                 onPress={() => animateTransition(() => setCurrentQuestion(i))}
               >
                 <View
@@ -526,6 +586,16 @@ const PreferenceQuiz = () => {
               {q.multiSelect ? 'Select at least 2 topics' : 'Select an answer to continue'}
             </Text>
           )}
+          {onboarding ? (
+            <TouchableOpacity
+              onPress={skipQuiz}
+              style={s.skipButton}
+              accessibilityRole="button"
+              accessibilityLabel="Skip the quiz for now"
+            >
+              <Text style={s.skipText}>Skip for now</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
     </BackgroundImage>
@@ -537,9 +607,16 @@ const PreferenceQuiz = () => {
 // =============================================================================
 
 const s = StyleSheet.create({
+  // "Skip for now" under Next: a quiet text button on a white pill (the
+  // page background is a photo), 44 pt tall.
+  skipButton: {
+    alignSelf: 'center', minHeight: 44, justifyContent: 'center', marginTop: 8,
+    paddingHorizontal: 16, backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 22,
+  },
+  skipText: { fontSize: 15, fontWeight: '600', color: MAROON },
   headerBar: {
     height: 120,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
@@ -562,10 +639,9 @@ const s = StyleSheet.create({
     borderRadius: 4,
   },
   backButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 15,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
   },
   progressContainer: {
     paddingHorizontal: 20,
@@ -584,11 +660,11 @@ const s = StyleSheet.create({
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderRadius: 4,
   },
   progressText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: '#666',
     width: 50,
@@ -596,17 +672,16 @@ const s = StyleSheet.create({
   },
   sectionBadge: {
     alignSelf: 'center',
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderRadius: 16,
     paddingVertical: 4,
     paddingHorizontal: 14,
     marginBottom: 4,
   },
   sectionText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 14,
     color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -619,16 +694,16 @@ const s = StyleSheet.create({
     padding: 18,
   },
   question: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 24,
     color: '#000',
     marginBottom: 16,
     lineHeight: 32,
   },
   multiHint: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 15,
-    color: '#A30046',
+    color: MAROON,
     marginBottom: 12,
     fontStyle: 'italic',
   },
@@ -643,18 +718,18 @@ const s = StyleSheet.create({
     borderColor: '#D9D9D9',
   },
   optionSelected: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderWidth: 1,
-    borderColor: '#A30046',
+    borderColor: MAROON,
   },
   optionTextUnselected: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 17,
     color: '#333',
     lineHeight: 22,
   },
   optionTextSelected: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 17,
     color: '#FFFFFF',
     lineHeight: 22,
@@ -682,7 +757,7 @@ const s = StyleSheet.create({
     backgroundColor: '#D9D9D9',
   },
   dotCurrent: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     width: 12,
     height: 12,
     borderRadius: 6,
@@ -691,7 +766,7 @@ const s = StyleSheet.create({
     backgroundColor: '#D4809E',
   },
   nextButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 6,
@@ -699,16 +774,15 @@ const s = StyleSheet.create({
     height: 50,
   },
   nextButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 20,
     color: 'white',
-    fontWeight: 'bold',
   },
   hintText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 15,
     textAlign: 'center',
-    color: '#999',
+    color: STONE,
     marginBottom: 4,
   },
 });

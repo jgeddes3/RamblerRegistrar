@@ -9,8 +9,8 @@ import {
   View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { STONE, FONT_SEMI, FONT, MAROON } from '../theme';
 
-const MAROON = '#A30046';
 
 function dateLine(item) {
   if (!item?.publishedAt) return null;
@@ -28,10 +28,10 @@ const PhoenixPreviewModal = ({ item, visible, onClose }) => {
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={s.overlay}>
+      <View accessibilityViewIsModal style={s.overlay}>
         <View style={s.panel}>
           <View style={s.headerRow}>
-            <Text style={s.masthead}>The Loyola Phoenix</Text>
+            <Text accessibilityRole="header" style={s.masthead}>The Loyola Phoenix</Text>
             <TouchableOpacity
               onPress={onClose}
               style={s.closeBtn}
@@ -42,7 +42,7 @@ const PhoenixPreviewModal = ({ item, visible, onClose }) => {
           </View>
 
           <ScrollView contentContainerStyle={s.content}>
-            <Text style={s.title}>{item.title}</Text>
+            <Text accessibilityRole="header" style={s.title}>{item.title}</Text>
             {metaParts.length > 0 || when ? (
               <Text style={s.meta}>
                 {[metaParts.join(' · '), when].filter(Boolean).join(' · ')}
@@ -90,24 +90,23 @@ const s = StyleSheet.create({
     borderBottomColor: '#F0F0F0',
   },
   masthead: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 16,
     color: MAROON,
-    fontWeight: 'bold',
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   closeBtn: { padding: 4 },
   content: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 30 },
   title: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 24,
     lineHeight: 29,
     color: '#1a1a1a',
   },
-  meta: { fontSize: 12, color: '#888', marginTop: 6 },
+  meta: { fontSize: 12, color: STONE, marginTop: 6 },
   paragraph: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 17,
     lineHeight: 25,
     color: '#333',

@@ -425,6 +425,7 @@ const allFocusAreas = [
 ];
 
 async function seed() {
+  await require('./cli-guard').requireServerStopped('seed-focus-areas.js');
   const database = await db.initDb();
 
   // Helper to find program ID by exact name (majors only)

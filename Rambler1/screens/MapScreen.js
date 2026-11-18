@@ -16,14 +16,13 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { PARCHMENT } from '../theme';
+import { PARCHMENT, STONE, FONT, MAROON } from '../theme';
 
-const MAROON = '#A30046';
 
 const MapScreen = () => (
   <View style={s.centerWrap}>
-    <Text style={s.title}>Campus Map</Text>
-    <Ionicons name="map-outline" size={54} color="#CCC" style={{ marginTop: 18 }} />
+    <Text accessibilityRole="header" style={s.title}>Campus Map</Text>
+    <Ionicons name="map-outline" size={54} color={STONE} style={{ marginTop: 18 }} />
     <Text style={s.emptyTitle}>The campus map is available in the mobile app</Text>
     <Text style={s.emptyHint}>Open Rambler Registrar on your phone to explore campus.</Text>
   </View>
@@ -34,13 +33,13 @@ const s = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center',
     backgroundColor: PARCHMENT, paddingHorizontal: 24,
   },
-  title: { fontFamily: 'CormorantGaramond-Regular', fontSize: 28, color: MAROON },
+  title: { fontFamily: FONT, fontSize: 28, color: MAROON },
   emptyTitle: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 22, color: '#999',
+    fontFamily: FONT, fontSize: 22, color: STONE,
     textAlign: 'center', marginTop: 14,
   },
   emptyHint: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: '#CCC',
+    fontFamily: FONT, fontSize: 15, color: STONE,
     marginTop: 6, textAlign: 'center',
   },
 });

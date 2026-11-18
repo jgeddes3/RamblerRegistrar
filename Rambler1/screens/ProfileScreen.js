@@ -1,14 +1,43 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, ActivityIndicator, StyleSheet, Platform, StatusBar, Switch } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, ActivityIndicator, StyleSheet, Platform, StatusBar, Switch, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppContext } from '../AppContext';
-import { signOut } from '../auth';
-import { fetchPrograms, fetchCourses, addUserCourse, removeUserCourse, saveUserProfile, fetchEnrichedRecommendations, fetchQuizFocusAreas, setUserLocation } from '../firestore-data';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { signOut, reauthenticate, deleteCurrentAccount } from '../auth';
+import { fetchPrograms, fetchCourses, addUserCourse, removeUserCourse, saveUserProfile, fetchEnrichedRecommendations, fetchQuizFocusAreas, setUserLocation, deleteAllUserData } from '../firestore-data';
+import { eraseAccountData, deletionErrorMessage, setDeletingAccount } from '../account-deletion';
+import { PENDING_SIGNUP_KEY, forgetPendingCourse, settleRetry } from '../signup-save';
 import { geocodeAddress, suggestAddresses } from '../campus-api';
 import showAlert from '../alert';
+import { canEditProfile, programEdit, minorToggleEdit, priorityEdit } from '../profile-edits';
+import { filterCourses, setCourseSelected } from '../course-list';
+import { afterModalDismiss } from '../modal-sequencing';
+import { STONE, INK, DANGER, FONT_SEMI, FONT, FONT_MED, MAROON } from '../theme';
+import { slopTo } from '../components/ui/hitSlop';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
+
+// What this phone keeps for an account, removed when the account is deleted:
+// Search's recent searches and any signup details still waiting to save.
+const LOCAL_ACCOUNT_KEYS = ['@rambler_recent_searches', PENDING_SIGNUP_KEY];
+const clearAccountLocalData = () => AsyncStorage.multiRemove(LOCAL_ACCOUNT_KEYS);
+
+// One row of the Courses Taken list. Memoized: with ~2,000 courses a tap
+// must re-render the row that changed, not the whole list.
+const TakenCourseRow = React.memo(({ course, selected, onPress }) => (
+  <TouchableOpacity
+    style={[s.listItem, selected && s.listItemSelected]}
+    onPress={() => { onPress(course); }}
+  >
+    <Text style={[s.listItemCode, selected && s.listItemTextSelected]}>
+      {course.code}
+    </Text>
+    <Text style={[s.listItemText, selected && s.listItemTextSelected]}>
+      {course.name}
+    </Text>
+  </TouchableOpacity>
+));
 
 const ProfileScreen = ({ visible, onClose }) => {
   const {
@@ -18,10 +47,14 @@ const ProfileScreen = ({ visible, onClose }) => {
     isHonors, setIsHonors, isAthlete, setIsAthlete,
     userLocations, setUserLocations,
     dataSaleOptOut, setDataSaleOptOut,
+    profileStatus, retryProfileRestore,
   } = useAppContext();
 
   const isUndecided = !selectedProgram || selectedProgram.id === 'undecided';
-  const [mode, setMode] = useState('profile'); // 'profile', 'selectProgram', 'selectMinor', 'selectCourses'
+  const [mode, setMode] = useState('profile'); // 'profile', 'selectProgram', 'selectMinor', 'selectCourses', 'deleteAccount'
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [programs, setPrograms] = useState([]);
   const [minorsList, setMinorsList] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -166,74 +199,122 @@ const ProfileScreen = ({ visible, onClose }) => {
     }
   }, [visible, selectedProgram, user]);
 
-  const handleSignOut = async () => {
+  const signOutNow = () => {
     onClose();
     setMode('profile');
-    await signOut();
+    // Signing out swaps the whole signed-in tree (this modal included) for the
+    // login stack. Let the modal finish dismissing first: unmounting a native
+    // Modal that is still presented is the iOS dead-overlay freeze (see
+    // modal-sequencing.js).
+    afterModalDismiss(() => { signOut().catch(() => {}); });
+  };
+
+  const handleSignOut = () => {
+    showAlert('Sign out?', "You'll need your email and password to sign back in.", [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign Out', style: 'destructive', onPress: signOutNow },
+    ]);
+  };
+
+  const leaveDeletePanel = () => {
+    if (deleteBusy) return;
+    setMode('profile');
+    setDeletePassword('');
+    setDeleteError('');
+  };
+
+  // Password check and data deletion run with the panel open, so a failure
+  // shows here. Deleting the sign-in waits for the modal to close: like
+  // sign-out, it swaps the whole signed-in tree.
+  const handleDeleteAccount = async () => {
+    if (deleteBusy || !deletePassword) return;
+    setDeleteBusy(true);
+    setDeleteError('');
+    setDeletingAccount(true); // background signup retries stand down
+    const res = await eraseAccountData(deletePassword, user?.uid, {
+      reauthenticate,
+      settleBackgroundSaves: settleRetry,
+      deleteAllUserData,
+      clearLocalData: clearAccountLocalData,
+    });
+    setDeleteBusy(false);
+    if (!res.ok) {
+      setDeletingAccount(false);
+      setDeleteError(deletionErrorMessage(res));
+      return;
+    }
+    setDeletePassword('');
+    onClose();
+    setMode('profile');
+    afterModalDismiss(async () => {
+      try {
+        await deleteCurrentAccount();
+      } catch (e) {
+        showAlert(
+          'Account not fully deleted',
+          "Your data was deleted, but your sign-in wasn't. Open Profile and choose Delete account again to finish.",
+        );
+      } finally {
+        setDeletingAccount(false);
+      }
+    });
+  };
+
+  // Profile edits (major / minors / priority flags) share three rules:
+  //  - blocked until the saved profile is in memory (profileStatus 'ready'),
+  //    so an edit is never made on top of a profile that failed to load;
+  //  - each sends ONLY the field it changes (profile-edits.js). Resending the
+  //    whole in-memory profile is what used to blank out saved fields;
+  //  - optimistic, but reverted with a message if the save doesn't land.
+  const profileEditBlocked = () => {
+    if (!user || canEditProfile(profileStatus)) return false;
+    retryProfileRestore();
+    showAlert(
+      profileStatus === 'loading' ? 'Still loading your profile' : "Couldn't load your profile",
+      profileStatus === 'loading'
+        ? 'Give it a moment and try again.'
+        : "Your saved profile hasn't loaded, so changes are paused to protect it. Check your connection and try again."
+    );
+    return true;
+  };
+
+  const saveProfileEdit = async (payload, revert) => {
+    if (!user) return;
+    let res = null;
+    try {
+      res = await saveUserProfile(user.uid, payload);
+    } catch (e) {}
+    if (!res) {
+      revert();
+      showAlert('Save failed', "That change wasn't saved. Check your connection and try again.");
+    }
   };
 
   const handleSelectProgram = async (program) => {
+    if (profileEditBlocked()) return;
+    const previous = selectedProgram;
     setSelectedProgram(program);
     setMode('profile');
-    // Save to Firestore
-    try {
-      if (user) {
-        await saveUserProfile(user.uid, {
-          selectedProgramId: program.id,
-          selectedProgram2Id: selectedProgram2?.id || null,
-          selectedMinors: (selectedMinors || []).map(m => m.id),
-          graduationYear: graduationYear || '',
-          classYear: classYear || '',
-        });
-      }
-    } catch (e) {}
+    await saveProfileEdit(programEdit(program), () => setSelectedProgram(previous));
   };
 
   const handleToggleMinor = async (minor) => {
-    const current = selectedMinors || [];
-    const isSelected = current.some(m => m.id === minor.id);
-    let updated;
-    if (isSelected) {
-      updated = current.filter(m => m.id !== minor.id);
-    } else {
-      if (current.length >= 3) return; // Max 3 minors
-      updated = [...current, minor];
-    }
-    setSelectedMinors(updated);
-    // Save to Firestore
-    try {
-      if (user) {
-        await saveUserProfile(user.uid, {
-          selectedProgramId: selectedProgram?.id || null,
-          selectedProgram2Id: selectedProgram2?.id || null,
-          selectedMinors: updated.map(m => m.id),
-          graduationYear: graduationYear || '',
-          classYear: classYear || '',
-        });
-      }
-    } catch (e) {}
+    if (profileEditBlocked()) return;
+    const previous = selectedMinors || [];
+    const edit = minorToggleEdit(previous, minor);
+    if (!edit) return; // at the minors cap
+    setSelectedMinors(edit.updated);
+    await saveProfileEdit(edit.payload, () => setSelectedMinors(previous));
   };
 
   const handleTogglePriority = async (flag, value) => {
-    // Update context immediately so the Switch reflects the new state.
-    if (flag === 'isHonors') setIsHonors(value);
-    else setIsAthlete(value);
-    // Persist to Firestore. Both flags are always sent as real booleans —
-    // saveUserProfile only includes typeof === 'boolean' values, and `false`
-    // must be written explicitly to toggle a flag OFF.
-    try {
-      if (user) {
-        await saveUserProfile(user.uid, {
-          selectedProgramId: selectedProgram?.id || null,
-          selectedProgram2Id: selectedProgram2?.id || null,
-          selectedMinors: (selectedMinors || []).map(m => m.id),
-          graduationYear: graduationYear || '',
-          classYear: classYear || '',
-          isHonors: flag === 'isHonors' ? value === true : isHonors === true,
-          isAthlete: flag === 'isAthlete' ? value === true : isAthlete === true,
-        });
-      }
-    } catch (e) {}
+    if (profileEditBlocked()) return;
+    // Update context immediately so the Switch reflects the new state. The
+    // flag is sent as a real boolean: `false` must be written explicitly to
+    // toggle it OFF.
+    const setFlag = flag === 'isHonors' ? setIsHonors : setIsAthlete;
+    setFlag(value === true);
+    await saveProfileEdit(priorityEdit(flag, value), () => setFlag(value !== true));
   };
 
   const handleToggleDataSale = async (optedOut) => {
@@ -275,30 +356,44 @@ const ProfileScreen = ({ visible, onClose }) => {
     }
   };
 
-  const handleToggleCourse = async (course) => {
-    // Compare by code, not id: sqlite-cached courses carry synthetic integer ids
-    // while Firestore-sourced courses use the code string — code is stable in both.
-    const isSelected = (selectedCourses || []).some(c => c.code === course.code);
-    let updated;
-    if (isSelected) {
-      updated = selectedCourses.filter(c => c.code !== course.code);
-      // Also remove from Firestore
-      try {
-        if (user) {
-          await removeUserCourse(user.uid, course.code);
-        }
-      } catch (e) {}
-    } else {
-      updated = [...(selectedCourses || []), course];
-      // Also save to Firestore
-      try {
-        if (user) {
-          await addUserCourse(user.uid, course.code, null, null);
-        }
-      } catch (e) {}
+  // Codes currently selected, readable from a callback without waiting for a
+  // re-render (so quick taps each see the taps before them).
+  const selectedCodes = useMemo(
+    () => new Set((selectedCourses || []).map(c => c.code)),
+    [selectedCourses]
+  );
+  const selectedCodesRef = useRef(selectedCodes);
+  selectedCodesRef.current = selectedCodes;
+
+  // Flip the row first, save behind it. Waiting for the server before the row
+  // changed made every tap feel dead (and dropped quick taps); a failed save
+  // now puts the row back and says so.
+  // Compare by code, not id: sqlite-cached courses carry synthetic integer ids
+  // while Firestore-sourced courses use the code string — code is stable in both.
+  const handleToggleCourse = useCallback(async (course) => {
+    const wasSelected = selectedCodesRef.current.has(course.code);
+    const apply = (selected) => {
+      const next = new Set(selectedCodesRef.current);
+      if (selected) next.add(course.code); else next.delete(course.code);
+      selectedCodesRef.current = next;
+      setSelectedCourses(prev => setCourseSelected(prev, course, selected));
+    };
+    apply(!wasSelected);
+    if (!user) return;
+    let res = null;
+    try {
+      res = wasSelected
+        ? await removeUserCourse(user.uid, course.code)
+        : await addUserCourse(user.uid, course.code, null, null);
+    } catch (e) {}
+    if (!res) {
+      apply(wasSelected);
+      showAlert('Save failed', `${course.code} wasn't updated. Check your connection and try again.`);
+    } else if (wasSelected) {
+      // Removed: a signup save still waiting to retry must not re-add it.
+      forgetPendingCourse(AsyncStorage, user.uid, course.code).catch(() => {});
     }
-    setSelectedCourses(updated);
-  };
+  }, [user, setSelectedCourses]);
 
   const handleClose = () => {
     setMode('profile');
@@ -311,22 +406,79 @@ const ProfileScreen = ({ visible, onClose }) => {
     (p.name || '').toLowerCase().includes(search.toLowerCase()) ||
     (p.degree || '').toLowerCase().includes(search.toLowerCase())
   );
-  const filteredCourses = courses.filter(c =>
-    (c.name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (c.code || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredCourses = useMemo(() => filterCourses(courses, search), [courses, search]);
+  const renderTakenCourse = useCallback(({ item }) => (
+    <TakenCourseRow course={item} selected={selectedCodes.has(item.code)} onPress={handleToggleCourse} />
+  ), [selectedCodes, handleToggleCourse]);
+
+  // ==================== DELETE ACCOUNT MODE ====================
+  if (mode === 'deleteAccount') {
+    const canDelete = !!deletePassword && !deleteBusy;
+    return (
+      <Modal visible={visible} animationType="slide" transparent onRequestClose={leaveDeletePanel}>
+        <View accessibilityViewIsModal style={s.overlay}>
+          <View style={s.panelFull}>
+            <View style={s.headerRow}>
+              <TouchableOpacity onPress={leaveDeletePanel} disabled={deleteBusy} hitSlop={slopTo(40, 20)} accessibilityRole="button">
+                <Text style={s.backText}>Back</Text>
+              </TouchableOpacity>
+              <Text accessibilityRole="header" style={s.headerTitle}>Delete account</Text>
+              <View style={{ width: 50 }} />
+            </View>
+            <ScrollView contentContainerStyle={s.deleteContent} keyboardShouldPersistTaps="handled">
+              <Text style={s.deleteBody}>
+                This permanently deletes your account and everything saved with it: your profile and
+                quiz results, courses taken, schedules and plans, seat watches, home address, and any
+                feedback you sent.
+              </Text>
+              <Text style={s.deleteBody}>It can't be undone.</Text>
+              <Text style={s.deleteLabel}>Enter your password to confirm</Text>
+              <TextInput
+                style={s.searchInput}
+                value={deletePassword}
+                onChangeText={(t) => { setDeletePassword(t); setDeleteError(''); }}
+                placeholder="Password"
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="current-password"
+                textContentType="password"
+                accessibilityLabel="Password"
+                editable={!deleteBusy}
+                onSubmitEditing={handleDeleteAccount}
+              />
+              {deleteError ? (
+                <Text style={s.deleteError} accessibilityRole="alert" accessibilityLiveRegion="polite">
+                  {deleteError}
+                </Text>
+              ) : null}
+              <TouchableOpacity
+                style={[s.deleteButton, !canDelete && s.deleteButtonDisabled]}
+                onPress={handleDeleteAccount}
+                disabled={!canDelete}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !canDelete, busy: deleteBusy }}
+              >
+                <Text style={s.deleteButtonText}>{deleteBusy ? 'Deleting…' : 'Delete my account'}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 
   // ==================== SELECT PROGRAM MODE ====================
   if (mode === 'selectProgram') {
     return (
-      <Modal visible={visible} animationType="slide" transparent>
-        <View style={s.overlay}>
+      <Modal visible={visible} animationType="slide" transparent onRequestClose={() => { setMode('profile'); setSearch(''); }}>
+        <View accessibilityViewIsModal style={s.overlay}>
           <View style={s.panelFull}>
             <View style={s.headerRow}>
-              <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }}>
+              <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }} hitSlop={slopTo(40, 20)} accessibilityRole="button">
                 <Text style={s.backText}>Back</Text>
               </TouchableOpacity>
-              <Text style={s.headerTitle}>Select Major</Text>
+              <Text accessibilityRole="header" style={s.headerTitle}>Select Major</Text>
               <View style={{ width: 50 }} />
             </View>
             <TextInput
@@ -336,20 +488,20 @@ const ProfileScreen = ({ visible, onClose }) => {
               onChangeText={setSearch}
             />
             {loading ? (
-              <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 40 }} />
+              <ActivityIndicator size="large" color={MAROON} style={{ marginTop: 40 }} />
             ) : (
               <ScrollView contentContainerStyle={s.listContent}>
                 {/* Recommendations section for undecided users */}
                 {isUndecided && recommendations.length > 0 && !search && (
                   <View style={s.recsSection}>
-                    <Text style={s.recsSectionTitle}>Recommended For You</Text>
+                    <Text accessibilityRole="header" style={s.recsSectionTitle}>Recommended For You</Text>
                     {quizResults && (
                       <Text style={s.recsSectionSub}>
                         Based on your {quizResults.code} · {quizResults.profileName} profile
                       </Text>
                     )}
                     {recsLoading ? (
-                      <ActivityIndicator color="#A30046" style={{ marginTop: 12 }} />
+                      <ActivityIndicator color={MAROON} style={{ marginTop: 12 }} />
                     ) : (
                       recommendations.map((rec, i) => (
                         <TouchableOpacity
@@ -415,14 +567,14 @@ const ProfileScreen = ({ visible, onClose }) => {
       (m.name || '').toLowerCase().includes(search.toLowerCase())
     );
     return (
-      <Modal visible={visible} animationType="slide" transparent>
-        <View style={s.overlay}>
+      <Modal visible={visible} animationType="slide" transparent onRequestClose={() => { setMode('profile'); setSearch(''); }}>
+        <View accessibilityViewIsModal style={s.overlay}>
           <View style={s.panelFull}>
             <View style={s.headerRow}>
-              <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }}>
+              <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }} hitSlop={slopTo(40, 20)} accessibilityRole="button">
                 <Text style={s.backText}>Back</Text>
               </TouchableOpacity>
-              <Text style={s.headerTitle}>Select Minors</Text>
+              <Text accessibilityRole="header" style={s.headerTitle}>Select Minors</Text>
               <Text style={s.countBadge}>{(selectedMinors || []).length}/3</Text>
             </View>
             <TextInput
@@ -432,7 +584,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               onChangeText={setSearch}
             />
             {loading ? (
-              <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 40 }} />
+              <ActivityIndicator size="large" color={MAROON} style={{ marginTop: 40 }} />
             ) : (
               <ScrollView contentContainerStyle={s.listContent}>
                 {filteredMinors.map(minor => {
@@ -460,16 +612,15 @@ const ProfileScreen = ({ visible, onClose }) => {
 
   // ==================== SELECT COURSES MODE ====================
   if (mode === 'selectCourses') {
-    const selectedIds = new Set((selectedCourses || []).map(c => c.code));
     return (
-      <Modal visible={visible} animationType="slide" transparent>
-        <View style={s.overlay}>
+      <Modal visible={visible} animationType="slide" transparent onRequestClose={() => { setMode('profile'); setSearch(''); }}>
+        <View accessibilityViewIsModal style={s.overlay}>
           <View style={s.panelFull}>
             <View style={s.headerRow}>
-              <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }}>
+              <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }} hitSlop={slopTo(40, 20)} accessibilityRole="button">
                 <Text style={s.backText}>Back</Text>
               </TouchableOpacity>
-              <Text style={s.headerTitle}>Courses Taken</Text>
+              <Text accessibilityRole="header" style={s.headerTitle}>Courses Taken</Text>
               <Text style={s.countBadge}>{(selectedCourses || []).length}</Text>
             </View>
             <TextInput
@@ -479,27 +630,21 @@ const ProfileScreen = ({ visible, onClose }) => {
               onChangeText={setSearch}
             />
             {loading ? (
-              <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 40 }} />
+              <ActivityIndicator size="large" color={MAROON} style={{ marginTop: 40 }} />
             ) : (
-              <ScrollView contentContainerStyle={s.listContent}>
-                {filteredCourses.map(course => {
-                  const isSelected = selectedIds.has(course.code);
-                  return (
-                    <TouchableOpacity
-                      key={course.id}
-                      style={[s.listItem, isSelected && s.listItemSelected]}
-                      onPress={() => handleToggleCourse(course)}
-                    >
-                      <Text style={[s.listItemCode, isSelected && s.listItemTextSelected]}>
-                        {course.code}
-                      </Text>
-                      <Text style={[s.listItemText, isSelected && s.listItemTextSelected]}>
-                        {course.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+              // FlatList, not ScrollView + map: only the rows near the viewport
+              // are mounted. Rendering all ~2,000 (again on every tap and
+              // keystroke) is what locked this list up.
+              <FlatList
+                data={filteredCourses}
+                keyExtractor={(course) => String(course.id ?? course.code)}
+                renderItem={renderTakenCourse}
+                contentContainerStyle={s.listContent}
+                keyboardShouldPersistTaps="handled"
+                initialNumToRender={20}
+                maxToRenderPerBatch={20}
+                windowSize={9}
+              />
             )}
           </View>
         </View>
@@ -509,10 +654,10 @@ const ProfileScreen = ({ visible, onClose }) => {
 
   // ==================== PROFILE MODE (default) ====================
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={s.overlay}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
+      <View accessibilityViewIsModal style={s.overlay}>
         <View style={s.panel}>
-          <TouchableOpacity onPress={handleClose} style={s.closeButton}>
+          <TouchableOpacity onPress={handleClose} style={s.closeButton} hitSlop={slopTo(36)} accessibilityRole="button" accessibilityLabel="Close profile">
             <Text style={s.closeText}>X</Text>
           </TouchableOpacity>
 
@@ -558,7 +703,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               accessibilityLabel="Change major, add a major, or add a minor, and see the time cost"
             >
               <View style={s.navRowIconWrap}>
-                <Ionicons name="compass-outline" size={20} color="#A30046" />
+                <Ionicons name="compass-outline" size={20} color={MAROON} />
               </View>
               <Text style={s.navRowText}>Change major, add a major, or add a minor, and see the time cost</Text>
               <Ionicons name="chevron-forward" size={18} color="#C0C0C0" />
@@ -605,7 +750,7 @@ const ProfileScreen = ({ visible, onClose }) => {
 
             {/* Registration Priority */}
             <View style={s.infoBlock}>
-              <Text style={s.prioritySectionTitle}>Registration Priority</Text>
+              <Text accessibilityRole="header" style={s.prioritySectionTitle}>Registration Priority</Text>
               <View style={s.priorityRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.priorityRowLabel}>Honors student</Text>
@@ -615,7 +760,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                   accessibilityLabel="Honors student"
                   value={isHonors === true}
                   onValueChange={(v) => handleTogglePriority('isHonors', v)}
-                  trackColor={{ false: '#D8D8D8', true: '#A30046' }}
+                  trackColor={{ false: '#D8D8D8', true: MAROON }}
                   thumbColor="#FFFFFF"
                 />
               </View>
@@ -628,7 +773,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                   accessibilityLabel="Student-athlete"
                   value={isAthlete === true}
                   onValueChange={(v) => handleTogglePriority('isAthlete', v)}
-                  trackColor={{ false: '#D8D8D8', true: '#A30046' }}
+                  trackColor={{ false: '#D8D8D8', true: MAROON }}
                   thumbColor="#FFFFFF"
                 />
               </View>
@@ -638,7 +783,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                 describe. ON = excluded from every third-party sale/share
                 export (enforced in backend/export-sale-data.js). */}
             <View style={s.infoBlock}>
-              <Text style={s.prioritySectionTitle}>Privacy</Text>
+              <Text accessibilityRole="header" style={s.prioritySectionTitle}>Privacy</Text>
               <View style={s.priorityRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.priorityRowLabel}>Do not sell or share my personal information</Text>
@@ -652,7 +797,7 @@ const ProfileScreen = ({ visible, onClose }) => {
                   accessibilityLabel="Do not sell or share my personal information"
                   value={dataSaleOptOut === true}
                   onValueChange={(v) => handleToggleDataSale(v)}
-                  trackColor={{ false: '#D8D8D8', true: '#A30046' }}
+                  trackColor={{ false: '#D8D8D8', true: MAROON }}
                   thumbColor="#FFFFFF"
                 />
               </View>
@@ -678,7 +823,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               <TextInput
                 style={s.addressInput}
                 placeholder={savedHome ? 'Change address...' : 'e.g. 6363 N Winthrop Ave, Chicago, IL'}
-                placeholderTextColor="#999"
+                placeholderTextColor={STONE}
                 value={addressInput}
                 onChangeText={handleAddressChange}
                 autoCorrect={false}
@@ -713,7 +858,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               <View style={s.infoBlock}>
                 <Text style={s.label}>Your Focus</Text>
                 {focusLoading ? (
-                  <ActivityIndicator color="#A30046" size="small" style={{ marginTop: 8 }} />
+                  <ActivityIndicator color={MAROON} size="small" style={{ marginTop: 8 }} />
                 ) : focusAreas.length > 0 ? (
                   <View>
                     {selectedFocus ? (
@@ -765,7 +910,7 @@ const ProfileScreen = ({ visible, onClose }) => {
             <View style={s.divider} />
 
             {/* RIASEC Quiz Results */}
-            {quizResults && quizResults.scores ? (
+            {quizResults && quizResults.code && quizResults.scores ? (
               <View style={s.infoBlock}>
                 <Text style={s.label}>Personality Profile</Text>
                 <View style={s.riasecHeader}>
@@ -822,7 +967,7 @@ const ProfileScreen = ({ visible, onClose }) => {
               accessibilityLabel="Retake the quiz"
             >
               <View style={s.navRowIconWrap}>
-                <Ionicons name="refresh-outline" size={20} color="#A30046" />
+                <Ionicons name="refresh-outline" size={20} color={MAROON} />
               </View>
               <Text style={s.navRowText}>Retake the quiz</Text>
               <Ionicons name="chevron-forward" size={18} color="#C0C0C0" />
@@ -831,8 +976,15 @@ const ProfileScreen = ({ visible, onClose }) => {
             <View style={s.divider} />
 
             {/* Sign Out */}
-            <TouchableOpacity style={s.signOutButton} onPress={handleSignOut}>
+            <TouchableOpacity style={s.signOutButton} onPress={handleSignOut} accessibilityRole="button">
               <Text style={s.signOutText}>Sign Out</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.deleteLink}
+              onPress={() => setMode('deleteAccount')}
+              accessibilityRole="button"
+            >
+              <Text style={s.deleteLinkText}>Delete account</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -887,26 +1039,25 @@ const s = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
   },
   avatarLargeText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 36,
     color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   email: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     color: '#333',
   },
   displayName: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 16,
-    color: '#888',
+    color: STONE,
     marginTop: 2,
   },
   divider: {
@@ -920,36 +1071,34 @@ const s = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 14,
-    color: '#999',
-    fontWeight: 'bold',
+    color: STONE,
     textTransform: 'uppercase',
     marginBottom: 4,
   },
   value: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 20,
     color: '#333',
   },
   valueSmall: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
-    color: '#888',
+    color: STONE,
   },
   editHint: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
-    color: '#A30046',
+    color: MAROON,
     marginTop: 4,
   },
   // Home address (F-Q7)
   addressInput: {
     borderWidth: 1, borderColor: '#DDD', borderRadius: 8, padding: 10,
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: '#333', marginTop: 8,
+    fontFamily: FONT, fontSize: 15, color: '#333', marginTop: 8,
   },
   addressError: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#b91c1c', marginTop: 6,
+    fontSize: 13, color: DANGER.fg, marginTop: 6,
   },
   // Address autofill dropdown (rendered directly under the input)
   suggestList: {
@@ -964,7 +1113,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#EEE',
   },
   suggestText: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#333',
+    fontFamily: FONT, fontSize: 14, color: '#333',
   },
   // Tappable card rows that close the modal and jump into the More tab
   navRow: {
@@ -984,47 +1133,44 @@ const s = StyleSheet.create({
   },
   navRowText: {
     flex: 1,
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 15,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
     paddingRight: 8,
   },
   addressSaveBtn: {
-    alignSelf: 'flex-start', backgroundColor: '#A30046', borderRadius: 10,
+    alignSelf: 'flex-start', backgroundColor: MAROON, borderRadius: 10,
     paddingVertical: 7, paddingHorizontal: 16, marginTop: 8,
   },
   addressSaveBtnText: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 15, fontWeight: '600', color: '#FFF',
+    fontFamily: FONT_SEMI, fontSize: 15, color: '#FFF',
   },
   selectButton: {
     width: '100%',
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     paddingVertical: 16,
     borderRadius: 10,
     alignItems: 'center',
     marginBottom: 16,
   },
   selectButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 20,
     color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   selectButtonOutline: {
     width: '100%',
     borderWidth: 2,
-    borderColor: '#A30046',
+    borderColor: MAROON,
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
     marginBottom: 16,
   },
   selectButtonOutlineText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 18,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
   },
   focusSelected: {
     flexDirection: 'row',
@@ -1037,25 +1183,23 @@ const s = StyleSheet.create({
     marginTop: 8,
   },
   focusSelectedName: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 18,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
   },
   focusSelectedDesc: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: '#666',
     marginTop: 2,
   },
   focusSelectedCourses: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
-    color: '#888',
+    color: STONE,
     marginTop: 4,
   },
   focusPrompt: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 15,
     color: '#666',
     marginBottom: 8,
@@ -1073,27 +1217,24 @@ const s = StyleSheet.create({
     flex: 1,
   },
   focusOptionName: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 17,
     color: '#333',
-    fontWeight: 'bold',
   },
   focusOptionDesc: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#888',
+    color: STONE,
     marginTop: 2,
   },
   focusBestBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderRadius: 10,
     paddingVertical: 2,
     paddingHorizontal: 8,
     marginBottom: 4,
   },
   focusBestText: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 11,
     color: '#FFFFFF',
     fontWeight: 'bold',
@@ -1105,14 +1246,13 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   riasecCode: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 32,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
     letterSpacing: 4,
   },
   riasecProfileName: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     color: '#666',
   },
@@ -1125,9 +1265,8 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   riasecDim: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 16,
-    fontWeight: 'bold',
     color: '#333',
     width: 18,
   },
@@ -1144,18 +1283,16 @@ const s = StyleSheet.create({
     borderRadius: 6,
   },
   riasecScore: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 14,
-    fontWeight: 'bold',
     color: '#333',
     width: 24,
     textAlign: 'right',
   },
   prioritySectionTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 20,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
     marginBottom: 8,
   },
   priorityRow: {
@@ -1164,19 +1301,18 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   priorityRowLabel: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     color: '#333',
   },
   priorityRowHint: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
-    color: '#888',
+    color: STONE,
     marginTop: 2,
     paddingRight: 8,
   },
   schedPref: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 16,
     color: '#555',
     marginBottom: 4,
@@ -1188,32 +1324,29 @@ const s = StyleSheet.create({
     marginBottom: 16,
   },
   changeButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 6,
     marginLeft: 12,
   },
   changeButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 15,
     color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   recsSection: {
     marginBottom: 8,
   },
   recsSectionTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 20,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
     marginBottom: 2,
   },
   recsSectionSub: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#888',
+    color: STONE,
     marginBottom: 12,
   },
   recItem: {
@@ -1234,43 +1367,38 @@ const s = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
   },
   recRankBadgeWarn: {
-    backgroundColor: '#999',
+    backgroundColor: STONE,
   },
   recRankText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 15,
     color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   recItemRight: {
     flex: 1,
   },
   recItemName: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 17,
     color: '#333',
-    fontWeight: 'bold',
   },
   recItemDegree: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#888',
+    color: STONE,
     marginTop: 2,
   },
   recItemRationale: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
     color: '#666',
     fontStyle: 'italic',
     marginTop: 4,
   },
   recFeasibility: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
     marginTop: 6,
     fontWeight: 'bold',
@@ -1289,24 +1417,35 @@ const s = StyleSheet.create({
     paddingBottom: 8,
   },
   recsDividerText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 16,
-    color: '#999',
-    fontWeight: 'bold',
+    color: STONE,
   },
   signOutButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     paddingVertical: 14,
     paddingHorizontal: 40,
     borderRadius: 8,
     marginTop: 8,
   },
   signOutText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 18,
     color: '#FFFFFF',
-    fontWeight: 'bold',
   },
+  // Delete account: a quiet link under Sign Out, and its own panel.
+  deleteLink: { marginTop: 14, minHeight: 44, paddingHorizontal: 16, justifyContent: 'center' },
+  deleteLinkText: { fontFamily: FONT, fontSize: 17, color: DANGER.fg },
+  deleteContent: { padding: 20 },
+  deleteBody: { fontFamily: FONT, fontSize: 17, color: INK, lineHeight: 24, marginBottom: 12 },
+  deleteLabel: { fontFamily: FONT_MED, fontSize: 16, color: INK, marginTop: 8 },
+  deleteError: { fontSize: 15, color: DANGER.fg, marginTop: 10 },
+  deleteButton: {
+    backgroundColor: DANGER.fg, borderRadius: 8, minHeight: 48,
+    alignItems: 'center', justifyContent: 'center', marginTop: 20,
+  },
+  deleteButtonDisabled: { opacity: 0.45 },
+  deleteButtonText: { fontFamily: FONT_SEMI, fontSize: 18, color: '#FFFFFF' },
   // Select program / courses mode
   headerRow: {
     flexDirection: 'row',
@@ -1318,22 +1457,19 @@ const s = StyleSheet.create({
     borderBottomColor: '#E0E0E0',
   },
   backText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 16,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
   },
   headerTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 20,
     color: '#333',
-    fontWeight: 'bold',
   },
   countBadge: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 16,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
     backgroundColor: '#F0F0F0',
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -1342,7 +1478,7 @@ const s = StyleSheet.create({
   },
   searchInput: {
     fontSize: 16,
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     color: '#000',
     backgroundColor: '#F5F5F5',
     borderRadius: 8,
@@ -1363,10 +1499,10 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   listItemSelected: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
   },
   listItemText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 16,
     color: '#333',
   },
@@ -1374,16 +1510,14 @@ const s = StyleSheet.create({
     color: '#FFFFFF',
   },
   listItemCode: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 14,
     color: '#666',
-    fontWeight: 'bold',
     marginBottom: 2,
   },
   listItemSub: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#999',
+    color: STONE,
     marginTop: 2,
   },
 });

@@ -1,35 +1,28 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, Platform, StatusBar, Image } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, Platform, StatusBar } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { STONE, INK, MAROON, FONT, FONT_SEMI, EYEBROW, HAIRLINE } from '../theme';
+import { CAMPUS_LINKS } from '../campus-links';
+import { slopTo } from './ui/hitSlop';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
-const MENU_ITEMS = [
-  { label: 'Home', tab: 'Home' },
-  { label: 'Schedule', tab: 'Schedule' },
-  { label: 'Search', tab: 'Search' },
-  { label: 'Progress', tab: 'Progress' },
-  { label: 'More', tab: 'More' },
-];
-
-const EXTRA_ITEMS = [
-  { label: 'Library Hours', tab: 'More', params: { screen: 'Library' } },
-  { label: 'Campus Events', tab: 'More', params: { screen: 'Events' } },
-  { label: 'Campus Map', tab: 'More', params: { screen: 'Map' } },
-];
-
+// The top-bar menu is the Campus menu: campus-life screens, which otherwise
+// sit one level down in More. It used to repeat the five tabs, which are
+// always on screen anyway. Same list as More (campus-links.js).
 const MenuOverlay = ({ visible, onClose, onNavigate }) => {
-  const handleItemPress = (tab, params) => {
-    onNavigate(tab, params);
+  const open = (screen) => {
+    onNavigate('More', { screen });
     onClose();
   };
 
   return (
-    <Modal visible={visible} animationType="fade" transparent>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={s.overlay}>
-        <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={onClose} />
-        <View style={s.panel}>
+        <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={onClose} accessible={false} importantForAccessibility="no" />
+        <View style={s.panel} accessibilityViewIsModal>
           {/* Close */}
-          <TouchableOpacity onPress={onClose} style={s.closeButton}>
+          <TouchableOpacity onPress={onClose} style={s.closeButton} hitSlop={slopTo(36)} accessibilityRole="button" accessibilityLabel="Close menu">
             <Text style={s.closeText}>X</Text>
           </TouchableOpacity>
 
@@ -41,27 +34,20 @@ const MenuOverlay = ({ visible, onClose, onNavigate }) => {
 
           <View style={s.divider} />
 
-          {/* Main nav items */}
-          {MENU_ITEMS.map((item) => (
+          <Text accessibilityRole="header" style={s.heading}>Campus</Text>
+          {CAMPUS_LINKS.map((link) => (
             <TouchableOpacity
-              key={item.label}
+              key={link.key}
               style={s.menuItem}
-              onPress={() => handleItemPress(item.tab)}
+              accessibilityRole="button"
+              accessibilityLabel={`${link.label}. ${link.sublabel}`}
+              onPress={() => open(link.key)}
             >
-              <Text style={s.menuItemText}>{item.label}</Text>
-            </TouchableOpacity>
-          ))}
-
-          <View style={s.divider} />
-
-          {/* Extra items */}
-          {EXTRA_ITEMS.map((item) => (
-            <TouchableOpacity
-              key={item.label}
-              style={s.menuItem}
-              onPress={() => handleItemPress(item.tab, item.params)}
-            >
-              <Text style={s.menuItemTextSecondary}>{item.label}</Text>
+              <Ionicons name={link.icon} size={20} color={MAROON} style={s.menuIcon} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.menuItemText}>{link.label}</Text>
+                <Text style={s.menuItemSub}>{link.sublabel}</Text>
+              </View>
             </TouchableOpacity>
           ))}
         </View>
@@ -117,35 +103,38 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   brandText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 26,
-    color: '#333',
+    color: INK,
   },
   brandTextBold: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 26,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
     marginLeft: 6,
   },
   divider: {
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: HAIRLINE,
     marginVertical: 16,
   },
+  heading: { ...EYEBROW, marginBottom: 4 },
   menuItem: {
-    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    minHeight: 44,
   },
+  menuIcon: { marginRight: 14 },
   menuItemText: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 20,
-    color: '#333',
-    fontWeight: 'bold',
+    fontFamily: FONT_SEMI,
+    fontSize: 19,
+    color: INK,
   },
-  menuItemTextSecondary: {
-    fontFamily: 'CormorantGaramond-Regular',
-    fontSize: 18,
-    color: '#888',
+  menuItemSub: {
+    fontSize: 13,
+    color: STONE,
+    marginTop: 1,
   },
 });
 

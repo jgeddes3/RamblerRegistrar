@@ -13,11 +13,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { searchCourses, getCourseSections } from '../firestore-data';
-import { FONT, FONT_ITALIC, STONE } from '../theme';
+import { FONT, FONT_ITALIC, STONE, FONT_SEMI, MAROON, WARN } from '../theme';
 import { generateSchedules, formatMinutes } from '../schedule-generator';
 import { sectionsToBlocks, gridBounds, findConflicts } from '../schedule-utils';
 import ScheduleGrid from './ScheduleGrid';
 import showAlert from '../alert';
+import Tappable from './ui/Tappable';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 const MAX_COURSES = 8;
@@ -210,13 +211,13 @@ const GenerateScheduleModal = ({
       <TextInput
         style={st.searchInput}
         placeholder="Search courses to include (e.g. COMP 170)"
-        placeholderTextColor="#999"
+        placeholderTextColor={STONE}
         value={query}
         onChangeText={onSearchChange}
         autoCorrect={false}
         autoCapitalize="characters"
       />
-      {searchLoading && <ActivityIndicator style={{ marginTop: 8 }} color="#A30046" />}
+      {searchLoading && <ActivityIndicator style={{ marginTop: 8 }} color={MAROON} />}
       {results.map((course) => (
         <TouchableOpacity
           key={course.code}
@@ -262,7 +263,7 @@ const GenerateScheduleModal = ({
         <Switch
           value={openOnly}
           onValueChange={setOpenOnly}
-          trackColor={{ true: '#A30046' }}
+          trackColor={{ true: MAROON }}
           accessibilityLabel="Open sections only"
         />
       </View>
@@ -272,7 +273,7 @@ const GenerateScheduleModal = ({
           <Switch
             value={keepCurrent}
             onValueChange={setKeepCurrent}
-            trackColor={{ true: '#A30046' }}
+            trackColor={{ true: MAROON }}
             accessibilityLabel="Keep my current classes"
           />
         </View>
@@ -280,40 +281,40 @@ const GenerateScheduleModal = ({
       <Text style={st.prefSubLabel}>Earliest class</Text>
       <View style={st.chipsWrap}>
         {START_CHOICES.map((c) => (
-          <TouchableOpacity
+          <Tappable role="radio" checked={earliestStart === c.value}
             key={c.label}
             style={[st.optChip, earliestStart === c.value && st.optChipOn]}
             onPress={() => setEarliestStart(c.value)}
             accessibilityLabel={`Earliest class ${c.label}`}
           >
             <Text style={[st.optChipText, earliestStart === c.value && st.optChipTextOn]}>{c.label}</Text>
-          </TouchableOpacity>
+          </Tappable>
         ))}
       </View>
       <Text style={st.prefSubLabel}>Latest class</Text>
       <View style={st.chipsWrap}>
         {END_CHOICES.map((c) => (
-          <TouchableOpacity
+          <Tappable role="radio" checked={latestEnd === c.value}
             key={c.label}
             style={[st.optChip, latestEnd === c.value && st.optChipOn]}
             onPress={() => setLatestEnd(c.value)}
             accessibilityLabel={`Latest class ${c.label}`}
           >
             <Text style={[st.optChipText, latestEnd === c.value && st.optChipTextOn]}>{c.label}</Text>
-          </TouchableOpacity>
+          </Tappable>
         ))}
       </View>
       <Text style={st.prefSubLabel}>Days to keep free</Text>
       <View style={st.chipsWrap}>
         {WEEKDAYS.map((d) => (
-          <TouchableOpacity
+          <Tappable role="checkbox" checked={freeDays.includes(d)}
             key={d}
             style={[st.optChip, freeDays.includes(d) && st.optChipOn]}
             onPress={() => toggleFreeDay(d)}
             accessibilityLabel={`Keep ${d} free`}
           >
             <Text style={[st.optChipText, freeDays.includes(d) && st.optChipTextOn]}>{d}</Text>
-          </TouchableOpacity>
+          </Tappable>
         ))}
       </View>
 
@@ -341,7 +342,7 @@ const GenerateScheduleModal = ({
           empty state, not a footnote above one. */}
       {generated.candidates.length === 0 ? (
         <ScrollView contentContainerStyle={st.emptyWrap}>
-          <Ionicons name="alert-circle-outline" size={32} color="#A30046" />
+          <Ionicons name="alert-circle-outline" size={32} color={MAROON} />
           <Text style={st.emptyHeadline}>
             {generated.notes[0] || 'No conflict-free schedule exists for these courses.'}
           </Text>
@@ -439,9 +440,9 @@ const GenerateScheduleModal = ({
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={close}>
-      <View style={st.container}>
+      <View accessibilityViewIsModal style={st.container}>
         <View style={st.header}>
-          <Text style={st.title}>
+          <Text accessibilityRole="header" style={st.title}>
             {preview ? 'Preview' : phase === 'results' ? 'Suggested Schedules' : 'Generate Schedule'}
           </Text>
           <TouchableOpacity onPress={close} style={st.closeBtn} accessibilityLabel="Close generator">
@@ -461,21 +462,21 @@ const st = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingBottom: 4,
   },
-  title: { fontFamily: FONT, fontSize: 24, fontWeight: '700', color: '#1a1a1a' },
+  title: { fontFamily: FONT_SEMI, fontSize: 24, color: '#1a1a1a' },
   closeBtn: { padding: 8 },
-  closeText: { fontFamily: FONT, color: '#A30046', fontSize: 18, fontWeight: '600' },
+  closeText: { fontFamily: FONT_SEMI, color: MAROON, fontSize: 18, },
   termLabel: { fontFamily: FONT, paddingHorizontal: 16, color: '#666', fontSize: 16, marginBottom: 8 },
 
   sectionLabel: {
-    fontFamily: FONT, fontSize: 15, fontWeight: '700', color: '#666', textTransform: 'uppercase',
+    fontFamily: FONT_SEMI, fontSize: 15, color: '#666', textTransform: 'uppercase',
     marginTop: 16, marginBottom: 8, paddingHorizontal: 16,
   },
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8 },
   chip: {
-    backgroundColor: '#A30046', borderRadius: 16, paddingVertical: 6, paddingHorizontal: 12,
+    backgroundColor: MAROON, borderRadius: 16, paddingVertical: 6, paddingHorizontal: 12,
     marginRight: 8, marginBottom: 8,
   },
-  chipText: { fontFamily: FONT, color: '#fff', fontWeight: '600', fontSize: 15 },
+  chipText: { fontFamily: FONT_SEMI, color: '#fff', fontSize: 15 },
   searchInput: {
     borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 12,
     marginHorizontal: 16, marginTop: 4, fontFamily: FONT, fontSize: 17, color: '#1a1a1a',
@@ -484,14 +485,14 @@ const st = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
     paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
   },
-  resultCode: { fontFamily: FONT, fontSize: 16, fontWeight: '700', color: '#A30046', width: 100 },
+  resultCode: { fontFamily: FONT_SEMI, fontSize: 16, color: MAROON, width: 100 },
   resultName: { fontFamily: FONT, fontSize: 16, flex: 1, color: '#444' },
   recLabel: { fontFamily: FONT, fontSize: 15, color: '#666', paddingHorizontal: 16, marginTop: 12, marginBottom: 4 },
   focusPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#A30046',
+    flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: MAROON,
     borderRadius: 8, paddingVertical: 2, paddingHorizontal: 7, marginLeft: 8,
   },
-  focusPillText: { fontFamily: FONT, color: '#fff', fontSize: 13, fontWeight: '600' },
+  focusPillText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 
   prefRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -503,26 +504,26 @@ const st = StyleSheet.create({
     borderWidth: 1, borderColor: '#ccc', borderRadius: 16,
     paddingVertical: 6, paddingHorizontal: 14, marginRight: 8, marginBottom: 8,
   },
-  optChipOn: { backgroundColor: '#A30046', borderColor: '#A30046' },
-  optChipText: { fontFamily: FONT, color: '#444', fontSize: 15, fontWeight: '600' },
+  optChipOn: { backgroundColor: MAROON, borderColor: MAROON },
+  optChipText: { fontFamily: FONT_SEMI, color: '#444', fontSize: 15, },
   optChipTextOn: { color: '#fff' },
 
   generateBtn: {
-    backgroundColor: '#A30046', borderRadius: 12, margin: 16, paddingVertical: 14,
+    backgroundColor: MAROON, borderRadius: 12, margin: 16, paddingVertical: 14,
     alignItems: 'center',
   },
   generateBtnDisabled: { opacity: 0.4 },
-  generateBtnText: { fontFamily: FONT, color: '#fff', fontSize: 18, fontWeight: '700' },
+  generateBtnText: { fontFamily: FONT_SEMI, color: '#fff', fontSize: 18, },
 
   personalizedLine: {
     fontFamily: FONT_ITALIC, color: STONE, fontSize: 14,
     paddingHorizontal: 16, marginBottom: 6,
   },
-  notesWrap: { backgroundColor: '#FEF3C7', padding: 12, marginHorizontal: 16, borderRadius: 10, marginBottom: 8 },
-  noteText: { fontFamily: FONT, color: '#92400E', fontSize: 15, marginBottom: 2 },
+  notesWrap: { backgroundColor: WARN.bg, padding: 12, marginHorizontal: 16, borderRadius: 10, marginBottom: 8 },
+  noteText: { fontFamily: FONT, color: WARN.fg, fontSize: 15, marginBottom: 2 },
   emptyWrap: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
   emptyHeadline: {
-    fontFamily: FONT, fontSize: 19, fontWeight: '600', color: '#1a1a1a',
+    fontFamily: FONT_SEMI, fontSize: 19, color: '#1a1a1a',
     textAlign: 'center', marginTop: 12, lineHeight: 26,
   },
   emptyNote: {
@@ -535,30 +536,30 @@ const st = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
   },
   candScoreBadge: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: '#A30046',
+    width: 44, height: 44, borderRadius: 22, backgroundColor: MAROON,
     alignItems: 'center', justifyContent: 'center', marginRight: 12,
   },
-  candScoreText: { fontFamily: FONT, color: '#fff', fontWeight: '700', fontSize: 16 },
-  candTitle: { fontFamily: FONT, fontWeight: '700', color: '#1a1a1a', fontSize: 17 },
+  candScoreText: { fontFamily: FONT_SEMI, color: '#fff', fontSize: 16 },
+  candTitle: { fontFamily: FONT_SEMI, color: '#1a1a1a', fontSize: 17 },
   candStats: { fontFamily: FONT, color: '#666', fontSize: 15, marginTop: 2 },
-  candCourses: { fontFamily: FONT, color: '#888', fontSize: 14, marginTop: 3 },
-  candChevron: { color: '#bbb', fontSize: 24, paddingLeft: 8 },
+  candCourses: { fontFamily: FONT, color: STONE, fontSize: 14, marginTop: 3 },
+  candChevron: { color: STONE, fontSize: 24, paddingLeft: 8 },
 
   adjustBtn: { padding: 14, alignItems: 'center' },
-  adjustBtnText: { fontFamily: FONT, fontSize: 16, color: '#A30046', fontWeight: '600' },
+  adjustBtnText: { fontFamily: FONT_SEMI, fontSize: 16, color: MAROON, },
 
   previewStats: { fontFamily: FONT, paddingHorizontal: 16, paddingBottom: 8, color: '#666', fontSize: 15 },
   previewBtnRow: { flexDirection: 'row', padding: 12, gap: 10 },
   backBtn: {
-    flex: 1, borderWidth: 1, borderColor: '#A30046', borderRadius: 12,
+    flex: 1, borderWidth: 1, borderColor: MAROON, borderRadius: 12,
     paddingVertical: 13, alignItems: 'center', marginRight: 10,
   },
-  backBtnText: { fontFamily: FONT, color: '#A30046', fontWeight: '700', fontSize: 17 },
+  backBtnText: { fontFamily: FONT_SEMI, color: MAROON, fontSize: 17 },
   useBtn: {
-    flex: 2, backgroundColor: '#A30046', borderRadius: 12, paddingVertical: 13,
+    flex: 2, backgroundColor: MAROON, borderRadius: 12, paddingVertical: 13,
     alignItems: 'center',
   },
-  useBtnText: { fontFamily: FONT, color: '#fff', fontWeight: '700', fontSize: 17 },
+  useBtnText: { fontFamily: FONT_SEMI, color: '#fff', fontSize: 17 },
 });
 
 export default GenerateScheduleModal;

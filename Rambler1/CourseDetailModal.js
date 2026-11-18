@@ -3,30 +3,26 @@ import { View, Text, Modal, ScrollView, TouchableOpacity, ActivityIndicator, Dim
 import { Ionicons } from '@expo/vector-icons';
 import {
   getCourseSections, fetchCourseDetail, fetchWatches, addWatch, removeWatch,
-  addCourseToPlan, addSectionToSchedule, PLAN_TERM_CAP,
+  addCourseToPlan, removeCourseFromPlan, addSectionToSchedule, removeSectionFromSchedule, PLAN_TERM_CAP,
 } from './firestore-data';
 import { getInstructorRating, noRatingCopy, ratingsAttribution } from './ratings';
-import { FONT_ITALIC, STONE } from './theme';
+import { FONT_ITALIC, STONE, WARN, FONT_SEMI, FONT, FONT_MED, MAROON, DANGER, OK, MAROON_WASH } from './theme';
 import { useAppContext } from './AppContext';
 import { fillWarning } from './planning-insights';
 import { planSemesters } from './plan-utils';
 import TrendChart from './components/TrendChart';
 import FeedbackModal from './components/FeedbackModal';
+import ErrorState from './components/ErrorState';
+import { seatAge, newestReadAt } from './seat-age';
+import { useToast, ToastHost } from './components/ui/Toast';
 import showAlert from './alert';
+import { useRegistrationTerm, resolveRegistrationTerm } from './term';
+import { slopTo } from './components/ui/hitSlop';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
-// Dynamic term (same logic as ProgressScreen)
-function getRegistrationTerm() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const yy = year % 100;
-  if (month >= 10) return { code: `1${yy + 1}2`, label: `Spring ${year + 1}` };
-  if (month >= 3) return { code: `1${yy}6`, label: `Fall ${year}` };
-  return { code: `1${yy}2`, label: `Spring ${year}` };
-}
-const TERM = getRegistrationTerm();
+// The registration term comes from term.js (useRegistrationTerm inside the
+// component) so every screen agrees on it and follows the published terms.
 
 // Props:
 // - course: { code, name, credits, description }
@@ -41,9 +37,11 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
   const { user, quizResults, classYear, isHonors, isAthlete, graduationYear } = useAppContext();
   const prefs = quizResults?.schedulingPrefs || {};
   const signedIn = !!user && !user.isAnonymous; // anonymous users can't own watches
+  const TERM = useRegistrationTerm();
 
   const [sections, setSections] = useState([]);
   const [sectionsLoading, setSectionsLoading] = useState(false);
+  const [sectionsFailed, setSectionsFailed] = useState(false);
   const [profRatings, setProfRatings] = useState({});
   const [selectedSection, setSelectedSection] = useState(null);
   // Seat watches for this term: Set of watched class_number strings. Only the
@@ -59,15 +57,25 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
   const [actionBusy, setActionBusy] = useState(false);
   // Report-a-problem (#17): pre-tagged with this course's code.
   const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const toast = useToast();
 
   const addToPlan = async (termCode, label) => {
     if (!signedIn || actionBusy) return;
     setActionBusy(true);
-    const res = await addCourseToPlan(user.uid, termCode, course.code);
+    const code = course.code;
+    const res = await addCourseToPlan(user.uid, termCode, code);
     setActionBusy(false);
     setPlanPicker(false);
-    if (res?.added) showAlert('Planned', `${course.code} added to ${label}.`);
-    else if (res?.already) showAlert('Already planned', `${course.code} is already in ${label}.`);
+    if (res?.added) {
+      toast.show({
+        message: `${code} added to ${label}.`,
+        actionLabel: 'Undo',
+        onAction: async () => {
+          const undone = await removeCourseFromPlan(user.uid, termCode, code);
+          if (!undone) showAlert("Couldn't undo", `${code} is still in ${label}. Remove it in Planning.`);
+        },
+      });
+    } else if (res?.already) toast.show({ message: `${code} is already in ${label}.` });
     else if (res?.full) showAlert('Semester full', `A semester plan holds at most ${PLAN_TERM_CAP} courses.`);
     else showAlert('Save failed', 'Could not update your plan. Please try again.');
   };
@@ -78,9 +86,17 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
     const res = await addSectionToSchedule(user.uid, TERM.code, sec.class_number);
     setActionBusy(false);
     if (res?.added) {
-      showAlert('Added to schedule', `${course.code} Sec ${sec.section_number} is on your ${TERM.label} schedule.`);
+      const termCode = TERM.code;
+      toast.show({
+        message: `${course.code} Sec ${sec.section_number} added to your ${TERM.label} schedule.`,
+        actionLabel: 'Undo',
+        onAction: async () => {
+          const undone = await removeSectionFromSchedule(user.uid, termCode, sec.class_number);
+          if (!undone) showAlert("Couldn't undo", 'The section is still on your schedule. Remove it on the Schedule tab.');
+        },
+      });
     } else if (res?.already) {
-      showAlert('Already scheduled', 'This section is already on your schedule.');
+      toast.show({ message: 'This section is already on your schedule.' });
     } else if (res?.full) {
       showAlert('Schedule full', 'A schedule holds at most 40 sections.');
     } else {
@@ -136,11 +152,16 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
   })).sort((a, b) => b._prefScore - a._prefScore);
 
   const topScore = sortedSections.length > 0 ? sortedSections[0]._prefScore : 0;
+  // Seat-count age for the list header; rows whose own count is older say so.
+  const newestRead = newestReadAt(sortedSections);
+  const listAge = seatAge(newestRead);
   const displaySections = sortedSections;
 
   useEffect(() => {
     if (!visible || !course) return;
+    resolveRegistrationTerm(); // retries if the published terms weren't reachable earlier
 
+    setSectionsFailed(false);
     if (singleSection) {
       fetchProfRatings([singleSection]);
     } else if (preSections && preSections.length > 0) {
@@ -149,7 +170,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
     } else {
       loadSections();
     }
-  }, [visible, course, singleSection]);
+  }, [visible, course, singleSection, TERM.code]);
 
   // Seat watches: load the user's watches for this term each time the modal
   // opens. fetchWatches returns [] on failure, so this never throws.
@@ -164,7 +185,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
       }
     });
     return () => { cancelled = true; };
-  }, [isControlled, visible, signedIn, user]);
+  }, [isControlled, visible, signedIn, user, TERM.code]);
 
   // Optimistic bell flip, reverted with an alert if the write fails.
   const ownToggleWatch = async (sec) => {
@@ -219,11 +240,16 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
 
   const loadSections = async () => {
     setSectionsLoading(true);
+    setSectionsFailed(false);
     try {
-      const data = await getCourseSections(TERM.code, course.code);
+      const data = await getCourseSections(TERM.code, course.code); // null = read failed
       setSections(data || []);
+      setSectionsFailed(data === null);
       if (data && data.length > 0) fetchProfRatings(data);
-    } catch (e) {}
+    } catch (e) {
+      setSections([]);
+      setSectionsFailed(true);
+    }
     setSectionsLoading(false);
   };
 
@@ -239,8 +265,8 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
   if (!course) return null;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={s.overlay}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View accessibilityViewIsModal style={s.overlay}>
         <View style={s.modal}>
           {/* Header */}
           <View style={s.header}>
@@ -251,7 +277,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                 <Text style={s.credits}>{course.credits} credit{course.credits !== 1 ? 's' : ''}</Text>
               ) : null}
             </View>
-            <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel="Close course details">
+            <TouchableOpacity onPress={onClose} style={s.closeBtn} hitSlop={slopTo(32)} accessibilityLabel="Close course details">
               <Ionicons name="close" size={20} color="#666" />
             </TouchableOpacity>
           </View>
@@ -260,7 +286,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
           {fillNotice ? (
             fillNotice.level === 'info' ? (
               <View style={s.fillInfoRow}>
-                <Ionicons name="flash-outline" size={13} color="#888" />
+                <Ionicons name="flash-outline" size={13} color={STONE} />
                 <Text style={s.fillInfoLine}>{fillNotice.text}</Text>
               </View>
             ) : (
@@ -268,7 +294,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                 <Ionicons
                   name="flash"
                   size={14}
-                  color={fillNotice.level === 'high' ? '#b91c1c' : '#92400e'}
+                  color={fillNotice.level === 'high' ? DANGER.fg : WARN.fg}
                   style={{ marginTop: 2 }}
                 />
                 <Text
@@ -292,9 +318,9 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                 accessibilityLabel="Add to plan"
               >
                 <View style={s.planBtnInner}>
-                  <Ionicons name="calendar-outline" size={15} color="#A30046" />
+                  <Ionicons name="calendar-outline" size={15} color={MAROON} />
                   <Text style={s.planBtnText}>Add to Plan</Text>
-                  <Ionicons name={planPicker ? 'chevron-up' : 'chevron-down'} size={13} color="#A30046" />
+                  <Ionicons name={planPicker ? 'chevron-up' : 'chevron-down'} size={13} color={MAROON} />
                 </View>
               </TouchableOpacity>
               {planPicker ? (
@@ -325,10 +351,16 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
           <Text style={s.termLabel}>
             {singleSection ? `Section ${singleSection.section_number} · ${TERM.label}` : `${TERM.label} Sections`}
           </Text>
+          {displaySections.length > 0 ? (
+            <Text style={[s.seatNote, listAge?.stale && s.seatNoteStale]}>
+              {listAge ? `${listAge.label}${listAge.stale ? ', may have changed' : ''}. ` : ''}
+              Confirm in LOCUS before you register.
+            </Text>
+          ) : null}
 
           <ScrollView style={s.sectionsList} showsVerticalScrollIndicator={false}>
             {sectionsLoading ? (
-              <ActivityIndicator size="large" color="#A30046" style={{ marginTop: 24 }} />
+              <ActivityIndicator size="large" color={MAROON} style={{ marginTop: 24 }} />
             ) : displaySections.length > 0 ? (
               displaySections.map((sec, i) => {
                 const hasEnrollment = sec.enrollment_cap > 0;
@@ -374,7 +406,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                         {prof && prof.rating >= 4 ? (
                           <View style={s.topProfBadge}>
                             <View style={s.topProfBadgeInner}>
-                              <Ionicons name="star" size={10} color="#92400E" />
+                              <Ionicons name="star" size={10} color={WARN.fg} />
                               <Text style={s.topProfBadgeText}>Top prof</Text>
                             </View>
                           </View>
@@ -417,14 +449,20 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                           : sec.status || 'Enrollment TBD'}
                       </Text>
                     </View>
+                    {/* This section's count is older than the list's newest
+                        (its last read failed): say so on the row. */}
+                    {(() => {
+                      if (sec.enrollment_read_at === newestRead) return null;
+                      const age = seatAge(sec.enrollment_read_at);
+                      return age && age.stale && hasEnrollment ? (
+                        <Text style={s.staleSeats}>{age.label}, may have changed</Text>
+                      ) : null;
+                    })()}
 
                     {/* Enrollment + waitlist trend (single-section view only —
                         F-QW1 sparkline / F-HI3 waitlist movement) */}
                     {singleSection && Array.isArray(sec.recent_history) && sec.recent_history.length > 1 ? (
-                      <View>
-                        <Text style={s.trendLabel}>Enrollment trend (last {sec.recent_history.length} snapshots)</Text>
-                        <TrendChart history={sec.recent_history} />
-                      </View>
+                      <TrendChart history={sec.recent_history} />
                     ) : null}
 
                     {/* Quick add to the registration-term schedule (F-P3).
@@ -448,6 +486,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                     {canBellWatch ? (
                       <TouchableOpacity
                         style={[s.watchBtn, isWatched && s.watchBtnActive, !signedIn && s.watchBtnDisabled]}
+                        hitSlop={slopTo(44, 24)}
                         onPress={() => toggleWatch(sec)}
                         disabled={!signedIn}
                         accessibilityLabel={isWatched ? 'Stop watching for open seats' : 'Watch for open seats'}
@@ -456,7 +495,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                           <Ionicons
                             name={isWatched ? 'notifications' : 'notifications-outline'}
                             size={13}
-                            color={isWatched ? '#FFFFFF' : '#A30046'}
+                            color={isWatched ? '#FFFFFF' : MAROON}
                           />
                           <Text style={[s.watchBtnText, isWatched && s.watchBtnTextActive]}>
                             {isWatched ? 'Watching' : 'Watch for seats'}
@@ -473,7 +512,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                         accessibilityLabel="Remove from schedule"
                       >
                         <View style={s.btnInner}>
-                          <Ionicons name="trash-outline" size={13} color="#b91c1c" />
+                          <Ionicons name="trash-outline" size={13} color={DANGER.fg} />
                           <Text style={s.removeBtnText}>Remove from schedule</Text>
                         </View>
                       </TouchableOpacity>
@@ -511,6 +550,12 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                   </TouchableOpacity>
                 );
               })
+            ) : sectionsFailed ? (
+              <ErrorState
+                title="Couldn't load sections"
+                message="Check your connection, then try again."
+                onRetry={loadSections}
+              />
             ) : (
               <View style={s.empty}>
                 <Text style={s.emptyTitle}>No sections found</Text>
@@ -533,6 +578,8 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
             <View style={{ height: 30 }} />
           </ScrollView>
         </View>
+        {/* This modal covers the app's own toast host: show toasts here too. */}
+        <ToastHost bottom={28} />
       </View>
 
       <FeedbackModal
@@ -575,21 +622,20 @@ const s = StyleSheet.create({
     alignItems: 'flex-start',
   },
   courseCode: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 28,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
   },
   courseName: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
     color: '#333',
     marginTop: 2,
   },
   credits: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
-    color: '#888',
+    color: STONE,
     marginTop: 2,
   },
   closeBtn: {
@@ -603,7 +649,7 @@ const s = StyleSheet.create({
   },
   closeBtnText: { fontSize: 14, fontWeight: 'bold', color: '#555' },
   description: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
@@ -620,16 +666,15 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     marginTop: 10,
   },
-  fillBannerHigh: { backgroundColor: '#fee2e2' },
-  fillBannerWarn: { backgroundColor: '#fef3c7' },
+  fillBannerHigh: { backgroundColor: DANGER.bg },
+  fillBannerWarn: { backgroundColor: WARN.bg },
   fillBannerText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 15,
-    fontWeight: 'bold',
     lineHeight: 20,
   },
-  fillBannerTextHigh: { color: '#b91c1c' },
-  fillBannerTextWarn: { color: '#92400e' },
+  fillBannerTextHigh: { color: DANGER.fg },
+  fillBannerTextWarn: { color: WARN.fg },
   fillInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -638,9 +683,9 @@ const s = StyleSheet.create({
   },
   fillInfoLine: {
     flex: 1,
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
-    color: '#888',
+    color: STONE,
   },
   // Icon+text pair inside pill buttons/badges
   btnInner: {
@@ -658,12 +703,15 @@ const s = StyleSheet.create({
     marginVertical: 12,
   },
   termLabel: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 20,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
     marginBottom: 10,
   },
+  // Seat-count age + "confirm in LOCUS" (sans: it carries a time).
+  seatNote: { fontSize: 13, color: STONE, marginTop: -4, marginBottom: 10, lineHeight: 18 },
+  seatNoteStale: { color: WARN.fg },
+  staleSeats: { fontSize: 13, color: WARN.fg, marginTop: 2, marginLeft: 22 },
   sectionsList: {
     flex: 1,
   },
@@ -679,20 +727,19 @@ const s = StyleSheet.create({
   },
   sectionCardFull: { opacity: 0.5 },
   sectionCardRecommended: {
-    borderColor: '#A30046',
+    borderColor: MAROON,
     borderWidth: 2,
     backgroundColor: '#FFF8FA',
   },
   recommendedBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     borderRadius: 10,
     paddingVertical: 2,
     paddingHorizontal: 10,
     marginBottom: 8,
   },
   recommendedText: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
     color: '#FFFFFF',
     fontWeight: 'bold',
@@ -704,17 +751,15 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   sectionNum: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 17,
-    fontWeight: 'bold',
     color: '#333',
   },
   badge: { borderRadius: 10, paddingVertical: 2, paddingHorizontal: 8 },
-  badgeOpen: { backgroundColor: '#d1fae5' },
-  badgeLow: { backgroundColor: '#fef3c7' },
-  badgeFull: { backgroundColor: '#fee2e2' },
+  badgeOpen: { backgroundColor: OK.bg },
+  badgeLow: { backgroundColor: WARN.bg },
+  badgeFull: { backgroundColor: DANGER.bg },
   badgeText: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 12,
     fontWeight: 'bold',
     color: '#333',
@@ -729,31 +774,26 @@ const s = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: '#A30046',
+    borderColor: MAROON,
     backgroundColor: '#FFFFFF',
   },
-  watchBtnActive: { backgroundColor: '#A30046' },
+  watchBtnActive: { backgroundColor: MAROON },
   watchBtnDisabled: { opacity: 0.4 },
-  watchBtnText: { fontFamily: 'CormorantGaramond-Medium', fontSize: 14, color: '#A30046' },
+  watchBtnText: { fontFamily: FONT_MED, fontSize: 14, color: MAROON },
   watchBtnTextActive: { color: '#FFFFFF' },
 
   // Section badges row (status + F-HI4 top-prof)
   badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   topProfBadge: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: WARN.bg,
     borderRadius: 10,
     paddingVertical: 2,
     paddingHorizontal: 8,
   },
   topProfBadgeInner: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   topProfBadgeText: {
-    fontFamily: 'CormorantGaramond-Medium', fontSize: 13, color: '#92400E',
+    fontSize: 13, color: WARN.fg,
   },
-  // Trend chart label (F-QW1/F-HI3)
-  trendLabel: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 13, color: '#888', marginTop: 8,
-  },
-
   // Remove from schedule (schedule-opened single-section view)
   removeBtn: {
     alignSelf: 'flex-start',
@@ -763,10 +803,10 @@ const s = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: '#b91c1c',
+    borderColor: DANGER.fg,
     backgroundColor: '#FFFFFF',
   },
-  removeBtnText: { fontFamily: 'CormorantGaramond-Medium', fontSize: 14, color: '#b91c1c' },
+  removeBtnText: { fontFamily: FONT_MED, fontSize: 14, color: DANGER.fg },
 
   // Quick add-to-schedule (F-P3)
   schedAddBtn: {
@@ -776,15 +816,15 @@ const s = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 3,
     paddingHorizontal: 10,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
   },
   schedAddBtnText: {
-    fontFamily: 'CormorantGaramond-Medium', fontSize: 14, color: '#FFFFFF',
+    fontFamily: FONT_MED, fontSize: 14, color: '#FFFFFF',
   },
 
   // Report a problem (#17)
   reportLink: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#A30046',
+    fontFamily: FONT, fontSize: 14, color: MAROON,
     textDecorationLine: 'underline', textAlign: 'center', marginTop: 14,
   },
 
@@ -796,15 +836,15 @@ const s = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#A30046',
+    borderColor: MAROON,
   },
   planBtnInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   planBtnText: {
-    fontFamily: 'CormorantGaramond-Medium', fontSize: 15, color: '#A30046',
+    fontFamily: FONT_MED, fontSize: 15, color: MAROON,
   },
   planChips: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
   planChip: {
-    backgroundColor: '#FBF0F5',
+    backgroundColor: MAROON_WASH,
     borderWidth: 1,
     borderColor: '#E8CDD9',
     borderRadius: 12,
@@ -814,7 +854,7 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   planChipText: {
-    fontFamily: 'CormorantGaramond-Regular', fontSize: 14, color: '#A30046', fontWeight: '600',
+    fontFamily: FONT_SEMI, fontSize: 14, color: MAROON, 
   },
 
   // Info rows
@@ -828,7 +868,7 @@ const s = StyleSheet.create({
     width: 24,
   },
   infoText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 15,
     color: '#444',
     flex: 1,
@@ -842,10 +882,9 @@ const s = StyleSheet.create({
     borderTopColor: '#F0F0F0',
   },
   profName: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 16,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
   },
   profStats: {
     flexDirection: 'row',
@@ -860,41 +899,38 @@ const s = StyleSheet.create({
     paddingVertical: 2,
   },
   ratingBadgeText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 14,
     color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   profStat: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
     color: '#555',
   },
   profStatLight: {
-    fontFamily: 'CormorantGaramond-Regular',
     fontSize: 13,
-    color: '#999',
+    color: STONE,
     marginTop: 2,
   },
   ratingsAttribution: {
-    fontFamily: FONT_ITALIC,
     fontSize: 12,
     color: STONE,
     textAlign: 'center',
     marginTop: 4,
+    fontStyle: 'italic',
   },
 
   // Empty
   empty: { alignItems: 'center', paddingTop: 30 },
   emptyTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 18,
-    color: '#999',
+    color: STONE,
   },
   emptyHint: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 14,
-    color: '#CCC',
+    color: STONE,
     marginTop: 4,
   },
 });

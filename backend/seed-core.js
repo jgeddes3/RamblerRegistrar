@@ -8,6 +8,7 @@
 const db = require('./db');
 
 async function seedCore() {
+  await require('./cli-guard').requireServerStopped('seed-core.js');
   await db.initDb();
 
   // Check if core_areas already has data

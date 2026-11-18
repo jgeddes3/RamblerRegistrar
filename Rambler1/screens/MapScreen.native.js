@@ -27,27 +27,14 @@ import {
   fetchUserPrimaryLocation,
 } from '../firestore-data';
 import { buildRouteLegs } from '../walk-route';
-import { PARCHMENT } from '../theme';
+import { PARCHMENT, STONE, FONT, MAROON } from '../theme';
+import { useRegistrationTerm } from '../term';
 
-const MAROON = '#A30046';
 const GOLD = '#FFB81C'; // Loyola gold — "your classes" pins
 const HOME_BLUE = '#2E5E9E';
 
-// =============================================================================
-// TERM (same helper as ScheduleScreen/SearchScreen/ProgressScreen)
-// =============================================================================
-
-function getRegistrationTerm() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const yy = year % 100;
-  if (month >= 10) return { code: `1${yy + 1}2`, label: `Spring ${year + 1}` };
-  if (month >= 3) return { code: `1${yy}6`, label: `Fall ${year}` };
-  return { code: `1${yy}2`, label: `Spring ${year}` };
-}
-
-const TERM = getRegistrationTerm();
+// The registration term comes from term.js (useRegistrationTerm inside the
+// component) so every screen agrees on it and follows the published terms.
 
 // =============================================================================
 // CAMPUS REGIONS
@@ -125,6 +112,7 @@ const MapScreen = () => {
   const { user } = useAppContext();
   const uid = user?.uid;
   const signedIn = !!user && !user.isAnonymous;
+  const TERM = useRegistrationTerm();
 
   const [buildings, setBuildings] = useState([]);
   const [classCourses, setClassCourses] = useState(new Map()); // buildingId -> [codes]
@@ -173,7 +161,7 @@ const MapScreen = () => {
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [uid, signedIn]);
+  }, [uid, signedIn, TERM.code]);
 
   const switchCampus = useCallback((next) => {
     setCampus(next);
@@ -234,6 +222,58 @@ const MapScreen = () => {
   const showHome = !!home;
   const showClasses = classCourses.size > 0;
 
+  // Pins are built once per data change, not once per render: every
+  // keystroke in the route search re-renders this screen, and handing the map
+  // ~60 freshly created markers each time made typing stutter.
+  const buildingMarkers = useMemo(
+    () => buildings.filter(hasCoords).map((b) => {
+      const courses = classCourses.get(b.id);
+      if (courses && courses.length > 0) {
+        // Building hosting the user's classes this term — gold pin,
+        // callout lists the courses meeting there.
+        return (
+          <Marker
+            key={`b-${b.id}`}
+            coordinate={{ latitude: Number(b.latitude), longitude: Number(b.longitude) }}
+            pinColor={GOLD}
+          >
+            <Callout>
+              <View style={s.callout}>
+                <Text style={s.calloutTitle}>{b.name}</Text>
+                <Text style={s.calloutSub}>Your classes here:</Text>
+                {courses.map((code) => (
+                  <Text key={code} style={s.calloutCourse}>{code}</Text>
+                ))}
+              </View>
+            </Callout>
+          </Marker>
+        );
+      }
+      return (
+        <Marker
+          key={`b-${b.id}`}
+          coordinate={{ latitude: Number(b.latitude), longitude: Number(b.longitude) }}
+          pinColor={MAROON}
+          title={b.name}
+          description={b.address || undefined}
+        />
+      );
+    }),
+    [buildings, classCourses]
+  );
+  const homeMarker = useMemo(
+    () => showHome && (
+      <Marker
+        key="home"
+        coordinate={{ latitude: Number(home.latitude), longitude: Number(home.longitude) }}
+        pinColor={HOME_BLUE}
+        title={home.label || 'Home'}
+        description={home.address || undefined}
+      />
+    ),
+    [showHome, home]
+  );
+
   return (
     <View style={s.container}>
       <MapView
@@ -243,49 +283,9 @@ const MapScreen = () => {
         showsUserLocation={false}
         toolbarEnabled={false}
       >
-        {buildings.filter(hasCoords).map((b) => {
-          const courses = classCourses.get(b.id);
-          if (courses && courses.length > 0) {
-            // Building hosting the user's classes this term — gold pin,
-            // callout lists the courses meeting there.
-            return (
-              <Marker
-                key={`b-${b.id}`}
-                coordinate={{ latitude: Number(b.latitude), longitude: Number(b.longitude) }}
-                pinColor={GOLD}
-              >
-                <Callout>
-                  <View style={s.callout}>
-                    <Text style={s.calloutTitle}>{b.name}</Text>
-                    <Text style={s.calloutSub}>Your classes here:</Text>
-                    {courses.map((code) => (
-                      <Text key={code} style={s.calloutCourse}>{code}</Text>
-                    ))}
-                  </View>
-                </Callout>
-              </Marker>
-            );
-          }
-          return (
-            <Marker
-              key={`b-${b.id}`}
-              coordinate={{ latitude: Number(b.latitude), longitude: Number(b.longitude) }}
-              pinColor={MAROON}
-              title={b.name}
-              description={b.address || undefined}
-            />
-          );
-        })}
+        {buildingMarkers}
 
-        {showHome && (
-          <Marker
-            key="home"
-            coordinate={{ latitude: Number(home.latitude), longitude: Number(home.longitude) }}
-            pinColor={HOME_BLUE}
-            title={home.label || 'Home'}
-            description={home.address || undefined}
-          />
-        )}
+        {homeMarker}
 
         {routeCoords.length >= 2 && (
           <Polyline
@@ -299,7 +299,7 @@ const MapScreen = () => {
 
       {/* Title overlay */}
       <View style={s.titleCard} pointerEvents="none">
-        <Text style={s.title}>Campus Map</Text>
+        <Text accessibilityRole="header" style={s.title}>Campus Map</Text>
         <Text style={s.subtitle}>{TERM.label}</Text>
       </View>
 
@@ -369,7 +369,7 @@ const MapScreen = () => {
             <TextInput
               style={s.routeSearch}
               placeholder={routeStops.length === 0 ? 'Add a starting building...' : 'Add the next stop...'}
-              placeholderTextColor="#999"
+              placeholderTextColor={STONE}
               value={routeSearch}
               onChangeText={setRouteSearch}
               autoCorrect={false}
@@ -400,7 +400,7 @@ const MapScreen = () => {
                   <View key={`stop-${i}`}>
                     {i > 0 && route.legs[i - 1] ? (
                       <View style={s.routeLegRow}>
-                        <Ionicons name="walk-outline" size={13} color="#888" />
+                        <Ionicons name="walk-outline" size={13} color={STONE} />
                         <Text style={s.routeLegText}>
                           {route.legs[i - 1].walk_minutes} min · {route.legs[i - 1].distance_m} m
                         </Text>
@@ -451,8 +451,8 @@ const MapScreen = () => {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: PARCHMENT },
-  title: { fontFamily: 'CormorantGaramond-Regular', fontSize: 28, color: MAROON },
-  subtitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 15, color: '#999', marginTop: -2 },
+  title: { fontFamily: FONT, fontSize: 28, color: MAROON },
+  subtitle: { fontFamily: FONT, fontSize: 15, color: STONE, marginTop: -2 },
 
   // Overlays
   titleCard: {
@@ -523,7 +523,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginBottom: 8,
   },
-  routeTitle: { fontFamily: 'CormorantGaramond-Regular', fontSize: 22, color: MAROON },
+  routeTitle: { fontFamily: FONT, fontSize: 22, color: MAROON },
   routeHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   routeClearText: { fontSize: 14, fontWeight: '600', color: MAROON },
   routeCloseBtn: { padding: 2 },
@@ -542,7 +542,7 @@ const s = StyleSheet.create({
   },
   routeSuggestText: { flex: 1, fontSize: 14, color: '#333' },
   routeStopsList: { marginTop: 8, maxHeight: 170 },
-  routeEmptyText: { fontSize: 13, color: '#999', paddingVertical: 10 },
+  routeEmptyText: { fontSize: 13, color: STONE, paddingVertical: 10 },
   routeStopRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6,
   },
@@ -556,7 +556,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingLeft: 32, paddingVertical: 1,
   },
-  routeLegText: { fontSize: 12, color: '#888' },
+  routeLegText: { fontSize: 12, color: STONE },
   routeTotalRow: {
     flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8,
     borderTopWidth: 1, borderTopColor: '#F0F0F0', paddingTop: 10,

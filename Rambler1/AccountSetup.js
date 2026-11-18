@@ -1,18 +1,34 @@
-import React, { useState } from 'react';
-import { View, Text, Image, KeyboardAvoidingView, ScrollView, Platform, TouchableOpacity, StyleSheet, Switch } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { AccessibilityInfo, View, Text, Image, KeyboardAvoidingView, ScrollView, Platform, TouchableOpacity, StyleSheet, Switch } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from './AppContext';
 import { upgradeAnonymousAccount } from './auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveUserProfile, addUserCourse, saveQuizResults } from './firestore-data';
+import { saveSignupData, storePendingSignup } from './signup-save';
 import { POLICY_VERSION } from './privacy-policy-content';
 import { TERMS_VERSION, TERMS_TITLE, TERMS_SECTIONS } from './terms-content';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
-import SearchBar from './styleComponents/SearchBar';
+import TextField from './components/ui/TextField';
 import BackgroundImage from './styleComponents/BackgroundImage';
+import { validateSignup, MIN_PASSWORD } from './signup-validation';
+import { DANGER, FONT, FONT_SEMI, MAROON } from './theme';
+import StepCounter from './components/ui/StepCounter';
+import useOnboardingDraft from './components/ui/useOnboardingDraft';
+import { clearDraft } from './onboarding';
+import Tappable from './components/ui/Tappable';
 
 const CLASS_YEARS = ['Freshman', 'Sophomore', 'Junior', 'Senior'];
+const SIGNUP_SAVE_API = { saveUserProfile, saveQuizResults, addUserCourse };
+
+// Space under a picker, holding its error when there is one.
+const FieldFoot = ({ error }) => (
+  <View style={s.fieldFoot}>
+    {error ? <Text style={s.fieldError} accessibilityRole="alert">{error}</Text> : null}
+  </View>
+);
 
 const AccountSetup =() => {
   const [year, setYear] = useState('');
@@ -27,32 +43,46 @@ const AccountSetup =() => {
   const [policyVisible, setPolicyVisible] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsVisible, setTermsVisible] = useState(false);
+  const [submitted, setSubmitted] = useState(false); // Next pressed once: show field errors
+  const passwordRef = useRef(null);
   const { selectedProgram, selectedProgram2, selectedMinors, selectedCourses, setGraduationYear, setClassYear, setIsHonors, setIsAthlete, quizResults, setUser, setIsLoggedIn, setPrivacyPolicyVersion, setTermsVersion } = useAppContext();
 
   const navigation = useNavigation();
+  useOnboardingDraft('AccountSetup');
   const currentYear = new Date().getFullYear();
 
+  // Next is always on screen. The first press shows what's missing under each
+  // field; from then on the messages follow the fields as they're fixed.
+  const fieldErrors = submitted
+    ? validateSignup({ year, classYear: classYearLocal, email, password, termsAccepted, policyAccepted })
+    : {};
+
   const handleNextButtonPress = async () => {
-    if (!email || !password) {
-      setErrorMessage('Please enter email and password');
-      return;
-    }
-    if (password.length < 6) {
-      setErrorMessage('Password must be at least 6 characters');
+    if (loading) return;
+    setSubmitted(true);
+    const errors = validateSignup({ year, classYear: classYearLocal, email, password, termsAccepted, policyAccepted });
+    const problems = Object.values(errors);
+    if (problems.length) {
+      AccessibilityInfo.announceForAccessibility?.(
+        `${problems.length === 1 ? 'One thing' : `${problems.length} things`} to fix: ${problems.join(' ')}`
+      );
       return;
     }
     setErrorMessage('');
     setLoading(true);
     try {
-      const firebaseUser = await upgradeAnonymousAccount(email, password);
+      const firebaseUser = await upgradeAnonymousAccount(email.trim(), password);
       setGraduationYear(String(year));
       setClassYear(classYearLocal);
       setIsHonors(isHonors);
       setIsAthlete(isAthlete);
 
-      // Save onboarding selections to Firestore
-      try {
-        await saveUserProfile(firebaseUser.uid, {
+      // Save onboarding selections: profile, quiz and taken courses at once,
+      // so a bad connection costs one write timeout here, not one per save.
+      // Whatever didn't save is kept on the phone; PendingSaveBanner retries
+      // it and tells the user if it still won't go through.
+      const signupData = {
+        profile: {
           selectedProgramId: selectedProgram?.id || null,
           selectedProgram2Id: selectedProgram2?.id || null,
           selectedMinors: (selectedMinors || []).map(m => m.id),
@@ -62,31 +92,21 @@ const AccountSetup =() => {
           isAthlete: isAthlete,
           privacyPolicyVersion: POLICY_VERSION,
           termsVersion: TERMS_VERSION,
-        });
-
-        // Save quiz results to Firestore
-        if (quizResults) {
-          try {
-            await saveQuizResults(firebaseUser.uid, {
+        },
+        quiz: quizResults
+          ? {
               scores: quizResults.scores,
               code: quizResults.code,
               profileName: quizResults.profileName,
               answers: quizResults.answers,
               schedulingPrefs: quizResults.schedulingPrefs || {},
-            });
-          } catch (e) {}
-        }
-
-        // Also sync selected courses to Firestore
-        if (selectedCourses && selectedCourses.length > 0) {
-          for (const course of selectedCourses) {
-            try {
-              await addUserCourse(firebaseUser.uid, course.code, null, null);
-            } catch (e) {}
-          }
-        }
-      } catch (e) {
-        // Non-critical — profile can be saved later
+            }
+          : null,
+        courseCodes: (selectedCourses || []).map((course) => course.code),
+      };
+      const saved = await saveSignupData(firebaseUser.uid, signupData, SIGNUP_SAVE_API);
+      if (!saved.ok) {
+        await storePendingSignup(AsyncStorage, firebaseUser.uid, saved.remaining).catch(() => {});
       }
       // linkWithCredential preserves the uid, so onAuthStateChanged does NOT
       // fire after upgrading an anonymous account — update context explicitly
@@ -98,6 +118,7 @@ const AccountSetup =() => {
         isAnonymous: false,
       });
       setIsLoggedIn(true);
+      clearDraft(AsyncStorage);
       // The user accepted both documents in this flow — reflect it in context
       // so the App.js consent gate doesn't re-prompt right after signup. If
       // the profile write above failed, the gate re-prompts on next cold start.
@@ -129,18 +150,21 @@ const AccountSetup =() => {
             </TouchableOpacity>
           </View>
           <Image source={require('./assets/Icons/Logo2-02.png')} style={s.headerLogo} />
-          <View style={s.headerSide} />
+          <View style={s.headerSide}>
+            <StepCounter route="AccountSetup" />
+          </View>
         </View>
         <View style={s.pageTitleBadge}>
-          <Text style={s.pageTitle}>Create Account</Text>
+          <Text accessibilityRole="header" style={s.pageTitle}>Create Account</Text>
         </View>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={s.content}>
           <Text style={s.label}>Expected Graduation Date</Text>
-          <View style={s.pickerWrapper}>
+          <View style={[s.pickerWrapper, fieldErrors.year && s.pickerError]}>
             <Picker
               selectedValue={year}
               style={s.picker}
+              accessibilityLabel="Expected graduation year"
               onValueChange={(itemValue) => setYear(itemValue)}
             >
               <Picker.Item label="Select year..." value="" />
@@ -150,11 +174,13 @@ const AccountSetup =() => {
               <Picker.Item label={`${currentYear + 10}+`} value={`${currentYear + 10}+`} />
             </Picker>
           </View>
+          <FieldFoot error={fieldErrors.year} />
           <Text style={s.label}>Current Class Year</Text>
-          <View style={s.pickerWrapper}>
+          <View style={[s.pickerWrapper, fieldErrors.classYear && s.pickerError]}>
             <Picker
               selectedValue={classYearLocal}
               style={s.picker}
+              accessibilityLabel="Class year"
               onValueChange={(itemValue) => setClassYearLocal(itemValue)}
             >
               <Picker.Item label="Select class year..." value="" />
@@ -163,6 +189,7 @@ const AccountSetup =() => {
               ))}
             </Picker>
           </View>
+          <FieldFoot error={fieldErrors.classYear} />
           <View style={s.toggleCard}>
             <View style={s.toggleRow}>
               <Text style={s.toggleLabel}>Honors student?</Text>
@@ -170,7 +197,7 @@ const AccountSetup =() => {
                 accessibilityLabel="Honors student"
                 value={isHonors}
                 onValueChange={setIsHonorsLocal}
-                trackColor={{ false: '#B0B0B0', true: '#A30046' }}
+                trackColor={{ false: '#B0B0B0', true: MAROON }}
                 thumbColor="#FFFFFF"
               />
             </View>
@@ -180,7 +207,7 @@ const AccountSetup =() => {
                 accessibilityLabel="Student-athlete"
                 value={isAthlete}
                 onValueChange={setIsAthleteLocal}
-                trackColor={{ false: '#B0B0B0', true: '#A30046' }}
+                trackColor={{ false: '#B0B0B0', true: MAROON }}
                 thumbColor="#FFFFFF"
               />
             </View>
@@ -189,19 +216,49 @@ const AccountSetup =() => {
           <View style={s.labelBadge}>
             <Text style={s.label}>Pick an email and password</Text>
           </View>
-          <SearchBar value={email} onChangeText={(text) => { setEmail(text); setErrorMessage(''); }} placeholder="Email" keyboardType="email-address" autoCapitalize="none" />
+          <TextField
+            label="Email"
+            value={email}
+            onChangeText={(text) => { setEmail(text); setErrorMessage(''); }}
+            error={fieldErrors.email}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="email"
+            textContentType="username"
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            style={s.fieldOnCard}
+          />
           <View style={{ height: 15 }} />
-          <SearchBar value={password} onChangeText={(text) => { setPassword(text); setErrorMessage(''); }} placeholder="Password" secureTextEntry />
+          <TextField
+            ref={passwordRef}
+            label="Password"
+            value={password}
+            onChangeText={(text) => { setPassword(text); setErrorMessage(''); }}
+            error={fieldErrors.password}
+            hint={`At least ${MIN_PASSWORD} characters`}
+            secureTextEntry
+            autoCapitalize="none"
+            autoComplete="new-password"
+            textContentType="newPassword"
+            passwordRules={`minlength: ${MIN_PASSWORD};`}
+            returnKeyType="done"
+            style={s.fieldOnCard}
+          />
           {errorMessage ? (
-            <Text style={{ color: '#A30046', marginTop: 10, fontFamily: 'CormorantGaramond-Regular', fontSize: 16, textAlign: 'center' }}>
+            <Text
+              accessibilityRole="alert"
+              accessibilityLiveRegion="polite"
+              style={{ color: MAROON, marginTop: 10, fontFamily: FONT, fontSize: 16, textAlign: 'center' }}
+            >
               {errorMessage}
             </Text>
           ) : null}
         </ScrollView>
         </KeyboardAvoidingView>
-        {year && classYearLocal && email && password ? (
-          <View style={s.stickyBottom}>
-            <TouchableOpacity
+        <View style={s.stickyBottom}>
+            <Tappable role="checkbox" checked={termsAccepted}
               style={s.consentRow}
               onPress={() => setTermsVisible(true)}
               accessibilityLabel="Read and agree to the Terms of Service"
@@ -209,14 +266,14 @@ const AccountSetup =() => {
               <Ionicons
                 name={termsAccepted ? 'checkbox' : 'square-outline'}
                 size={20}
-                color="#A30046"
+                color={MAROON}
               />
               <Text style={s.consentText}>
                 I have read and agree to the{' '}
                 <Text style={s.consentLink}>Terms of Service</Text>
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Tappable>
+            <Tappable role="checkbox" checked={policyAccepted}
               style={s.consentRow}
               onPress={() => setPolicyVisible(true)}
               accessibilityLabel="Read and agree to the Privacy Policy"
@@ -224,22 +281,27 @@ const AccountSetup =() => {
               <Ionicons
                 name={policyAccepted ? 'checkbox' : 'square-outline'}
                 size={20}
-                color="#A30046"
+                color={MAROON}
               />
               <Text style={s.consentText}>
                 I have read and agree to the{' '}
                 <Text style={s.consentLink}>Privacy Policy</Text>
               </Text>
-            </TouchableOpacity>
+            </Tappable>
+            {fieldErrors.consent ? (
+              <Text style={s.fieldError} accessibilityRole="alert">{fieldErrors.consent}</Text>
+            ) : null}
             <TouchableOpacity
-              style={[s.nextButton, !(policyAccepted && termsAccepted) && s.nextButtonDisabled]}
+              style={[s.nextButton, loading && s.nextButtonDisabled]}
               onPress={handleNextButtonPress}
-              disabled={loading || !policyAccepted || !termsAccepted}
+              disabled={loading}
+              accessibilityRole="button"
+              accessibilityLabel="Next"
+              accessibilityState={{ disabled: loading, busy: loading }}
             >
               <Text style={s.nextButtonText}>{loading ? '...' : 'Next'}</Text>
             </TouchableOpacity>
-          </View>
-        ) : null}
+        </View>
         <PrivacyPolicyModal
           visible={policyVisible}
           mode="consent"
@@ -263,7 +325,7 @@ const AccountSetup =() => {
 const s = StyleSheet.create({
   headerBar: {
     height: 120,
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
@@ -286,10 +348,9 @@ const s = StyleSheet.create({
     borderRadius: 4,
   },
   backButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT_SEMI,
     fontSize: 15,
-    color: '#A30046',
-    fontWeight: 'bold',
+    color: MAROON,
   },
   pageTitleBadge: {
     backgroundColor: '#FFFFFF',
@@ -300,7 +361,7 @@ const s = StyleSheet.create({
     marginTop: 15,
   },
   pageTitle: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 36,
     textAlign: 'center',
     color: 'black',
@@ -312,7 +373,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 28,
     textAlign: 'center',
     color: 'black',
@@ -328,8 +389,19 @@ const s = StyleSheet.create({
     backgroundColor: '#D9D9D9',
     borderRadius: 12,
     width: 275,
-    marginBottom: 50,
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
+  pickerError: { borderColor: DANGER.fg },
+  // The 50 pt that used to sit under each picker, now holding its error.
+  fieldFoot: { width: 275, minHeight: 50, paddingTop: 6 },
+  // Errors sit on white: the page background is a photo.
+  fieldError: {
+    alignSelf: 'flex-start', fontSize: 14, color: DANGER.fg, backgroundColor: '#FFFFFF',
+    borderRadius: 4, paddingHorizontal: 8, paddingVertical: 3, overflow: 'hidden', marginBottom: 6,
+  },
+  // Email/password fields on a white card for the same reason.
+  fieldOnCard: { backgroundColor: '#FFFFFF', borderRadius: 8, padding: 10, width: 295 },
   toggleCard: {
     backgroundColor: '#D9D9D9',
     borderRadius: 12,
@@ -345,7 +417,7 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   toggleLabel: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 20,
     color: 'black',
   },
@@ -375,20 +447,20 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   consentText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 16,
     color: 'black',
     marginLeft: 8,
   },
   consentLink: {
     textDecorationLine: 'underline',
-    color: '#A30046',
+    color: MAROON,
   },
   nextButtonDisabled: {
     opacity: 0.4,
   },
   nextButton: {
-    backgroundColor: '#A30046',
+    backgroundColor: MAROON,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 2,
@@ -396,7 +468,7 @@ const s = StyleSheet.create({
     height: 53,
   },
   nextButtonText: {
-    fontFamily: 'CormorantGaramond-Regular',
+    fontFamily: FONT,
     fontSize: 19,
     color: 'white',
   },

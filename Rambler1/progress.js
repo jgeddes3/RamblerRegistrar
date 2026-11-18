@@ -11,7 +11,10 @@
 // This module is self-contained (Firestore only) so firestore-data.js can
 // delegate to it without a circular import.
 
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, query, where } from 'firebase/firestore';
+// Guarded reads: an empty from-cache (offline) result rejects instead of
+// passing for "nothing there" (see firestore-guards.js).
+import { getDoc, getDocs } from './firestore-guards';
 import { db } from './firebaseConfig';
 import { computeRequirementProgress } from './requirement-progress';
 

@@ -5,6 +5,7 @@ import { useAppContext } from './AppContext';
 import BackgroundImage from './styleComponents/BackgroundImage';
 import useReduceMotion from './components/ui/useReduceMotion';
 import { STONE } from './theme';
+import { slopTo } from './components/ui/hitSlop';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -443,7 +444,7 @@ const PreferenceQuiz = () => {
         {/* Header */}
         <View style={s.headerBar}>
           <View style={s.headerSide}>
-            <TouchableOpacity onPress={handleBack} style={s.backButton}>
+            <TouchableOpacity onPress={handleBack} style={s.backButton} hitSlop={slopTo(60, 36)} accessibilityRole="button">
               <Text style={s.backButtonText}>Back</Text>
             </TouchableOpacity>
           </View>
@@ -510,6 +511,7 @@ const PreferenceQuiz = () => {
             {QUESTIONS.map((_, i) => (
               <TouchableOpacity
                 key={i}
+                hitSlop={{ top: 18, bottom: 18, left: 3, right: 3 }}
                 accessibilityRole="button"
                 accessibilityLabel={`Question ${i + 1}${isAnswered(i) ? ', answered' : ''}`}
                 accessibilityState={{ selected: i === currentQuestion }}

@@ -10,6 +10,7 @@ import { programProgressSummary } from '../progress-summary';
 import CourseDetailModal from '../CourseDetailModal';
 import ErrorState from '../components/ErrorState';
 import { STONE } from '../theme';
+import { slopTo } from '../components/ui/hitSlop';
 
 // Graduation Outlook banner design tokens (status -> colors)
 const OUTLOOK_COLORS = {
@@ -810,7 +811,7 @@ const ProgressScreen = () => {
                 <Text accessibilityRole="header" style={s.modalTitle}>{coreAreaModal?.name}</Text>
                 <Text style={s.modalSubtitle}>{coreAreaModal?.credits} credits required</Text>
               </View>
-              <TouchableOpacity onPress={() => setCoreAreaModal(null)} style={s.modalClose} accessibilityRole="button" accessibilityLabel="Close">
+              <TouchableOpacity onPress={() => setCoreAreaModal(null)} style={s.modalClose} hitSlop={slopTo(32)} accessibilityRole="button" accessibilityLabel="Close">
                 <Text style={s.modalCloseText}>X</Text>
               </TouchableOpacity>
             </View>

@@ -16,6 +16,7 @@ import ErrorState from './components/ErrorState';
 import { seatAge, newestReadAt } from './seat-age';
 import showAlert from './alert';
 import { useRegistrationTerm, resolveRegistrationTerm } from './term';
+import { slopTo } from './components/ui/hitSlop';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -257,7 +258,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                 <Text style={s.credits}>{course.credits} credit{course.credits !== 1 ? 's' : ''}</Text>
               ) : null}
             </View>
-            <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel="Close course details">
+            <TouchableOpacity onPress={onClose} style={s.closeBtn} hitSlop={slopTo(32)} accessibilityLabel="Close course details">
               <Ionicons name="close" size={20} color="#666" />
             </TouchableOpacity>
           </View>
@@ -466,6 +467,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
                     {canBellWatch ? (
                       <TouchableOpacity
                         style={[s.watchBtn, isWatched && s.watchBtnActive, !signedIn && s.watchBtnDisabled]}
+                        hitSlop={slopTo(44, 24)}
                         onPress={() => toggleWatch(sec)}
                         disabled={!signedIn}
                         accessibilityLabel={isWatched ? 'Stop watching for open seats' : 'Watch for open seats'}

@@ -14,6 +14,7 @@ import ErrorState from '../components/ErrorState';
 import { seatAge } from '../seat-age';
 import { useRegistrationTerm, resolveRegistrationTerm } from '../term';
 import { STONE, WARN } from '../theme';
+import { slopTo } from '../components/ui/hitSlop';
 
 // =============================================================================
 // CONSTANTS
@@ -79,6 +80,7 @@ const FilterChips = ({ filters, onFilterChange }) => (
         <TouchableOpacity
           key={opt.key}
           style={[s.chip, active && s.chipActive]}
+          hitSlop={slopTo(44, 30)}
           onPress={() => {
             if (opt.group === 'time') {
               onFilterChange(f => ({ ...f, timeOfDay: f.timeOfDay === opt.key ? null : opt.key }));
@@ -287,7 +289,7 @@ const RecentSearches = ({ searches, onSelect, onRemove }) => {
           <TouchableOpacity style={s.recentTerm} onPress={() => onSelect(term)}>
             <Text style={s.recentText}>{term}</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => onRemove(term)} style={s.recentX} accessibilityRole="button" accessibilityLabel={`Remove ${term} from recent searches`}>
+          <TouchableOpacity onPress={() => onRemove(term)} style={s.recentX} hitSlop={slopTo(22)} accessibilityRole="button" accessibilityLabel={`Remove ${term} from recent searches`}>
             <Text style={s.recentXText}>X</Text>
           </TouchableOpacity>
         </View>
@@ -595,7 +597,7 @@ const SearchScreen = () => {
           returnKeyType="search"
         />
         {query.length > 0 && (
-          <TouchableOpacity style={s.clearBtn} onPress={clearSearch} accessibilityRole="button" accessibilityLabel="Clear search">
+          <TouchableOpacity style={s.clearBtn} onPress={clearSearch} hitSlop={slopTo(24)} accessibilityRole="button" accessibilityLabel="Clear search">
             <Text style={s.clearBtnText}>X</Text>
           </TouchableOpacity>
         )}

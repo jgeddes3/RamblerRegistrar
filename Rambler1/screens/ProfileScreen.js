@@ -14,6 +14,7 @@ import { canEditProfile, programEdit, minorToggleEdit, priorityEdit } from '../p
 import { filterCourses, setCourseSelected } from '../course-list';
 import { afterModalDismiss } from '../modal-sequencing';
 import { STONE, INK, DANGER } from '../theme';
+import { slopTo } from '../components/ui/hitSlop';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
@@ -418,7 +419,7 @@ const ProfileScreen = ({ visible, onClose }) => {
         <View accessibilityViewIsModal style={s.overlay}>
           <View style={s.panelFull}>
             <View style={s.headerRow}>
-              <TouchableOpacity onPress={leaveDeletePanel} disabled={deleteBusy} accessibilityRole="button">
+              <TouchableOpacity onPress={leaveDeletePanel} disabled={deleteBusy} hitSlop={slopTo(40, 20)} accessibilityRole="button">
                 <Text style={s.backText}>Back</Text>
               </TouchableOpacity>
               <Text accessibilityRole="header" style={s.headerTitle}>Delete account</Text>
@@ -474,7 +475,7 @@ const ProfileScreen = ({ visible, onClose }) => {
         <View accessibilityViewIsModal style={s.overlay}>
           <View style={s.panelFull}>
             <View style={s.headerRow}>
-              <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }}>
+              <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }} hitSlop={slopTo(40, 20)} accessibilityRole="button">
                 <Text style={s.backText}>Back</Text>
               </TouchableOpacity>
               <Text accessibilityRole="header" style={s.headerTitle}>Select Major</Text>
@@ -570,7 +571,7 @@ const ProfileScreen = ({ visible, onClose }) => {
         <View accessibilityViewIsModal style={s.overlay}>
           <View style={s.panelFull}>
             <View style={s.headerRow}>
-              <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }}>
+              <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }} hitSlop={slopTo(40, 20)} accessibilityRole="button">
                 <Text style={s.backText}>Back</Text>
               </TouchableOpacity>
               <Text accessibilityRole="header" style={s.headerTitle}>Select Minors</Text>
@@ -616,7 +617,7 @@ const ProfileScreen = ({ visible, onClose }) => {
         <View accessibilityViewIsModal style={s.overlay}>
           <View style={s.panelFull}>
             <View style={s.headerRow}>
-              <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }}>
+              <TouchableOpacity onPress={() => { setMode('profile'); setSearch(''); }} hitSlop={slopTo(40, 20)} accessibilityRole="button">
                 <Text style={s.backText}>Back</Text>
               </TouchableOpacity>
               <Text accessibilityRole="header" style={s.headerTitle}>Courses Taken</Text>
@@ -656,7 +657,7 @@ const ProfileScreen = ({ visible, onClose }) => {
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <View accessibilityViewIsModal style={s.overlay}>
         <View style={s.panel}>
-          <TouchableOpacity onPress={handleClose} style={s.closeButton} accessibilityRole="button" accessibilityLabel="Close profile">
+          <TouchableOpacity onPress={handleClose} style={s.closeButton} hitSlop={slopTo(36)} accessibilityRole="button" accessibilityLabel="Close profile">
             <Text style={s.closeText}>X</Text>
           </TouchableOpacity>
 

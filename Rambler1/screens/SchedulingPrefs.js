@@ -5,6 +5,7 @@ import { useAppContext } from '../AppContext';
 import { saveQuizResults } from '../firestore-data';
 import BackgroundImage from '../styleComponents/BackgroundImage';
 import { STONE } from '../theme';
+import { slopTo } from '../components/ui/hitSlop';
 
 // Bottom inset so the sticky bar clears the home indicator / nav bar
 const BOTTOM_SAFE = Platform.OS === 'ios' ? 34 : 20;
@@ -116,7 +117,7 @@ const SchedulingPrefs = () => {
         {/* Header */}
         <View style={s.headerBar}>
           <View style={s.headerSide}>
-            <TouchableOpacity onPress={handleBack} style={s.backButton}>
+            <TouchableOpacity onPress={handleBack} style={s.backButton} hitSlop={slopTo(60, 36)} accessibilityRole="button">
               <Text style={s.backButtonText}>Back</Text>
             </TouchableOpacity>
           </View>

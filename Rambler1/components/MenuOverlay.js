@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, Platform, StatusBar, Image } from 'react-native';
 import { STONE } from '../theme';
+import { slopTo } from './ui/hitSlop';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
@@ -30,7 +31,7 @@ const MenuOverlay = ({ visible, onClose, onNavigate }) => {
         <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={onClose} accessible={false} importantForAccessibility="no" />
         <View style={s.panel} accessibilityViewIsModal>
           {/* Close */}
-          <TouchableOpacity onPress={onClose} style={s.closeButton} accessibilityRole="button" accessibilityLabel="Close menu">
+          <TouchableOpacity onPress={onClose} style={s.closeButton} hitSlop={slopTo(36)} accessibilityRole="button" accessibilityLabel="Close menu">
             <Text style={s.closeText}>X</Text>
           </TouchableOpacity>
 

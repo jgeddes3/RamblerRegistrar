@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useAppContext } from '../AppContext';
 import {
@@ -33,6 +32,7 @@ import CourseDetailModal from '../CourseDetailModal';
 import showAlert from '../alert';
 import { useRegistrationTerm, resolveRegistrationTerm } from '../term';
 import { afterModalDismiss } from '../modal-sequencing';
+import { writeCacheFile } from '../ics-export';
 
 // Same pattern as ProfileScreen: RN Modal covers the status bar / notch on iOS.
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
@@ -658,13 +658,11 @@ const ScheduleScreen = () => {
         return;
       }
       const ics = buildIcs(sections, getTermEndDate(TERM));
-      const dir = FileSystem.cacheDirectory;
-      if (!dir) {
+      const uri = await writeCacheFile(`schedule-${TERM.code}.ics`, ics);
+      if (!uri) {
         showAlert('Export failed', 'No writable directory available on this device.');
         return;
       }
-      const uri = `${dir}schedule-${TERM.code}.ics`;
-      await FileSystem.writeAsStringAsync(uri, ics);
       if (!(await Sharing.isAvailableAsync())) {
         showAlert('Sharing unavailable', 'This device cannot share files.');
         return;

@@ -63,6 +63,29 @@ async function closeBrowserBounded(browser, page, { timeoutMs = 15000, settleMs 
   }
 }
 
+// Which LOCUS row holds a section's detail link: the row index recorded when
+// the section was extracted, else its position in the list (older callers).
+function enrollmentRowIndex(section, position) {
+  const row = section ? section.row_index : undefined;
+  return Number.isInteger(row) && row >= 0 ? row : position;
+}
+
+// Does a row's class-number link belong to this section?
+function sameClassNumber(linkText, classNumber) {
+  const a = String(linkText == null ? '' : linkText).trim();
+  return a !== '' && a === String(classNumber == null ? '' : classNumber).trim();
+}
+
+// Class numbers of the sections that carry an enrollment read from this run
+// (a failed read leaves the fields off entirely; a real 0 counts as read).
+function freshEnrollmentClassNumbers(sections) {
+  const fresh = new Set();
+  for (const s of sections || []) {
+    if (s.enrollment_cap !== undefined && s.enrollment_cap !== null) fresh.add(String(s.class_number));
+  }
+  return fresh;
+}
+
 class LocusPuppeteerScraper {
   constructor() {
     this.browser = null;
@@ -242,6 +265,9 @@ class LocusPuppeteerScraper {
           const campusText = campusEl ? campusEl.textContent.trim() : '';
 
           results.push({
+            // LOCUS's own row number for this section: the detail link and
+            // every MTG_ field for it are suffixed with it.
+            row_index: Number(i),
             subject: subj,
             catalog_number: catalogNumber,
             title: courseTitle,
@@ -287,9 +313,16 @@ class LocusPuppeteerScraper {
     let read = 0;
     for (let i = 0; i < sections.length; i++) {
       try {
-        // Click the class number link
-        const link = await this.page.$(`[id="MTG_CLASS_NBR$${i}"]`);
+        // Click the class number link for THIS section's row. The row number
+        // comes from LOCUS, not from the section's position in our list (the
+        // two differ whenever a row is skipped or numbering has a gap), and
+        // the link's text must be this section's class number. Otherwise the
+        // numbers on the detail page belong to a different section: skip, and
+        // the previous numbers are kept.
+        const link = await this.page.$(`[id="MTG_CLASS_NBR$${enrollmentRowIndex(sections[i], i)}"]`);
         if (!link) continue;
+        const linkText = await this.page.evaluate((el) => el.textContent, link);
+        if (!sameClassNumber(linkText, sections[i].class_number)) continue;
 
         await link.click();
         await new Promise(r => setTimeout(r, 2500));
@@ -543,6 +576,7 @@ async function scrape(termCode, subjectsToScrape, fetchEnrollment = false) {
 
   const scraper = new LocusPuppeteerScraper();
   let savedCount = 0;
+  const freshEnrollment = new Set(); // class numbers with an enrollment read this run
   let scrapeError = null;
   let allSections = [];
 
@@ -568,6 +602,9 @@ async function scrape(termCode, subjectsToScrape, fetchEnrollment = false) {
     allSections = await scraper.scrapeAll(code, subjects, fetchEnrollment, (newSections) => {
       for (const section of newSections) {
         db.insertSection(code, section);
+      }
+      for (const classNumber of freshEnrollmentClassNumbers(newSections)) {
+        freshEnrollment.add(classNumber);
       }
       // A successful subject scrape is authoritative for that subject: rows
       // absent from it were cancelled/renumbered in LOCUS. Without this, ghost
@@ -597,7 +634,9 @@ async function scrape(termCode, subjectsToScrape, fetchEnrollment = false) {
         const newVersion = db.bumpVersion();
         console.log(`Stored ${savedCount} sections. Catalog version: ${newVersion}`);
 
-        const snapshotCount = db.snapshotEnrollment(code);
+        // Only sections whose numbers were read this run: preserved numbers
+        // from a failed read must not be recorded as today's reading.
+        const snapshotCount = db.snapshotEnrollment(code, freshEnrollment);
         console.log(`Enrollment snapshot: ${snapshotCount} sections recorded`);
       } catch (finalizeErr) {
         console.error(`Finalize failed (data retained in memory): ${finalizeErr.message}`);
@@ -653,4 +692,5 @@ if (require.main === module) {
     });
 }
 
-module.exports = { scrape, defaultScrapeTerm, LocusPuppeteerScraper, SUBJECTS, TERM_CODES, parseEnrollmentFields, closeBrowserBounded };
+module.exports = { scrape, defaultScrapeTerm, LocusPuppeteerScraper, SUBJECTS, TERM_CODES, parseEnrollmentFields, closeBrowserBounded,
+  enrollmentRowIndex, sameClassNumber, freshEnrollmentClassNumbers };

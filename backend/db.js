@@ -734,13 +734,19 @@ module.exports = {
   // ENROLLMENT HISTORY (tracking which courses fill up fast)
   // ===========================================================================
 
-  // Take a snapshot of current enrollment for all sections in a term
-  snapshotEnrollment(termCode) {
+  // Take a snapshot of current enrollment for a term's sections.
+  // freshClassNumbers (a Set of class_number strings) limits the snapshot to
+  // sections whose numbers were actually read this run: a section whose read
+  // failed keeps its previous numbers in `sections`, and recording those here
+  // with today's date would pass stale data off as a fresh reading. Omit it
+  // to snapshot every section.
+  snapshotEnrollment(termCode, freshClassNumbers) {
     const now = new Date();
     const today = now.toISOString().split('T')[0] + 'T' + String(now.getUTCHours()).padStart(2, '0');
     const sections = this.getAllSections(termCode);
     let count = 0;
     for (const s of sections) {
+      if (freshClassNumbers && !freshClassNumbers.has(String(s.class_number))) continue;
       const cap = parseInt(s.enrollment_cap) || 0;
       const total = parseInt(s.enrollment_total) || 0;
       const percentFull = cap > 0 ? Math.round((total / cap) * 100) : 0;

@@ -5,11 +5,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { saveUserProfile, saveQuizResults, addUserCourse } from '../firestore-data';
+import { saveUserProfile, saveQuizResults, addUserCourse, fetchSignupSaveState } from '../firestore-data';
 import { useAppContext } from '../AppContext';
 import {
   saveSignupData, readPendingSignup, storePendingSignup, clearPendingSignup, RETRY_DELAYS_MS,
+  pruneAgainstServer, isNothingPending, firstResult,
 } from '../signup-save';
+import { isDeletingAccount } from '../account-deletion';
 import ErrorState from './ErrorState';
 
 const API = { saveUserProfile, saveQuizResults, addUserCourse };
@@ -22,7 +24,7 @@ export default function PendingSaveBanner({ retryDelays = RETRY_DELAYS_MS }) {
   const delaysRef = useRef(retryDelays);
 
   const attempt = useCallback(async (delays) => {
-    if (!uid || runningRef.current) return;
+    if (!uid || runningRef.current || isDeletingAccount()) return;
     runningRef.current = true;
     try {
       const pending = await readPendingSignup(AsyncStorage, uid);
@@ -30,7 +32,18 @@ export default function PendingSaveBanner({ retryDelays = RETRY_DELAYS_MS }) {
         setFailed(false);
         return;
       }
-      const res = await saveSignupData(uid, pending, API, { delays });
+      // Only what the server still lacks: anything there now was saved by an
+      // earlier try or changed by the user since, and must not be overwritten.
+      const server = await firstResult(() => fetchSignupSaveState(uid), delays);
+      if (!server) {
+        setFailed(true);
+        return;
+      }
+      const toSave = pruneAgainstServer(pending, server);
+      const res = isNothingPending(toSave)
+        ? { ok: true, remaining: toSave }
+        : await saveSignupData(uid, toSave, API, { delays });
+      if (isDeletingAccount()) return; // the account is going; don't store it again
       if (res.ok) {
         await clearPendingSignup(AsyncStorage);
         setFailed(false);

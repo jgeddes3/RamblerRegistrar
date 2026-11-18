@@ -10,6 +10,13 @@
 // Deleting the sign-in itself (auth.js deleteCurrentAccount) comes after,
 // once the panel has closed: it swaps the whole signed-in screen tree.
 
+// Set for the whole deletion (password check to sign-in deleted). Background
+// writers that would recreate account data (PendingSaveBanner's retries)
+// check it and stand down.
+let deleting = false;
+export const isDeletingAccount = () => deleting;
+export const setDeletingAccount = (on) => { deleting = !!on; };
+
 export async function eraseAccountData(password, uid, deps) {
   try {
     await deps.reauthenticate(password);

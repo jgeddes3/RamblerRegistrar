@@ -84,3 +84,42 @@ describe('pending signup store', () => {
     expect(await readPendingSignup(storage, 'u1')).toBeNull();
   });
 });
+
+describe('retrying later never overwrites what the user changed since', () => {
+  const { pruneAgainstServer, forgetPendingCourse, firstResult } = require('../signup-save');
+
+  test('fields the server already has are dropped; the rest still go', () => {
+    const left = pruneAgainstServer(DATA, { profileKeys: ['selectedProgramId', 'createdAt'], hasQuiz: false });
+    expect(left.profile).toEqual({ graduationYear: '2028' });
+    expect(left.quiz).toEqual(DATA.quiz);
+    expect(left.courseCodes).toEqual(DATA.courseCodes);
+  });
+
+  test('a saved quiz and a fully saved profile leave nothing of either', () => {
+    const left = pruneAgainstServer(DATA, { profileKeys: ['selectedProgramId', 'graduationYear'], hasQuiz: true });
+    expect(left.profile).toBeNull();
+    expect(left.quiz).toBeNull();
+  });
+
+  test('a course the user removed is dropped from the pending entry', async () => {
+    const m = new Map();
+    const storage = {
+      getItem: async (k) => (m.has(k) ? m.get(k) : null),
+      setItem: async (k, v) => { m.set(k, v); },
+      removeItem: async (k) => { m.delete(k); },
+    };
+    await storePendingSignup(storage, 'u1', { profile: null, quiz: null, courseCodes: ['COMP 170', 'MATH 131'] });
+    await forgetPendingCourse(storage, 'u1', 'COMP 170');
+    expect((await readPendingSignup(storage, 'u1')).courseCodes).toEqual(['MATH 131']);
+    await forgetPendingCourse(storage, 'u1', 'MATH 131');
+    expect(await readPendingSignup(storage, 'u1')).toBeNull(); // nothing left: cleared
+  });
+
+  test('firstResult retries a read that returned null, up to the delays', async () => {
+    const read = jest.fn().mockResolvedValueOnce(null).mockResolvedValueOnce({ ok: 1 });
+    expect(await firstResult(read, [0, 0], noSleep)).toEqual({ ok: 1 });
+    const never = jest.fn(async () => null);
+    expect(await firstResult(never, [0], noSleep)).toBeNull();
+    expect(never).toHaveBeenCalledTimes(2);
+  });
+});

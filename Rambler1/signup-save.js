@@ -51,6 +51,41 @@ export async function saveSignupData(uid, data, api, { delays = [], sleep = defa
 
 const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// ---- a later retry: the server's current state wins ------------------------
+// By the time a pending save is retried (minutes or launches later), the user
+// may have changed things in Profile. Those edits write single fields, so a
+// field present on the server was either saved by an earlier attempt or
+// changed since; either way the signup value must not be written over it.
+// server: { profileKeys: [field names on users/{uid}], hasQuiz }.
+export function pruneAgainstServer(remaining, server) {
+  const r = normalize(remaining);
+  let profile = null;
+  if (r.profile) {
+    const have = new Set((server && server.profileKeys) || []);
+    const left = Object.fromEntries(Object.entries(r.profile).filter(([k]) => !have.has(k)));
+    profile = Object.keys(left).length ? left : null;
+  }
+  return { profile, quiz: server && server.hasQuiz ? null : r.quiz, courseCodes: r.courseCodes };
+}
+
+// The user removed a course after signup: a later retry must not re-add it.
+export async function forgetPendingCourse(storage, uid, code) {
+  const pending = await readPendingSignup(storage, uid);
+  if (!pending || !pending.courseCodes.includes(code)) return;
+  const remaining = { ...pending, courseCodes: pending.courseCodes.filter((c) => c !== code) };
+  if (isNothingPending(remaining)) await clearPendingSignup(storage);
+  else await storePendingSignup(storage, uid, remaining);
+}
+
+// read() once, then again after each delay while it resolves null.
+export async function firstResult(read, delays = [], sleep = defaultSleep) {
+  for (let attempt = 0; ; attempt++) {
+    const value = await read();
+    if (value != null || attempt >= delays.length) return value ?? null;
+    await sleep(delays[attempt]);
+  }
+}
+
 // ---- what is still unsaved, kept on the device across restarts -------------
 
 export async function storePendingSignup(storage, uid, remaining) {

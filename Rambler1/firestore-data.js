@@ -908,6 +908,27 @@ export const submitFeedback = async ({ type, message, context } = {}) => {
   }
 };
 
+// What a retried signup save must not overwrite (PendingSaveBanner): the
+// field names already on users/{uid}, and whether a quiz is saved.
+// null when the read failed, so the caller retries instead of guessing.
+export const fetchSignupSaveState = async (uid) => {
+  try {
+    const userId = resolveUid(uid);
+    if (!userId) return null;
+    const [profile, quiz] = await Promise.all([
+      getDoc(doc(db, 'users', userId)),
+      getDoc(doc(db, 'users', userId, 'private', 'quiz')),
+    ]);
+    return {
+      profileKeys: profile.exists() ? Object.keys(profile.data() || {}) : [],
+      hasQuiz: quiz.exists(),
+    };
+  } catch (error) {
+    logError('fetchSignupSaveState', error);
+    return null;
+  }
+};
+
 // =============================================================================
 // ACCOUNT DELETION (Profile > Delete account)
 // =============================================================================
@@ -929,6 +950,11 @@ export const deleteAllUserData = async (uid) => {
     ...USER_SUBCOLLECTIONS.map((sub) => getDocs(collection(db, 'users', userId, sub))),
     getDocs(query(collection(db, 'feedback'), where('uid', '==', userId))),
   ]);
+  // A list served from the offline cache may hold only some of the docs, so
+  // it can't stand for "everything": refuse it rather than miss the rest.
+  if (snaps.some((snap) => snap.metadata && snap.metadata.fromCache)) {
+    throw new Error('deleteAllUserData: offline (cached list)');
+  }
   const refs = [];
   USER_SUBCOLLECTIONS.forEach((sub, i) => {
     for (const d of snaps[i].docs) refs.push(doc(db, 'users', userId, sub, d.id));

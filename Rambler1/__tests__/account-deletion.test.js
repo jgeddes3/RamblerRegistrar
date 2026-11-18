@@ -69,6 +69,12 @@ describe('deleteAllUserData', () => {
     expect(deleted()).toEqual([]);
   });
 
+  test('a list served from the offline cache is refused: it may be partial', async () => {
+    fs.getDocs.mockImplementation(async (ref) => ({ ...snapOf(OWNED[ref.path] || ['x']), metadata: { fromCache: true } }));
+    await expect(deleteAllUserData('u1')).rejects.toThrow(/offline/);
+    expect(deleted()).toEqual([]);
+  });
+
   test('a failed delete throws and keeps the profile doc', async () => {
     fs.deleteDoc.mockImplementation(async (ref) => {
       if (ref.path === 'users/u1/watches/5440') throw new Error('denied');

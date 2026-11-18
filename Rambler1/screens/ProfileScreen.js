@@ -6,8 +6,8 @@ import { useAppContext } from '../AppContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signOut, reauthenticate, deleteCurrentAccount } from '../auth';
 import { fetchPrograms, fetchCourses, addUserCourse, removeUserCourse, saveUserProfile, fetchEnrichedRecommendations, fetchQuizFocusAreas, setUserLocation, deleteAllUserData } from '../firestore-data';
-import { eraseAccountData, deletionErrorMessage } from '../account-deletion';
-import { PENDING_SIGNUP_KEY } from '../signup-save';
+import { eraseAccountData, deletionErrorMessage, setDeletingAccount } from '../account-deletion';
+import { PENDING_SIGNUP_KEY, forgetPendingCourse } from '../signup-save';
 import { geocodeAddress, suggestAddresses } from '../campus-api';
 import showAlert from '../alert';
 import { canEditProfile, programEdit, minorToggleEdit, priorityEdit } from '../profile-edits';
@@ -229,6 +229,7 @@ const ProfileScreen = ({ visible, onClose }) => {
     if (deleteBusy || !deletePassword) return;
     setDeleteBusy(true);
     setDeleteError('');
+    setDeletingAccount(true); // background signup retries stand down
     const res = await eraseAccountData(deletePassword, user?.uid, {
       reauthenticate,
       deleteAllUserData,
@@ -236,6 +237,7 @@ const ProfileScreen = ({ visible, onClose }) => {
     });
     setDeleteBusy(false);
     if (!res.ok) {
+      setDeletingAccount(false);
       setDeleteError(deletionErrorMessage(res));
       return;
     }
@@ -250,6 +252,8 @@ const ProfileScreen = ({ visible, onClose }) => {
           'Account not fully deleted',
           "Your data was deleted, but your sign-in wasn't. Open Profile and choose Delete account again to finish.",
         );
+      } finally {
+        setDeletingAccount(false);
       }
     });
   };
@@ -383,6 +387,9 @@ const ProfileScreen = ({ visible, onClose }) => {
     if (!res) {
       apply(wasSelected);
       showAlert('Save failed', `${course.code} wasn't updated. Check your connection and try again.`);
+    } else if (wasSelected) {
+      // Removed: a signup save still waiting to retry must not re-add it.
+      forgetPendingCourse(AsyncStorage, user.uid, course.code).catch(() => {});
     }
   }, [user, setSelectedCourses]);
 

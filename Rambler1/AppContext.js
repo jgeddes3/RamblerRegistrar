@@ -55,7 +55,7 @@ export const AppProvider = ({ children }) => {
   // (or retries) while its generation is still the current one, so a slow
   // restore can never land on top of a sign-out or a different account.
   const authGenRef = useRef(0);
-  const restoreRef = useRef({ uid: null, attempt: 0, timer: null, running: false, failed: false });
+  const restoreRef = useRef({ uid: null, attempt: 0, timer: null, running: false, failed: false, rerun: false });
 
   const applyPatch = useCallback((patch) => {
     const setters = {
@@ -103,6 +103,13 @@ export const AppProvider = ({ children }) => {
       r.timer = setTimeout(() => runRestore(uid, gen), restoreRetryDelayMs(r.attempt));
       r.attempt += 1;
     }
+    // A reloadProfile() arrived while this ran: what it read may predate the
+    // write that prompted the reload, so read again.
+    if (r.rerun) {
+      r.rerun = false;
+      clearTimeout(r.timer);
+      runRestore(uid, gen);
+    }
   }, [applyPatch]);
 
   // Retry a failed restore now (Profile calls this when an edit is blocked).
@@ -116,7 +123,9 @@ export const AppProvider = ({ children }) => {
   // No-op until a restore has run for a signed-in account.
   const reloadProfile = useCallback(() => {
     const r = restoreRef.current;
-    if (r.uid) runRestore(r.uid, authGenRef.current);
+    if (!r.uid) return;
+    if (r.running) { r.rerun = true; return; }
+    runRestore(r.uid, authGenRef.current);
   }, [runRestore]);
 
   // Coming back to the app is the likeliest moment the connection returned.
@@ -135,6 +144,7 @@ export const AppProvider = ({ children }) => {
       r.uid = null;
       r.attempt = 0;
       r.failed = false;
+      r.rerun = false;
 
       if (firebaseUser) {
         // A restored session that LOOKS anonymous may be a stale snapshot from

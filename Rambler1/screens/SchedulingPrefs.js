@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppContext } from '../AppContext';
 import StepCounter from '../components/ui/StepCounter';
+import { useFocused } from '../components/ui/useOnboardingDraft';
 import { loadDraft, saveDraft } from '../onboarding';
 import { saveQuizResults } from '../firestore-data';
 import BackgroundImage from '../styleComponents/BackgroundImage';
@@ -75,6 +76,7 @@ const SchedulingPrefs = () => {
   const onboarding = !isLoggedIn;
   const restoredRef = useRef(!onboarding);
   const skipSaveRef = useRef(false); // the restore's own render must not write (see the quiz)
+  const focused = useFocused();
 
   useEffect(() => {
     if (!onboarding) return undefined;
@@ -95,8 +97,9 @@ const SchedulingPrefs = () => {
   useEffect(() => {
     if (!onboarding || !restoredRef.current) return;
     if (skipSaveRef.current) { skipSaveRef.current = false; return; }
+    if (!focused) return; // see the quiz
     saveDraft(AsyncStorage, { step: 'SchedulingPrefs', prefsProgress: { answers, current: currentQ } });
-  }, [onboarding, answers, currentQ]);
+  }, [onboarding, focused, answers, currentQ]);
 
   const skipPrefs = () => {
     saveDraft(AsyncStorage, { step: 'AccountSetup' });

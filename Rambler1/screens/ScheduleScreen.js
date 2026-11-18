@@ -234,6 +234,10 @@ const ScheduleScreen = () => {
       showAlert("Couldn't undo", 'Check your connection, then make the change again.');
       return;
     }
+    if (res.full) {
+      showAlert("Couldn't undo", 'Your schedule is full (40 sections). Remove one, then add this one back.');
+      return;
+    }
     if (termCodeRef.current === termCode && loadScheduleRef.current) loadScheduleRef.current();
   };
   const [buildings, setBuildings] = useState([]);
@@ -503,24 +507,38 @@ const ScheduleScreen = () => {
   }, [pickedCourse, classYear, isHonors, isAthlete]);
 
   // ------------------------------------------------------------------- save
-  const persistIds = useCallback(async (ids) => {
+  // One add or remove, through the queued firestore-data helpers: they read
+  // the saved schedule and change that one section, so a queued Undo or a
+  // Search "+" landing at the same moment isn't overwritten by a whole list
+  // built from this screen's state. Returns the helper's result, or null.
+  const persistChange = useCallback(async (change) => {
     if (loadFailed) {
       showAlert(
         'Schedule not loaded',
         "Your saved schedule couldn't be loaded, so changes are disabled to protect it. Retry loading first."
       );
-      return false;
+      return null;
     }
     setSaving(true);
-    const res = await saveSchedule(uid, TERM.code, ids);
+    const res = await change();
     setSaving(false);
     if (!res) {
       showAlert('Save failed', 'Could not update your schedule. Please try again.');
-      return false;
+      return null;
+    }
+    if (res.full) {
+      showAlert('Schedule full', 'A schedule can hold at most 40 sections. Remove one to add another.');
+      return null;
     }
     await loadSchedule();
-    return true;
-  }, [uid, loadSchedule, loadFailed, TERM.code]);
+    return res;
+  }, [loadSchedule, loadFailed]);
+
+  // A whole new list: the schedule generator's pick replaces the schedule.
+  const persistIds = useCallback(
+    async (ids) => !!(await persistChange(() => saveSchedule(uid, TERM.code, ids))),
+    [persistChange, uid, TERM.code]
+  );
 
   // -------------------------------------------------------------------- add
   const closeAddModal = () => {
@@ -589,7 +607,7 @@ const ScheduleScreen = () => {
       return;
     }
     const doAdd = async () => {
-      const ok = await persistIds([...scheduleIds, classNum]);
+      const ok = await persistChange(() => addSectionToSchedule(uid, TERM.code, classNum));
       if (ok) {
         closeAddModal();
         toast.show({
@@ -635,7 +653,7 @@ const ScheduleScreen = () => {
           text: 'Remove from schedule',
           style: 'destructive',
           onPress: async () => {
-            const ok = await persistIds(scheduleIds.filter((id) => id !== classNum));
+            const ok = await persistChange(() => removeSectionFromSchedule(uid, TERM.code, classNum));
             if (!ok) return;
             toast.show({
               message: `${code} removed.`,

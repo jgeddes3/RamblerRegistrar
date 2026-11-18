@@ -53,8 +53,25 @@ test('Undo after switching term writes the right term', async () => {
   await screen.findByText('COMP 900');
   await fireEvent.press(screen.getByText('Undo'));
   await waitFor(() => expect(addSectionToSchedule).toHaveBeenCalledWith('u1', '1272', '111'));
-  expect(saveSchedule).toHaveBeenCalledTimes(1); // only the removal itself
+  // Both the removal and its Undo go through the queued helpers, never a
+  // whole list built from screen state.
+  expect(removeSectionFromSchedule).toHaveBeenCalledWith('u1', '1272', '111');
+  expect(saveSchedule).not.toHaveBeenCalled();
   expect(db['1266']).toEqual(['900']); // the term on screen is untouched
   expect(db['1272'].sort()).toEqual(['111', '222']);
   jest.useRealTimers();
+});
+
+test('an Undo that would overfill the schedule says so instead of doing nothing', async () => {
+  const showAlert = require('../alert');
+  const NOV = new Date(2026, 10, 18);
+  __resetTermForTests(NOV);
+  const db = { '1272': ['111', '222'] };
+  fetchSchedule.mockImplementation(async (u, t) => ({ section_ids: [...(db[t] || [])] }));
+  removeSectionFromSchedule.mockImplementation(async (u, t, id) => { db[t] = db[t].filter((x) => x !== String(id)); return { removed: true }; });
+  addSectionToSchedule.mockReset().mockResolvedValue({ full: true }); // filled up meanwhile
+  await render(<ToastProvider><ScheduleScreen /><ToastHost /></ToastProvider>);
+  await fireEvent.press(await screen.findByText('COMP 111'));
+  await fireEvent.press(await screen.findByText('Undo'));
+  await waitFor(() => expect(showAlert).toHaveBeenCalledWith("Couldn't undo", expect.stringMatching(/full/)));
 });

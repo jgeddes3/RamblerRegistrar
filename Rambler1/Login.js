@@ -36,8 +36,11 @@ const Login = ({ navigation }) => {
   const continueSignup = async () => {
     // Read it again: going Back to Login after an earlier Continue, the draft
     // has moved on since this screen first loaded it.
-    const latest = (await loadDraft(AsyncStorage)) || draft;
-    if (!latest || !resumeRoutes(latest.step)) return;
+    const latest = await loadDraft(AsyncStorage);
+    if (!latest || !resumeRoutes(latest.step)) {
+      setDraft(null); // gone or expired since this screen loaded: nothing to continue
+      return;
+    }
     const restore = [
       ['selectedProgram', setSelectedProgram], ['selectedProgram2', setSelectedProgram2],
       ['selectedMinors', setSelectedMinors], ['selectedCourses', setSelectedCourses],

@@ -11,7 +11,7 @@ import { useAppContext } from '../../AppContext';
 import { saveDraft } from '../../onboarding';
 
 // Outside a navigator (some tests) there is nothing to be unfocused from.
-const useFocused = typeof Navigation.useIsFocused === 'function' ? Navigation.useIsFocused : () => true;
+export const useFocused = typeof Navigation.useIsFocused === 'function' ? Navigation.useIsFocused : () => true;
 
 export default function useOnboardingDraft(step, fields = {}) {
   const { isLoggedIn } = useAppContext();

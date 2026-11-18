@@ -6,6 +6,7 @@ import { useAppContext } from './AppContext';
 import BackgroundImage from './styleComponents/BackgroundImage';
 import useReduceMotion from './components/ui/useReduceMotion';
 import StepCounter from './components/ui/StepCounter';
+import { useFocused } from './components/ui/useOnboardingDraft';
 import { loadDraft, saveDraft } from './onboarding';
 import { STONE, FONT_SEMI, FONT, MAROON } from './theme';
 import { slopTo } from './components/ui/hitSlop';
@@ -372,6 +373,7 @@ const PreferenceQuiz = () => {
   // The render the restore itself causes must not write: on resume this
   // screen may be mounted under the one the user is on.
   const skipSaveRef = useRef(false);
+  const focused = useFocused();
 
   useEffect(() => {
     if (!onboarding) return undefined;
@@ -392,8 +394,10 @@ const PreferenceQuiz = () => {
   useEffect(() => {
     if (!onboarding || !restoredRef.current) return;
     if (skipSaveRef.current) { skipSaveRef.current = false; return; }
+    // Only while on screen; coming back with Back records it as the step again.
+    if (!focused) return;
     saveDraft(AsyncStorage, { step: 'PreferenceQuiz', quizProgress: { answers: selectedAnswers, current: currentQuestion } });
-  }, [onboarding, selectedAnswers, currentQuestion]);
+  }, [onboarding, focused, selectedAnswers, currentQuestion]);
 
   const skipQuiz = () => {
     saveDraft(AsyncStorage, { step: 'SchedulingPrefs' });

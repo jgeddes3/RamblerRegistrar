@@ -21,8 +21,9 @@ jest.mock('@react-navigation/native', () => ({
   useFocusEffect: jest.fn(),
   useNavigation: () => ({ navigate: jest.fn() }),
 }));
+jest.mock('../components/ScheduleMapModal', () => () => null);
 
-import { buildTodayRows, eventsForToday, phoenixForToday } from '../Home';
+import { buildTodayRows, mergeDayRows, eventsForToday, phoenixForToday } from '../Home';
 
 // ------------------------------------------------------------ buildTodayRows
 
@@ -79,6 +80,33 @@ describe('buildTodayRows', () => {
     };
     const rows = buildTodayRows([late, offDay, early], 'Tu');
     expect(rows.map((r) => r.classNumber)).toEqual([1111, 3333]);
+  });
+});
+
+// --------------------------------------------------------------- mergeDayRows
+
+describe('mergeDayRows', () => {
+  const cls = (key, startMin, endMin) => ({ key, startMin, endMin, code: key });
+  const evt = (key, startMin, endMin = null) => ({ kind: 'event', key, allDay: false, startMin, endMin });
+  const allDay = (key) => ({ kind: 'event', key, allDay: true, startMin: null, endMin: null });
+
+  test('all-day events lead, then classes and events by start time', () => {
+    const rows = mergeDayRows(
+      [cls('morning', 9 * 60, 10 * 60), cls('afternoon', 14 * 60, 15 * 60)],
+      [evt('lunch-talk', 12 * 60, 13 * 60), allDay('org-fair'), evt('late', 19 * 60)],
+    );
+    expect(rows.map((r) => r.key)).toEqual(['org-fair', 'morning', 'lunch-talk', 'afternoon', 'late']);
+  });
+
+  test('a class and an event starting together keep the class first', () => {
+    const rows = mergeDayRows([cls('class', 10 * 60, 11 * 60)], [evt('event', 10 * 60)]);
+    expect(rows.map((r) => r.key)).toEqual(['class', 'event']);
+  });
+
+  test('either list may be empty or missing', () => {
+    expect(mergeDayRows([cls('c', 1, 2)], null).map((r) => r.key)).toEqual(['c']);
+    expect(mergeDayRows(null, [evt('e', 1)]).map((r) => r.key)).toEqual(['e']);
+    expect(mergeDayRows(null, null)).toEqual([]);
   });
 });
 

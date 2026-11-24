@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Linking } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppContext } from './AppContext';
 import Skeleton from './components/Skeleton';
 import ErrorState from './components/ErrorState';
@@ -14,10 +15,16 @@ import {
   fetchDegreeProgress,
   fetchUserCoreProgress,
   fetchUserPrimaryLocation,
+  fetchBuildings,
 } from './firestore-data';
 import { parseMeetingPatterns, courseColor } from './schedule-utils';
 import { getLibraryHours, getEventsToday, getPhoenixHeadlines } from './campus-api';
+import { loadSavedEvents, savedEventRowsForDay } from './saved-events';
+import { bookableFor, bookingUrl } from './study-rooms';
 import PhoenixPreviewModal from './components/PhoenixPreviewModal';
+import ScheduleMapModal from './components/ScheduleMapModal';
+import Tappable from './components/ui/Tappable';
+import { slopTo } from './components/ui/hitSlop';
 import { nearestStation, getTrainArrivals, groupArrivalsBothWays } from './cta';
 import { walkMinutesFromMeters } from './commute-utils';
 import { computeGraduationOutlook } from './graduation-outlook';
@@ -66,6 +73,21 @@ export function buildTodayRows(sections, dayCode) {
   }
   rows.sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
   return rows;
+}
+
+// Today's classes plus the campus events saved for today (saved-events.js
+// rows), as one list: all-day events first, then everything by start time.
+// A class and an event starting together keep the class first.
+export function mergeDayRows(classRows, eventRows) {
+  const events = eventRows || [];
+  const isEvent = (r) => (r.kind === 'event' ? 1 : 0);
+  const timed = [...(classRows || []), ...events.filter((e) => !e.allDay)].sort(
+    (a, b) =>
+      a.startMin - b.startMin ||
+      isEvent(a) - isEvent(b) ||
+      (a.endMin ?? a.startMin) - (b.endMin ?? b.startMin)
+  );
+  return [...events.filter((e) => e.allDay), ...timed];
 }
 
 // Today's slice of a getEventsToday() list: all-day events plus events whose
@@ -166,6 +188,17 @@ const Home = () => {
   // 'loading' | 'none' | 'unavailable' | 'summer' | 'ready'
   const [schedState, setSchedState] = useState('loading');
   const [todayRows, setTodayRows] = useState([]);
+  const [todaySections, setTodaySections] = useState([]); // full rows, for the day map
+
+  // Campus events saved for today (EventsScreen's add button), as rows.
+  const [eventRows, setEventRows] = useState([]);
+
+  // Day map ("Map" on Today's classes): buildings load once (the ref keeps a
+  // failed fetch retrying on later focuses), home comes from loadTrain's read.
+  const [mapVisible, setMapVisible] = useState(false);
+  const [buildings, setBuildings] = useState([]);
+  const buildingsLoadedRef = useRef(false);
+  const [homeLoc, setHomeLoc] = useState(null);
 
   // Library-hours state: null = loading/unavailable, [] = unavailable, rows = ready
   const [libLoading, setLibLoading] = useState(true);
@@ -238,11 +271,11 @@ const Home = () => {
   const loadToday = useCallback(async (isActive) => {
     if (!TERM) {
       // June/July: no term in session — nothing to fetch.
-      if (isActive()) { setSchedState('summer'); setTodayRows([]); }
+      if (isActive()) { setSchedState('summer'); setTodayRows([]); setTodaySections([]); }
       return;
     }
     if (!signedIn) {
-      if (isActive()) { setSchedState('none'); setTodayRows([]); }
+      if (isActive()) { setSchedState('none'); setTodayRows([]); setTodaySections([]); }
       return;
     }
     if (isActive()) setSchedState('loading');
@@ -250,20 +283,26 @@ const Home = () => {
       const sched = await fetchSchedule(uid, TERM.code); // THROWS on read error
       const ids = sched?.section_ids || [];
       if (ids.length === 0) {
-        if (isActive()) { setTodayRows([]); setSchedState('none'); }
+        if (isActive()) { setTodayRows([]); setTodaySections([]); setSchedState('none'); }
         return;
       }
       const rows = await getSectionsByClassNumbers(TERM.code, ids);
       const dayCode = JS_DOW_TO_DAY[new Date().getDay()];
       if (isActive()) {
         setTodayRows(buildTodayRows(rows || [], dayCode));
+        setTodaySections(rows || []);
         setSchedState('ready');
       }
     } catch (e) {
       // Read error != empty schedule — show an unavailable state.
-      if (isActive()) { setTodayRows([]); setSchedState('unavailable'); }
+      if (isActive()) { setTodayRows([]); setTodaySections([]); setSchedState('unavailable'); }
     }
   }, [uid, signedIn]);
+
+  const loadSavedToday = useCallback(async (isActive) => {
+    const saved = await loadSavedEvents(AsyncStorage, uid); // [] on failure
+    if (isActive()) setEventRows(savedEventRowsForDay(saved, new Date()));
+  }, [uid]);
 
   const loadLibrary = useCallback(async (isActive) => {
     if (isActive()) setLibLoading(true);
@@ -296,7 +335,7 @@ const Home = () => {
   const loadTrain = useCallback(async (isActive) => {
     if (!signedIn) {
       trainStationRef.current = null;
-      if (isActive()) setTrain(null);
+      if (isActive()) { setTrain(null); setHomeLoc(null); }
       return;
     }
     const loc = await fetchUserPrimaryLocation(uid); // null / { error } on failure
@@ -306,8 +345,10 @@ const Home = () => {
     if (!loc || loc.error || !Number.isFinite(lat) || !Number.isFinite(lon)) {
       trainStationRef.current = null;
       setTrain(null);
+      setHomeLoc(null);
       return;
     }
+    setHomeLoc(loc);
     const { station, meters } = nearestStation(lat, lon);
     if (!station) {
       trainStationRef.current = null;
@@ -346,17 +387,102 @@ const Home = () => {
       const isActive = () => active;
       focusActiveRef.current = isActive;
       loadToday(isActive);
+      loadSavedToday(isActive);
       loadLibrary(isActive);
       loadEvents(isActive);
       loadPhoenix(isActive);
       loadOutlook(isActive);
       loadTrain(isActive);
+      if (!buildingsLoadedRef.current) {
+        fetchBuildings().then((b) => {
+          const list = b || [];
+          if (list.length > 0) buildingsLoadedRef.current = true;
+          if (active) setBuildings(list);
+        }).catch(() => {});
+      }
       const arrivalsTimer = setInterval(() => refreshArrivals(isActive), 60000);
       return () => { active = false; clearInterval(arrivalsTimer); };
-    }, [loadToday, loadLibrary, loadEvents, loadPhoenix, loadOutlook, loadTrain, refreshArrivals])
+    }, [loadToday, loadSavedToday, loadLibrary, loadEvents, loadPhoenix, loadOutlook, loadTrain, refreshArrivals])
   );
 
   const navigation = useNavigation();
+
+  // Today's card: classes and saved events as one timeline.
+  const dayRows = useMemo(() => mergeDayRows(todayRows, eventRows), [todayRows, eventRows]);
+
+  const renderClassRow = (row, bordered) => (
+    <View key={row.key} style={[s.classRow, bordered && s.rowBorder]}>
+      <View style={s.classTimeCol}>
+        <Text style={s.classTimeStart}>{formatMinutes(row.startMin)}</Text>
+        <Text style={s.classTimeEnd}>{formatMinutes(row.endMin)}</Text>
+      </View>
+      <View style={[s.classRail, { backgroundColor: row.color }]} />
+      <View style={s.classMain}>
+        <Text style={s.classCode}>{row.code}</Text>
+        {row.title ? (
+          <Text style={s.classTitle} numberOfLines={1}>{row.title}</Text>
+        ) : null}
+        {row.building ? (
+          <View style={s.classMetaRow}>
+            <Ionicons name="location-outline" size={12} color={STONE} />
+            <Text style={s.classBuilding} numberOfLines={1}>{row.building}</Text>
+          </View>
+        ) : null}
+        {row.instructor || row.classNumber ? (
+          <View style={s.classMetaRow}>
+            {row.instructor ? (
+              <>
+                <Ionicons name="person-outline" size={12} color={STONE} />
+                <Text style={s.classInstructor} numberOfLines={1}>
+                  {row.instructor}
+                </Text>
+              </>
+            ) : (
+              <View style={s.classMetaFill} />
+            )}
+            {row.classNumber ? (
+              <Text style={s.classNumber}>#{row.classNumber}</Text>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+
+  // A saved campus event in the same timeline: maroon rail and a calendar
+  // tag instead of a course code. Opens the event page when it has one.
+  const renderEventRow = (row, bordered) => (
+    <TouchableOpacity
+      key={row.key}
+      style={[s.classRow, bordered && s.rowBorder]}
+      onPress={() => Linking.openURL(row.url).catch(() => {})}
+      disabled={!row.url}
+      activeOpacity={0.6}
+      accessibilityRole="button"
+      accessibilityLabel={`Campus event: ${row.title}`}
+    >
+      <View style={s.classTimeCol}>
+        <Text style={s.classTimeStart}>{row.allDay ? 'All day' : formatMinutes(row.startMin)}</Text>
+        {row.endMin != null ? (
+          <Text style={s.classTimeEnd}>{formatMinutes(row.endMin)}</Text>
+        ) : null}
+      </View>
+      <View style={[s.classRail, s.eventRail]} />
+      <View style={s.classMain}>
+        <Text style={s.eventRowTitle} numberOfLines={2}>{row.title}</Text>
+        {row.location ? (
+          <View style={s.classMetaRow}>
+            <Ionicons name="location-outline" size={12} color={STONE} />
+            <Text style={s.classBuilding} numberOfLines={1}>{row.location}</Text>
+          </View>
+        ) : null}
+        <View style={s.classMetaRow}>
+          <Ionicons name="calendar-outline" size={12} color={MAROON} />
+          <Text style={s.eventTag}>Campus event</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
 
   // Bulletin masthead date: "WEDNESDAY, JULY 9"
   const now = new Date();
@@ -388,7 +514,20 @@ const Home = () => {
         <View style={s.mastheadRule} />
 
         {/* ------------------------------- Today's Schedule ------------------ */}
-        <Text accessibilityRole="header" style={s.eyebrow}>Today's classes</Text>
+        <View style={s.eyebrowRow}>
+          <Text accessibilityRole="header" style={s.eyebrowInRow}>Today's classes</Text>
+          {schedState !== 'loading' && dayRows.length > 0 ? (
+            <Tappable
+              style={s.mapBtn}
+              onPress={() => setMapVisible(true)}
+              hitSlop={slopTo(56, 20)}
+              accessibilityLabel="Map of your day"
+            >
+              <Ionicons name="map-outline" size={14} color={MAROON} />
+              <Text style={s.mapBtnText}>Map</Text>
+            </Tappable>
+          ) : null}
+        </View>
         <View style={s.card}>
           {schedState === 'loading' ? (
             <View>
@@ -403,12 +542,21 @@ const Home = () => {
               ))}
             </View>
           ) : schedState === 'unavailable' ? (
-            <ErrorState
-              title="Couldn't load your schedule"
-              message="Check your connection, then try again."
-              onRetry={() => loadToday(focusActiveRef.current)}
-              retryLabel="Try again loading your schedule"
-            />
+            <>
+              <ErrorState
+                title="Couldn't load your schedule"
+                message="Check your connection, then try again."
+                onRetry={() => loadToday(focusActiveRef.current)}
+                retryLabel="Try again loading your schedule"
+              />
+              {dayRows.map((row, i) => renderEventRow(row, i < dayRows.length - 1))}
+            </>
+          ) : dayRows.length > 0 ? (
+            // A saved event stands in for the empty states below too: summer,
+            // no schedule, or no classes today.
+            dayRows.map((row, i) => (row.kind === 'event'
+              ? renderEventRow(row, i < dayRows.length - 1)
+              : renderClassRow(row, i < dayRows.length - 1)))
           ) : schedState === 'summer' ? (
             <View style={s.cardCenter}>
               <Text style={s.cardEmptyText}>No term in session</Text>
@@ -427,53 +575,11 @@ const Home = () => {
                 Add classes on the Schedule tab to see your day here.
               </Text>
             </TouchableOpacity>
-          ) : todayRows.length === 0 ? (
+          ) : (
             <View style={s.cardCenter}>
               <Text style={s.cardEmptyText}>No classes today</Text>
               <Text style={s.cardHintText}>The day is yours.</Text>
             </View>
-          ) : (
-            todayRows.map((row, i) => (
-              <View
-                key={row.key}
-                style={[s.classRow, i < todayRows.length - 1 && s.rowBorder]}
-              >
-                <View style={s.classTimeCol}>
-                  <Text style={s.classTimeStart}>{formatMinutes(row.startMin)}</Text>
-                  <Text style={s.classTimeEnd}>{formatMinutes(row.endMin)}</Text>
-                </View>
-                <View style={[s.classRail, { backgroundColor: row.color }]} />
-                <View style={s.classMain}>
-                  <Text style={s.classCode}>{row.code}</Text>
-                  {row.title ? (
-                    <Text style={s.classTitle} numberOfLines={1}>{row.title}</Text>
-                  ) : null}
-                  {row.building ? (
-                    <View style={s.classMetaRow}>
-                      <Ionicons name="location-outline" size={12} color={STONE} />
-                      <Text style={s.classBuilding} numberOfLines={1}>{row.building}</Text>
-                    </View>
-                  ) : null}
-                  {row.instructor || row.classNumber ? (
-                    <View style={s.classMetaRow}>
-                      {row.instructor ? (
-                        <>
-                          <Ionicons name="person-outline" size={12} color={STONE} />
-                          <Text style={s.classInstructor} numberOfLines={1}>
-                            {row.instructor}
-                          </Text>
-                        </>
-                      ) : (
-                        <View style={s.classMetaFill} />
-                      )}
-                      {row.classNumber ? (
-                        <Text style={s.classNumber}>#{row.classNumber}</Text>
-                      ) : null}
-                    </View>
-                  ) : null}
-                </View>
-              </View>
-            ))
           )}
         </View>
 
@@ -642,15 +748,43 @@ const Home = () => {
               <Text style={s.cardEmptyText}>Hours unavailable</Text>
             </View>
           ) : (
-            libLocations.slice(0, 6).map((loc, i, arr) => (
-              <View
-                key={loc.id != null ? String(loc.id) : `${loc.name}-${i}`}
-                style={[s.libRow, i < arr.length - 1 && s.rowBorder]}
-              >
-                <Text style={s.libName} numberOfLines={1}>{loc.name}</Text>
-                <Text style={s.libHours} numberOfLines={1}>{hoursLabel(loc)}</Text>
-              </View>
-            ))
+            libLocations.slice(0, 6).map((loc, i) => {
+              // Study rooms: straight into LibCal's picker for this location.
+              const bookable = bookableFor(loc.name);
+              return (
+                <View
+                  key={loc.id != null ? String(loc.id) : `${loc.name}-${i}`}
+                  style={[s.libRow, s.rowBorder]}
+                >
+                  <View style={s.libMain}>
+                    <Text style={s.libName} numberOfLines={1}>{loc.name}</Text>
+                    {bookable ? (
+                      <Tappable
+                        role="link"
+                        style={s.libBook}
+                        onPress={() => Linking.openURL(bookingUrl(bookable.lid)).catch(() => {})}
+                        hitSlop={slopTo(90, 18)}
+                        accessibilityLabel={`Book a study room at ${loc.name}`}
+                      >
+                        <Text style={s.libBookText}>Book a room</Text>
+                        <Ionicons name="open-outline" size={12} color={MAROON} />
+                      </Tappable>
+                    ) : null}
+                  </View>
+                  <Text style={s.libHours} numberOfLines={1}>{hoursLabel(loc)}</Text>
+                </View>
+              );
+            })
+          )}
+          {libLoading ? null : (
+            <TouchableOpacity
+              style={s.eventSeeAll}
+              onPress={() => navigation.navigate('More', { screen: 'Library' })}
+              accessibilityLabel="Library hours and room booking"
+            >
+              <Text style={s.eventSeeAllText}>Hours & room booking</Text>
+              <Ionicons name="chevron-forward" size={13} color={MAROON} />
+            </TouchableOpacity>
           )}
         </View>
 
@@ -665,6 +799,17 @@ const Home = () => {
         item={phoenixPreview}
         visible={phoenixPreview != null}
         onClose={() => setPhoenixPreview(null)}
+      />
+
+      <ScheduleMapModal
+        visible={mapVisible}
+        onClose={() => setMapVisible(false)}
+        title="Today's Map"
+        fixedDay={JS_DOW_TO_DAY[now.getDay()]}
+        sections={todaySections}
+        events={eventRows}
+        buildings={buildings}
+        home={homeLoc}
       />
     </View>
   );
@@ -711,6 +856,27 @@ const s = StyleSheet.create({
     ...EYEBROW,
     marginTop: 22,
     marginBottom: 8,
+  },
+  // An eyebrow with an action on its right ("Today's classes" + Map).
+  eyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 22,
+    marginBottom: 8,
+  },
+  eyebrowInRow: {
+    ...EYEBROW,
+  },
+  mapBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  mapBtnText: {
+    fontFamily: FONT_MED,
+    fontSize: 15,
+    color: MAROON,
   },
 
   card: {
@@ -806,6 +972,21 @@ const s = StyleSheet.create({
     fontSize: 12,
     color: STONE,
     fontVariant: ['tabular-nums'],
+  },
+
+  // A saved campus event in the classes timeline
+  eventRail: {
+    backgroundColor: MAROON,
+  },
+  eventRowTitle: {
+    fontFamily: FONT_SEMI,
+    fontSize: 17,
+    lineHeight: 21,
+    color: INK,
+  },
+  eventTag: {
+    fontSize: 12,
+    color: MAROON,
   },
 
   // Your train — serif station/destination words, sans walk time + countdowns
@@ -961,12 +1142,26 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 10,
   },
-  libName: {
+  libMain: {
     flex: 1,
+    marginRight: 10,
+  },
+  libName: {
     fontFamily: FONT_MED,
     fontSize: 15,
     color: INK,
-    marginRight: 10,
+  },
+  libBook: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    marginTop: 3,
+  },
+  libBookText: {
+    fontFamily: FONT_MED,
+    fontSize: 14,
+    color: MAROON,
   },
   libHours: {
     fontSize: 13,

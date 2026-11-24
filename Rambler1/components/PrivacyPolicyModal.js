@@ -8,12 +8,18 @@
 //               "I agree" (onAccept) and "Not now" (onDecline). The Android
 //               back button is a no-op here on purpose — declining must be
 //               the explicit "Not now" tap, never an accidental dismiss.
+// Pass `onOptOutChange` (with `optOut`) to put the "Do not sell or share my
+// personal information" switch at the foot of the document, in either mode,
+// so opting out doesn't mean finding Profile first. The caller owns the
+// choice: saved to the account when there is one, held for signup otherwise.
 
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Modal, StyleSheet, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Modal, StyleSheet, Platform, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { POLICY_TITLE, POLICY_SECTIONS } from '../privacy-policy-content';
 import { FONT, FONT_MED, FONT_SEMI, MAROON, PARCHMENT, INK, STONE, HAIRLINE, SURFACE } from '../theme';
+
+const OPT_OUT_LABEL = 'Do not sell or share my personal information';
 
 const PrivacyPolicyModal = ({
   visible,
@@ -24,8 +30,28 @@ const PrivacyPolicyModal = ({
   title = POLICY_TITLE,
   sections = POLICY_SECTIONS,
   agreeLabel = 'I agree to the Privacy Policy',
+  optOut = false,
+  onOptOutChange,
 }) => {
   const consent = mode === 'consent';
+  const optOutRow = typeof onOptOutChange === 'function' ? (
+    <View style={s.optOutRow}>
+      <View style={s.optOutMain}>
+        <Text style={s.optOutLabel}>{OPT_OUT_LABEL}</Text>
+        <Text style={s.optOutHint}>
+          Turn this on to stop all third-party selling and sharing of your
+          information. You can change it any time in Settings.
+        </Text>
+      </View>
+      <Switch
+        accessibilityLabel={OPT_OUT_LABEL}
+        value={optOut === true}
+        onValueChange={(v) => onOptOutChange(v === true)}
+        trackColor={{ false: HAIRLINE, true: MAROON }}
+        thumbColor={SURFACE}
+      />
+    </View>
+  ) : null;
 
   return (
     <Modal
@@ -56,6 +82,7 @@ const PrivacyPolicyModal = ({
 
         {consent ? (
           <View style={s.consentBar}>
+            {optOutRow}
             <TouchableOpacity
               style={s.agreeBtn}
               onPress={onAccept}
@@ -71,6 +98,8 @@ const PrivacyPolicyModal = ({
               <Text style={s.declineText}>Not now</Text>
             </TouchableOpacity>
           </View>
+        ) : optOutRow ? (
+          <View style={s.consentBar}>{optOutRow}</View>
         ) : null}
       </View>
     </Modal>
@@ -131,6 +160,26 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 30 : 18,
+  },
+  optOutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  optOutMain: {
+    flex: 1,
+  },
+  optOutLabel: {
+    fontFamily: FONT_MED,
+    fontSize: 16,
+    color: INK,
+  },
+  optOutHint: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: STONE,
+    marginTop: 2,
   },
   agreeBtn: {
     backgroundColor: MAROON,

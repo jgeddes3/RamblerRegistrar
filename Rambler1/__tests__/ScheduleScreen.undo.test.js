@@ -16,6 +16,8 @@ jest.mock('../firestore-data', () => ({
   addWatch: jest.fn(), removeWatch: jest.fn(),
   addSectionToSchedule: jest.fn(),
   removeSectionFromSchedule: jest.fn(),
+  clearSchedule: jest.fn(),
+  restoreSectionsToSchedule: jest.fn(),
 }));
 jest.mock('../alert', () => jest.fn((t, m, buttons) => {
   const b = (buttons || []).find((x) => x.style === 'destructive'); if (b) b.onPress();
@@ -34,7 +36,7 @@ jest.mock('../components/ScheduleMapModal', () => () => null);
 jest.mock('../CourseDetailModal', () => () => null);
 const ScheduleScreen = require('../screens/ScheduleScreen').default;
 const { ToastProvider, ToastHost } = require('../components/ui/Toast');
-const { fetchSchedule, saveSchedule, addSectionToSchedule, removeSectionFromSchedule } = require('../firestore-data');
+const { fetchSchedule, saveSchedule, addSectionToSchedule, removeSectionFromSchedule, clearSchedule, restoreSectionsToSchedule } = require('../firestore-data');
 const { __resetTermForTests } = require('../term');
 
 test('Undo after switching term writes the right term', async () => {
@@ -74,4 +76,36 @@ test('an Undo that would overfill the schedule says so instead of doing nothing'
   await fireEvent.press(await screen.findByText('COMP 111'));
   await fireEvent.press(await screen.findByText('Undo'));
   await waitFor(() => expect(showAlert).toHaveBeenCalledWith("Couldn't undo", expect.stringMatching(/full/)));
+});
+
+test('Clear schedule asks first, empties the term, and Undo puts the classes back', async () => {
+  const showAlert = require('../alert');
+  showAlert.mockClear();
+  const NOV = new Date(2026, 10, 18);
+  jest.useFakeTimers({ now: NOV, doNotFake: ['setTimeout','clearTimeout','setInterval','clearInterval','setImmediate','clearImmediate','nextTick','queueMicrotask','requestAnimationFrame','cancelAnimationFrame','requestIdleCallback','cancelIdleCallback','performance','hrtime'] });
+  __resetTermForTests(NOV);
+  const db = { '1272': ['111', '222'] };
+  fetchSchedule.mockImplementation(async (u, t) => ({ section_ids: [...(db[t] || [])] }));
+  clearSchedule.mockImplementation(async (u, t) => { const cleared = db[t]; db[t] = []; return { cleared }; });
+  restoreSectionsToSchedule.mockImplementation(async (u, t, ids) => { db[t] = [...db[t], ...ids]; return { restored: true }; });
+  await render(<ToastProvider><ScheduleScreen /><ToastHost /></ToastProvider>);
+  await screen.findByText('COMP 111');
+
+  // The alert mock presses the destructive button, as a user confirming would.
+  await fireEvent.press(screen.getByRole('button', { name: 'Clear Spring 2027 schedule' }));
+  expect(showAlert).toHaveBeenCalledWith(
+    'Clear your Spring 2027 schedule?',
+    'This removes all 2 classes from this schedule. Seat watches stay.',
+    expect.any(Array),
+  );
+  await waitFor(() => expect(clearSchedule).toHaveBeenCalledWith('u1', '1272'));
+  expect(await screen.findByText('Schedule cleared.')).toBeTruthy();
+  expect(await screen.findByText('No classes yet. Tap + to add')).toBeTruthy();
+  // Nothing left to clear: the button goes with the classes.
+  expect(screen.queryByRole('button', { name: 'Clear Spring 2027 schedule' })).toBeNull();
+
+  await fireEvent.press(screen.getByText('Undo'));
+  await waitFor(() => expect(restoreSectionsToSchedule).toHaveBeenCalledWith('u1', '1272', ['111', '222']));
+  expect(await screen.findByText('COMP 111')).toBeTruthy();
+  jest.useRealTimers();
 });

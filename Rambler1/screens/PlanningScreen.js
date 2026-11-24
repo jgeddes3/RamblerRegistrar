@@ -18,15 +18,17 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../AppContext';
 import {
-  fetchPlans, addCourseToPlan, removeCourseFromPlan, searchCourses,
+  fetchPlans, addCourseToPlan, removeCourseFromPlan, savePlan, searchCourses,
   fetchDegreeProgress, fetchUserCoreProgress, fetchPrerequisites, PLAN_TERM_CAP,
 } from '../firestore-data';
 import { planSemesters, allPlannedCodes, planOrderingIssues, termLabelFor } from '../plan-utils';
 import { requirementCoverage } from '../planning-insights';
 import { buildRecommendations } from '../recommend';
-import { FONT, MAROON, EYEBROW, STONE, FONT_SEMI, OK, WARN, PARCHMENT, MAROON_WASH } from '../theme';
+import { FONT, MAROON, EYEBROW, STONE, FONT_SEMI, FONT_MED, OK, WARN, DANGER, PARCHMENT, MAROON_WASH } from '../theme';
 import showAlert from '../alert';
 import WhatIfModal from '../components/WhatIfModal';
+import { useToast } from '../components/ui/Toast';
+import { slopTo } from '../components/ui/hitSlop';
 
 // Bottom sheet must ride above the keyboard: iOS pads, Android shrinks.
 // (react-native-web ignores `behavior`, so web is unaffected.)
@@ -241,6 +243,74 @@ const PlanningScreen = () => {
     ]);
   };
 
+  // ---------------------------------------------------------------- clear
+  // Empty one semester, or every semester. Confirmed first; the toast's Undo
+  // puts the courses back, merged with anything planned since the clear.
+  const toast = useToast();
+  const plansRef = useRef(plans);
+  plansRef.current = plans;
+
+  const clearTerms = async (termCodes) => {
+    if (saving) return;
+    const before = {};
+    for (const t of termCodes) {
+      if ((plans[t] || []).length) before[t] = plans[t];
+    }
+    const terms = Object.keys(before);
+    if (!terms.length) return;
+    setSaving(true);
+    const results = await Promise.all(terms.map((t) => savePlan(uid, t, [])));
+    setSaving(false);
+    const cleared = terms.filter((t, i) => results[i]);
+    if (cleared.length) {
+      setPlans((prev) => ({ ...prev, ...Object.fromEntries(cleared.map((t) => [t, []])) }));
+      toast.show({
+        message: cleared.length === 1 ? `${termLabelFor(cleared[0])} cleared.` : 'Plans cleared.',
+        actionLabel: 'Undo',
+        onAction: async () => {
+          const restored = {};
+          const saves = await Promise.all(cleared.map((t) => {
+            const now = plansRef.current[t] || [];
+            restored[t] = [...now, ...before[t].filter((c) => !now.includes(c))].slice(0, PLAN_TERM_CAP);
+            return savePlan(uid, t, restored[t]);
+          }));
+          const back = cleared.filter((t, i) => saves[i]);
+          setPlans((prev) => ({ ...prev, ...Object.fromEntries(back.map((t) => [t, restored[t]])) }));
+          if (back.length < cleared.length) {
+            showAlert("Couldn't undo", 'Check your connection, then add the courses again.');
+          }
+        },
+      });
+    }
+    if (cleared.length < terms.length) {
+      showAlert('Clear failed', 'Some of your plan could not be cleared. Please try again.');
+    }
+  };
+
+  const confirmClearTerm = (sem) => {
+    const n = (plans[sem.code] || []).length;
+    showAlert(
+      `Clear ${sem.label}?`,
+      `This removes ${n === 1 ? 'the 1 planned course' : `all ${n} planned courses`} from this semester.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Clear semester', style: 'destructive', onPress: () => clearTerms([sem.code]) },
+      ]
+    );
+  };
+
+  const plannedTotal = plannedEverywhere.size;
+  const confirmClearAll = () => {
+    showAlert(
+      'Clear all plans?',
+      `This removes ${plannedTotal === 1 ? 'the 1 planned course' : `all ${plannedTotal} planned courses`} from every semester. Your schedule and completed courses stay.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Clear all plans', style: 'destructive', onPress: () => clearTerms(Object.keys(plans)) },
+      ]
+    );
+  };
+
   // ------------------------------------------------------------------ render
   if (!isLoggedIn) {
     return (
@@ -315,6 +385,18 @@ const PlanningScreen = () => {
           <View key={sem.code} style={s.semCard}>
             <View style={s.semHeader}>
               <Text accessibilityRole="header" style={s.semTitle}>{sem.label}</Text>
+              {codes.length > 0 ? (
+                <TouchableOpacity
+                  style={s.clearBtn}
+                  onPress={() => confirmClearTerm(sem)}
+                  disabled={saving}
+                  hitSlop={slopTo(44, 24)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Clear ${sem.label}`}
+                >
+                  <Text style={s.clearBtnText}>Clear</Text>
+                </TouchableOpacity>
+              ) : null}
               <TouchableOpacity
                 style={s.addBtn}
                 onPress={() => openAdd(sem.code)}
@@ -342,6 +424,18 @@ const PlanningScreen = () => {
           </View>
         );
       })}
+      {plannedTotal > 0 ? (
+        <TouchableOpacity
+          style={s.clearAllRow}
+          onPress={confirmClearAll}
+          disabled={saving}
+          accessibilityRole="button"
+          accessibilityLabel="Clear all plans"
+        >
+          <Ionicons name="trash-outline" size={14} color={DANGER.fg} />
+          <Text style={s.clearAllText}>Clear all plans</Text>
+        </TouchableOpacity>
+      ) : null}
       <View style={{ height: 30 }} />
 
       <WhatIfModal
@@ -454,7 +548,14 @@ const s = StyleSheet.create({
     padding: 14, marginBottom: 12, backgroundColor: '#FFFFFF',
   },
   semHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  semTitle: { fontFamily: FONT, fontSize: 22, color: MAROON },
+  semTitle: { flex: 1, fontFamily: FONT, fontSize: 22, color: MAROON },
+  clearBtn: { marginRight: 14 },
+  clearBtnText: { fontFamily: FONT_MED, fontSize: 15, color: STONE },
+  clearAllRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    minHeight: 44, marginTop: 4,
+  },
+  clearAllText: { fontFamily: FONT_MED, fontSize: 15, color: DANGER.fg },
   addBtn: {
     borderWidth: 1, borderColor: MAROON, borderRadius: 14,
     paddingVertical: 4, paddingHorizontal: 12,

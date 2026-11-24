@@ -29,7 +29,7 @@ const TopBar = ({ onMenuPress, onProfilePress }) => {
 
         {/* Logo (center) */}
         <Image
-          source={require('../assets/Icons/Logo2-02.png')}
+          source={require('../assets/Icons/Mark-white.png')}
           style={styles.logo}
         />
 

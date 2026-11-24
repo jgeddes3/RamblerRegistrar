@@ -33,7 +33,9 @@ const SCREEN_HEIGHT = Dimensions.get('window').height;
 //   bell toggles stay in sync between the sections list and the detail view.
 // - onRemove: optional (section) => void — single-section view opened from the
 //   schedule grid shows a destructive 'Remove from schedule' button.
-const CourseDetailModal = ({ visible, course, section: singleSection, sections: preSections, onClose, watchState, onRemove }) => {
+// termLabel: the term a single saved section belongs to, when the caller is
+// showing a schedule other than the registration term.
+const CourseDetailModal = ({ visible, course, section: singleSection, sections: preSections, onClose, watchState, onRemove, termLabel }) => {
   const { user, quizResults, classYear, isHonors, isAthlete, graduationYear } = useAppContext();
   const prefs = quizResults?.schedulingPrefs || {};
   const signedIn = !!user && !user.isAnonymous; // anonymous users can't own watches
@@ -349,7 +351,7 @@ const CourseDetailModal = ({ visible, course, section: singleSection, sections: 
 
           {/* Sections */}
           <Text style={s.termLabel}>
-            {singleSection ? `Section ${singleSection.section_number} · ${TERM.label}` : `${TERM.label} Sections`}
+            {singleSection ? `Section ${singleSection.section_number} · ${termLabel || TERM.label}` : `${TERM.label} Sections`}
           </Text>
           {displaySections.length > 0 ? (
             <Text style={[s.seatNote, listAge?.stale && s.seatNoteStale]}>

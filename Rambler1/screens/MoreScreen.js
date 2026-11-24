@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import FeedbackModal from '../components/FeedbackModal';
 import PrivacyPolicyModal from '../components/PrivacyPolicyModal';
+import useDataSaleOptOut from '../components/ui/useDataSaleOptOut';
 import { TERMS_TITLE, TERMS_SECTIONS } from '../terms-content';
 import ProfileScreen from './ProfileScreen';
 import { STONE, FONT, FONT_SEMI, MAROON, PARCHMENT, MAROON_WASH } from '../theme';
@@ -43,6 +44,11 @@ const MoreScreen = ({ navigation }) => {
   const [profileVisible, setProfileVisible] = useState(false);
   const [policyVisible, setPolicyVisible] = useState(false);
   const [termsVisible, setTermsVisible] = useState(false);
+  // Both documents carry the opt-out switch for a signed-in account.
+  const optOut = useDataSaleOptOut();
+  const optOutProps = optOut.available
+    ? { optOut: optOut.optedOut, onOptOutChange: optOut.setOptedOut }
+    : {};
   return (
   <ScrollView style={styles.container} contentContainerStyle={styles.content}>
     <Text accessibilityRole="header" style={styles.title}>More</Text>
@@ -133,13 +139,14 @@ const MoreScreen = ({ navigation }) => {
 
     <FeedbackModal visible={feedbackVisible} onClose={() => setFeedbackVisible(false)} context="More screen" />
     <ProfileScreen visible={profileVisible} onClose={() => setProfileVisible(false)} />
-    <PrivacyPolicyModal visible={policyVisible} mode="view" onClose={() => setPolicyVisible(false)} />
+    <PrivacyPolicyModal visible={policyVisible} mode="view" onClose={() => setPolicyVisible(false)} {...optOutProps} />
     <PrivacyPolicyModal
       visible={termsVisible}
       mode="view"
       title={TERMS_TITLE}
       sections={TERMS_SECTIONS}
       onClose={() => setTermsVisible(false)}
+      {...optOutProps}
     />
   </ScrollView>
   );

@@ -12,9 +12,10 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, TouchableOpacity, ScrollView, Modal, StyleSheet,
+  View, Text, TextInput, TouchableOpacity, ScrollView, Modal, StyleSheet,
   ActivityIndicator, Platform, StatusBar,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import {
   fetchPrograms, fetchProgramRequirementRowsLean, saveUserProfile,
 } from '../firestore-data';
@@ -24,8 +25,10 @@ import { useAppContext } from '../AppContext';
 import showAlert from '../alert';
 import { canEditProfile } from '../profile-edits';
 import { afterModalDismiss } from '../modal-sequencing';
-import { FONT, MAROON, STONE, FONT_SEMI, OK, DANGER, NEUTRAL } from '../theme';
+import { filterProgramEntries } from '../program-search';
+import { FONT, MAROON, STONE, FONT_SEMI, OK, DANGER, NEUTRAL, INK, HAIRLINE, PARCHMENT } from '../theme';
 import Tappable from './ui/Tappable';
+import { slopTo } from './ui/hitSlop';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 const MAX_MINORS = 3;
@@ -59,6 +62,8 @@ const WhatIfModal = ({
   const [mode, setMode] = useState('change');
   const [rows, setRows] = useState(null); // [{program, remaining, impact, unknown}]
   const [applying, setApplying] = useState(false);
+  // Kept across mode switches: "phil" carries from majors to minors.
+  const [search, setSearch] = useState('');
 
   // Completed + planned both count as credit toward a candidate program.
   const creditedCodes = useMemo(() => new Set([
@@ -169,9 +174,12 @@ const WhatIfModal = ({
     }
   };
 
-  const fitting = (rows || []).filter((r) => !r.unknown && r.impact.fitsTimeline);
-  const stretching = (rows || []).filter((r) => !r.unknown && !r.impact.fitsTimeline);
-  const unknowns = (rows || []).filter((r) => r.unknown);
+  // Search narrows what's already measured; it never refetches.
+  const shown = useMemo(() => filterProgramEntries(rows, search), [rows, search]);
+  const fitting = shown.filter((r) => !r.unknown && r.impact.fitsTimeline);
+  const stretching = shown.filter((r) => !r.unknown && !r.impact.fitsTimeline);
+  const unknowns = shown.filter((r) => r.unknown);
+  const query = search.trim();
 
   const Row = ({ entry, badgeText, badgeStyle }) => (
     <TouchableOpacity
@@ -219,13 +227,40 @@ const WhatIfModal = ({
           ))}
         </View>
 
+        <View style={s.searchWrap}>
+          <Ionicons name="search" size={16} color={STONE} />
+          <TextInput
+            style={s.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder={`Search ${modeDef.type}s`}
+            placeholderTextColor={STONE}
+            accessibilityLabel={`Search ${modeDef.type}s`}
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {search ? (
+            <TouchableOpacity
+              onPress={() => setSearch('')}
+              hitSlop={slopTo(18)}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
+              <Ionicons name="close-circle" size={18} color={STONE} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
         {rows === null ? (
           <View style={s.centerWrap}>
             <ActivityIndicator size="large" color={MAROON} />
             <Text style={s.loadingText}>Measuring every {modeDef.type} against your record...</Text>
           </View>
         ) : (
-          <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 8 }}>
+          <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 8 }} keyboardShouldPersistTaps="handled">
+            {query && shown.length === 0 ? (
+              <Text style={s.noMatch}>No {modeDef.type}s match "{query}".</Text>
+            ) : null}
             {fitting.length > 0 && (
               <>
                 <Text accessibilityRole="header" style={s.groupTitle}>Fits your timeline</Text>
@@ -288,6 +323,14 @@ const s = StyleSheet.create({
   modeChipOn: { backgroundColor: MAROON, borderColor: MAROON },
   modeChipText: { fontFamily: FONT_SEMI, fontSize: 14, color: '#444', textAlign: 'center' },
   modeChipTextOn: { color: '#FFF' },
+
+  searchWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: 16, marginTop: 4, marginBottom: 6, paddingHorizontal: 12,
+    backgroundColor: PARCHMENT, borderWidth: 1, borderColor: HAIRLINE, borderRadius: 10,
+  },
+  searchInput: { flex: 1, fontSize: 16, color: INK, minHeight: 44, paddingVertical: 0 },
+  noMatch: { fontFamily: FONT, fontSize: 17, color: STONE, textAlign: 'center', marginTop: 32 },
 
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   loadingText: { fontFamily: FONT, fontSize: 15, color: STONE, marginTop: 12, textAlign: 'center' },

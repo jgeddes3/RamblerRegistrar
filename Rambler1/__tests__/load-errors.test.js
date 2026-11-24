@@ -31,6 +31,7 @@ jest.mock('../firestore-data', () => ({
   fetchSchedule: (...a) => mockData.fetchSchedule(...a),
   getSectionsByClassNumbers: (...a) => mockData.getSectionsByClassNumbers(...a),
   fetchUserPrimaryLocation: (...a) => mockData.fetchUserPrimaryLocation(...a),
+  fetchBuildings: jest.fn(async () => []),
   addWatch: jest.fn(), removeWatch: jest.fn(), addCourseToPlan: jest.fn(), addSectionToSchedule: jest.fn(),
   PLAN_TERM_CAP: 15,
 }));
@@ -41,6 +42,7 @@ jest.mock('../ratings', () => ({
 }));
 jest.mock('../components/TrendChart', () => () => null);
 jest.mock('../components/FeedbackModal', () => () => null);
+jest.mock('../components/ScheduleMapModal', () => () => null);
 jest.mock('../auth', () => ({ getIdToken: jest.fn(async () => 'token') }));
 const mockLibrary = jest.fn();
 jest.mock('../campus-api', () => ({

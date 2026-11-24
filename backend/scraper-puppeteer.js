@@ -24,6 +24,23 @@ const TERM_CODES = {
 // after this many is left for tomorrow's scrape.
 const MAX_RESEARCHES_PER_SUBJECT = 5;
 
+// A results-page course heading: "COMP  122 - Introduction to Digital Music".
+const COURSE_HEADING = /([A-Z]+)\s+(\d+\w*)\s*-\s*([^\n]+)/;
+
+// Course number and title out of a heading. Empty strings when the text holds
+// no heading, which is how a changed LOCUS layout shows up.
+function parseCourseHeading(text) {
+  const m = String(text || '').match(COURSE_HEADING);
+  return { catalog_number: m ? m[2].trim() : '', title: m ? m[3].trim() : '' };
+}
+
+// True when a subject came back with sections but not one course number. Such
+// a result must not be saved: it would overwrite good rows with ones the app
+// cannot look up by course.
+function lacksCourseNumbers(sections) {
+  return sections.length > 0 && sections.every((s) => !s.catalog_number);
+}
+
 // Turn the raw text of a section detail page's enrollment fields into numbers.
 // Returns null when cap or total is missing/unparseable: that means the read
 // failed (LOCUS dropped the session or we never reached the detail page), and
@@ -231,23 +248,31 @@ class LocusPuppeteerScraper {
   async extractSections(subject) {
     console.log('Extracting sections...');
 
-    const sections = await this.page.evaluate((subj) => {
+    const sections = await this.page.evaluate((subj, headingSource) => {
       const results = [];
 
-      // LOCUS uses GROUPBOX3$N for each course — it contains both the course
-      // title text and the MTG_ section rows.  GROUPBOX2GP$N is just the
-      // collapsible header and does NOT contain the MTG_ elements.
+      // The course heading, e.g. "COMP  122 - Introduction to Digital Music".
+      // LOCUS used to repeat it inside each GROUPBOX3$N alongside the course's
+      // MTG_ rows. It now gives every section its own GROUPBOX3$N with no
+      // heading, and the heading sits in GROUPBOX2GP$N, the header of the
+      // course block (GROUPBOX2$N) the section is nested in. Look in the group
+      // first, then up, so either layout yields a course number.
+      const heading = new RegExp(headingSource);
+      const headingFor = (groupEl) => {
+        const own = groupEl.textContent.trim();
+        if (heading.test(own)) return own;
+        const course = groupEl.closest('[id^="win0divSSR_CLSRSLT_WRK_GROUPBOX2$"]');
+        const n = course && course.id.match(/\$(\d+)$/);
+        const header = n && document.getElementById(`win0divSSR_CLSRSLT_WRK_GROUPBOX2GP$${n[1]}`);
+        return header ? header.textContent.trim() : '';
+      };
+
       let groupIdx = 0;
       while (true) {
         const groupEl = document.getElementById(`win0divSSR_CLSRSLT_WRK_GROUPBOX3$${groupIdx}`);
         if (!groupEl) break;
 
-        // The course title appears as text inside the group, e.g.
-        // "COMP  122 - Introduction to Digital Music"
-        const groupText = groupEl.textContent.trim();
-        const courseMatch = groupText.match(/([A-Z]+)\s+(\d+\w*)\s*-\s*([^\n]+)/);
-        const catalogNumber = courseMatch ? courseMatch[2].trim() : '';
-        const courseTitle = courseMatch ? courseMatch[3].trim() : '';
+        const groupHeading = headingFor(groupEl);
 
         // Find MTG_INSTR spans within this group to get section indices
         const instrEls = groupEl.querySelectorAll('span[id^="MTG_INSTR"]');
@@ -282,8 +307,7 @@ class LocusPuppeteerScraper {
             // every MTG_ field for it are suffixed with it.
             row_index: Number(i),
             subject: subj,
-            catalog_number: catalogNumber,
-            title: courseTitle,
+            heading: groupHeading,
             class_number: classNbr ? classNbr.textContent.trim() : '',
             section_number: sectionNumber,
             component: component,
@@ -301,11 +325,12 @@ class LocusPuppeteerScraper {
       }
 
       return results;
-    }, subject);
+    }, subject, COURSE_HEADING.source);
 
-    // Post-process: parse days/times and room/building
-    const finalSections = sections.map(s => ({
+    // Post-process: course number and title, days/times and room/building
+    const finalSections = sections.map(({ heading, ...s }) => ({
       ...s,
+      ...parseCourseHeading(heading),
       meeting_days: s.days_times ? s.days_times.replace(/\s*\d+.*/, '') : '',
       meeting_time_start: (s.days_times && s.days_times.match(/(\d+:\d+[AP]M)/)) ? s.days_times.match(/(\d+:\d+[AP]M)/)[1] : '',
       meeting_time_end: (s.days_times && s.days_times.match(/- (\d+:\d+[AP]M)/)) ? s.days_times.match(/- (\d+:\d+[AP]M)/)[1] : '',
@@ -663,6 +688,10 @@ async function scrape(termCode, subjectsToScrape, fetchEnrollment = false) {
     // Per-subject callback inserts each subject's sections immediately,
     // so partial data is preserved even if a later subject crashes the run.
     allSections = await scraper.scrapeAll(code, subjects, fetchEnrollment, (newSections) => {
+      if (lacksCourseNumbers(newSections)) {
+        console.error(`  ${newSections[0].subject}: ${newSections.length} section(s) with no course number. Not saved. The LOCUS results layout may have changed.`);
+        return;
+      }
       for (const section of newSections) {
         db.insertSection(code, section);
       }
@@ -756,4 +785,5 @@ if (require.main === module) {
 }
 
 module.exports = { scrape, defaultScrapeTerm, LocusPuppeteerScraper, SUBJECTS, TERM_CODES, parseEnrollmentFields, closeBrowserBounded,
-  enrollmentRowIndex, sameClassNumber, freshEnrollmentClassNumbers, MAX_RESEARCHES_PER_SUBJECT };
+  enrollmentRowIndex, sameClassNumber, freshEnrollmentClassNumbers, MAX_RESEARCHES_PER_SUBJECT,
+  parseCourseHeading, lacksCourseNumbers };

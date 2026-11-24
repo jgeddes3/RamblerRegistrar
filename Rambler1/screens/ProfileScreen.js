@@ -8,6 +8,7 @@ import { signOut, reauthenticate, deleteCurrentAccount } from '../auth';
 import { fetchPrograms, fetchCourses, addUserCourse, removeUserCourse, saveUserProfile, fetchEnrichedRecommendations, fetchQuizFocusAreas, setUserLocation, deleteAllUserData } from '../firestore-data';
 import { eraseAccountData, deletionErrorMessage, setDeletingAccount } from '../account-deletion';
 import { PENDING_SIGNUP_KEY, forgetPendingCourse, settleRetry } from '../signup-save';
+import { SAVED_EVENTS_KEY } from '../saved-events';
 import { geocodeAddress, suggestAddresses } from '../campus-api';
 import showAlert from '../alert';
 import { canEditProfile, programEdit, minorToggleEdit, priorityEdit } from '../profile-edits';
@@ -19,8 +20,9 @@ import { slopTo } from '../components/ui/hitSlop';
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
 // What this phone keeps for an account, removed when the account is deleted:
-// Search's recent searches and any signup details still waiting to save.
-const LOCAL_ACCOUNT_KEYS = ['@rambler_recent_searches', PENDING_SIGNUP_KEY];
+// Search's recent searches, any signup details still waiting to save, and
+// the campus events added to "my day".
+const LOCAL_ACCOUNT_KEYS = ['@rambler_recent_searches', PENDING_SIGNUP_KEY, SAVED_EVENTS_KEY];
 const clearAccountLocalData = () => AsyncStorage.multiRemove(LOCAL_ACCOUNT_KEYS);
 
 // One row of the Courses Taken list. Memoized: with ~2,000 courses a tap

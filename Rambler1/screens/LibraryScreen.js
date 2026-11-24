@@ -10,20 +10,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getLibraryHours, getLibraryHoursWeekly } from '../campus-api';
+import { STUDY_ROOM_LOCATIONS, bookingUrl, bookableFor } from '../study-rooms';
 import { STONE, OK, NEUTRAL, FONT, FONT_SEMI, MAROON, PARCHMENT, MAROON_WASH } from '../theme';
 
-
-// Bookable study-room locations (F-Q8). LibCal's booking flow needs a Loyola
-// login, so the app deep-links straight into the official picker for each
-// location (lids from backend/services/studyrooms.js). Same no-backend
-// property as the rest of this screen — pure Linking.
-const STUDY_ROOM_LOCATIONS = [
-  { name: 'Information Commons', campus: 'LSC', lid: 10019 },
-  { name: 'Cudahy Library', campus: 'LSC', lid: 10022 },
-  { name: 'Lewis Library', campus: 'WTC', lid: 10020 },
-  { name: 'Schreiber Center', campus: 'WTC', lid: 10021 },
-];
-const bookingUrl = (lid) => `https://libcal.luc.edu/spaces?lid=${lid}`;
 const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const DAY_ABBREV = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat', Sunday: 'Sun' };
 
@@ -54,17 +43,6 @@ function weeklyDayText(day) {
   if (!day) return '—';
   if (day.rendered) return day.rendered;
   return hoursText({ status: day.times?.status, hours: day.times?.hours });
-}
-
-// LibCal's hours feed and the booking lids name locations slightly differently
-// ("Cudahy Library" vs "Cudahy"), so match when either name contains the other.
-function bookableFor(locName) {
-  const n = String(locName || '').trim().toLowerCase();
-  if (!n) return null;
-  return STUDY_ROOM_LOCATIONS.find((b) => {
-    const bn = b.name.toLowerCase();
-    return n.includes(bn) || bn.includes(n);
-  }) || null;
 }
 
 // ------------------------------------------------------------------- pieces

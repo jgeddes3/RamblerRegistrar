@@ -37,8 +37,25 @@ const STATUS_STYLE = {
   unknown: { text: '?', color: NEUTRAL.fg, bg: NEUTRAL.bg },
 };
 
-const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
-  const [day, setDay] = useState('Mo');
+// "9:30 AM – 10:45 AM" / "9:30 AM" / "All day" for a saved-event row.
+function eventTimeText(ev) {
+  if (ev.allDay || ev.startMin == null) return 'All day';
+  const start = formatMinutes(ev.startMin);
+  return ev.endMin != null ? `${start} – ${formatMinutes(ev.endMin)}` : start;
+}
+
+const ScheduleMapModal = ({
+  visible, onClose, sections, buildings, home,
+  // Home's "Map" opens this for today only: fixedDay is today's day code
+  // (weekends included) and the weekday chips are hidden.
+  fixedDay = null, title = 'Day Map',
+  // Saved campus events for the day shown (saved-events.js rows). Listed
+  // under the classes; pinned when the location matches a building. They
+  // stay out of the leave-by and walk-feasibility math.
+  events,
+}) => {
+  const [pickedDay, setDay] = useState('Mo');
+  const day = fixedDay || pickedDay;
 
   const blocks = useMemo(() => sectionsToBlocks(sections || []), [sections]);
   const dayBlocks = useMemo(
@@ -90,36 +107,51 @@ const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
     return out;
   }, [dayBlocks, buildings]);
 
+  // Each saved event with the building its location names, if any.
+  const eventEntries = useMemo(() => (events || []).map((ev) => {
+    const bld = matchBuilding(buildings, ev.location);
+    return { ev, building: bld && Number.isFinite(bld.latitude) ? bld : null };
+  }), [events, buildings]);
+  const eventPins = useMemo(() => eventEntries.filter((e) => e.building).map(({ ev, building }) => ({
+    latitude: building.latitude,
+    longitude: building.longitude,
+    title: ev.title,
+    description: `${eventTimeText(ev)} · ${building.name}`,
+  })), [eventEntries]);
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View accessibilityViewIsModal style={s.container}>
         <View style={s.header}>
-          <Text accessibilityRole="header" style={s.title}>Day Map</Text>
+          <Text accessibilityRole="header" style={s.title}>{title}</Text>
           <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel="Close day map">
             <Text style={s.closeText}>Done</Text>
           </TouchableOpacity>
         </View>
 
         {/* Day selector */}
-        <View style={s.dayRow} accessibilityRole="tablist">
-          {WEEKDAYS.map((d) => (
-            <Tappable role="tab" selected={day === d.key}
-              key={d.key}
-              style={[s.dayChip, day === d.key && s.dayChipOn]}
-              onPress={() => setDay(d.key)}
-              accessibilityLabel={`Show ${d.label}`}
-            >
-              <Text style={[s.dayChipText, day === d.key && s.dayChipTextOn]}>{d.label}</Text>
-            </Tappable>
-          ))}
-        </View>
+        {fixedDay ? null : (
+          <View style={s.dayRow} accessibilityRole="tablist">
+            {WEEKDAYS.map((d) => (
+              <Tappable role="tab" selected={day === d.key}
+                key={d.key}
+                style={[s.dayChip, day === d.key && s.dayChipOn]}
+                onPress={() => setDay(d.key)}
+                accessibilityLabel={`Show ${d.label}`}
+              >
+                <Text style={[s.dayChipText, day === d.key && s.dayChipTextOn]}>{d.label}</Text>
+              </Tappable>
+            ))}
+          </View>
+        )}
 
         <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 8 }}>
-          {dayBlocks.length === 0 ? (
+          {dayBlocks.length === 0 && eventEntries.length === 0 ? (
             <Text style={s.emptyText}>No classes this day.</Text>
           ) : (
             <>
-              <DayMap stops={stops} home={home} />
+              <DayMap stops={stops} home={home} extras={eventPins} />
+              {dayBlocks.length === 0 ? <Text style={s.noClassText}>No classes this day.</Text> : null}
 
               {/* Leave-by / wake-by (first class of the day) */}
               {commute ? (
@@ -176,7 +208,7 @@ const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
                     <Text style={s.commuteSub}>Plan transit time to campus.</Text>
                   </View>
                 )
-              ) : home ? null : (
+              ) : home || dayBlocks.length === 0 ? null : (
                 <View style={s.commuteCardMuted}>
                   <Text style={s.commuteSub}>
                     Add your home address in Profile to see leave-by and wake-up times here.
@@ -227,6 +259,28 @@ const ScheduleMapModal = ({ visible, onClose, sections, buildings, home }) => {
                     Swap one section before registration.
                   </Text>
                 </View>
+              ) : null}
+
+              {/* Saved campus events for the day */}
+              {eventEntries.length > 0 ? (
+                <>
+                  <Text accessibilityRole="header" style={s.eventsTitle}>Your events</Text>
+                  {eventEntries.map(({ ev, building }) => (
+                    <View key={ev.key} style={[s.classRow, s.eventRow]}>
+                      <View style={s.eventBubble}>
+                        <Ionicons name="calendar-outline" size={15} color={MAROON} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.classCode} numberOfLines={2}>{ev.title}</Text>
+                        <Text style={s.classMeta}>
+                          {eventTimeText(ev)}
+                          {ev.location ? ` · ${ev.location}` : ''}
+                        </Text>
+                        {building ? null : <Text style={s.eventOffMap}>Not on the map</Text>}
+                      </View>
+                    </View>
+                  ))}
+                </>
               ) : null}
 
               {/* 8-RIDE (user request): evening classes -> safe ride home.
@@ -318,6 +372,15 @@ const s = StyleSheet.create({
   orderBubbleText: { fontFamily: FONT_SEMI, fontSize: 14, color: '#FFF' },
   classCode: { fontFamily: FONT_SEMI, fontSize: 17, color: '#333' },
   classMeta: { fontSize: 13, color: STONE },
+
+  noClassText: { fontFamily: FONT, fontSize: 15, color: STONE, marginBottom: 4 },
+  eventsTitle: { fontFamily: FONT, fontSize: 20, color: MAROON, marginTop: 14, marginBottom: 6 },
+  eventRow: { marginBottom: 8 },
+  eventBubble: {
+    width: 28, height: 28, borderRadius: 14, backgroundColor: MAROON_WASH,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  eventOffMap: { fontSize: 13, color: STONE, fontStyle: 'italic', marginTop: 1 },
 
   transRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingLeft: 12 },
   transBadge: { borderRadius: 10, paddingVertical: 2, paddingHorizontal: 9 },

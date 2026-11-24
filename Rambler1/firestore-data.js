@@ -873,6 +873,43 @@ export const removeSectionFromSchedule = (uid, termCode, classNumber) => inSched
   }
 });
 
+// Empty the term's saved schedule ("Clear schedule"). The schedule doc and
+// its name stay; seat watches are separate and untouched.
+// { cleared: [the ids it held] } | null (failed).
+export const clearSchedule = (uid, termCode) => inScheduleQueue(async () => {
+  try {
+    const userId = resolveUid(uid);
+    if (!userId || !termCode) return null;
+    const current = await fetchSchedule(userId, termCode);
+    const ids = current ? current.section_ids.map(String) : [];
+    if (!ids.length) return { cleared: [] };
+    const res = await writeSchedule(userId, termCode, [], current.name);
+    return res ? { cleared: ids } : null;
+  } catch (error) {
+    logError('clearSchedule', error);
+    return null;
+  }
+});
+
+// Put sections back, for the Undo of a clear: merged into whatever is saved
+// now, so a class added since the clear is kept.
+// { restored } | { full } | null (failed).
+export const restoreSectionsToSchedule = (uid, termCode, classNumbers) => inScheduleQueue(async () => {
+  try {
+    const userId = resolveUid(uid);
+    if (!userId || !termCode || !Array.isArray(classNumbers)) return null;
+    const current = (await fetchSchedule(userId, termCode)) || { section_ids: [] };
+    const ids = current.section_ids.map(String);
+    const merged = [...ids, ...classNumbers.map(String).filter((n) => !ids.includes(n))];
+    if (merged.length > 40) return { full: true };
+    const res = await writeSchedule(userId, termCode, merged, current.name);
+    return res ? { restored: true } : null;
+  } catch (error) {
+    logError('restoreSectionsToSchedule', error);
+    return null;
+  }
+});
+
 // =============================================================================
 // WHAT-IF EXPLORER (lean program-requirement reads)
 // =============================================================================

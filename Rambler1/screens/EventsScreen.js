@@ -1,6 +1,8 @@
 // screens/EventsScreen.js — Campus events (Localist, via campus-api).
 // Upcoming events (next 14 days) as cards: maroon date badge, title, time,
-// location. Tapping a card opens the event page (when it has a URL).
+// location. Tapping a card opens the event page (when it has a URL); the
+// add button puts the event on Home's "Today's classes" for its day
+// (saved-events.js, kept on the phone).
 // No back button / no giant header here: the More stack header owns the title.
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -9,7 +11,13 @@ import {
   ActivityIndicator, StyleSheet, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getEvents } from '../campus-api';
+import { useAppContext } from '../AppContext';
+import { loadSavedEvents, toggleSavedEvent, savedEventKey, canSaveEvent } from '../saved-events';
+import { useToast } from '../components/ui/Toast';
+import Tappable from '../components/ui/Tappable';
+import { slopTo } from '../components/ui/hitSlop';
 import { STONE, FONT, FONT_SEMI, MAROON, PARCHMENT } from '../theme';
 
 const DAYS_AHEAD = 14;
@@ -44,46 +52,83 @@ function timeText(ev) {
 
 // ------------------------------------------------------------------- pieces
 
-const EventCard = ({ event, onPress }) => {
+// The card is two touchables side by side, not one inside the other: the
+// event page on the left, the add-to-my-day toggle on the right.
+const EventCard = ({ event, onPress, saved, onToggleSaved }) => {
   const { month, day } = badgeParts(event);
   const hasUrl = !!event.url;
+  const title = event.title || 'Untitled event';
   return (
-    <TouchableOpacity
-      style={s.card}
-      onPress={onPress}
-      disabled={!hasUrl}
-      activeOpacity={0.7}
-      accessibilityRole="button"
-      accessibilityLabel={event.title}
-    >
-      <View style={s.badge}>
-        <Text style={s.badgeMonth}>{month}</Text>
-        <Text style={s.badgeDay}>{day}</Text>
-      </View>
-      <View style={s.cardBody}>
-        <Text style={s.cardTitle} numberOfLines={2}>{event.title || 'Untitled event'}</Text>
-        <View style={s.metaRow}>
-          <Ionicons name="time-outline" size={13} color={STONE} />
-          <Text style={s.metaText} numberOfLines={1}>{timeText(event)}</Text>
+    <View style={s.card}>
+      <TouchableOpacity
+        style={s.cardMain}
+        onPress={onPress}
+        disabled={!hasUrl}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={event.title}
+      >
+        <View style={s.badge}>
+          <Text style={s.badgeMonth}>{month}</Text>
+          <Text style={s.badgeDay}>{day}</Text>
         </View>
-        {event.location ? (
+        <View style={s.cardBody}>
+          <Text style={s.cardTitle} numberOfLines={2}>{title}</Text>
           <View style={s.metaRow}>
-            <Ionicons name="location-outline" size={13} color={STONE} />
-            <Text style={s.metaText} numberOfLines={1}>{event.location}</Text>
+            <Ionicons name="time-outline" size={13} color={STONE} />
+            <Text style={s.metaText} numberOfLines={1}>{timeText(event)}</Text>
           </View>
-        ) : null}
-      </View>
-      {hasUrl ? <Ionicons name="chevron-forward" size={18} color={STONE} /> : null}
-    </TouchableOpacity>
+          {event.location ? (
+            <View style={s.metaRow}>
+              <Ionicons name="location-outline" size={13} color={STONE} />
+              <Text style={s.metaText} numberOfLines={1}>{event.location}</Text>
+            </View>
+          ) : null}
+        </View>
+        {hasUrl ? <Ionicons name="chevron-forward" size={18} color={STONE} /> : null}
+      </TouchableOpacity>
+      {canSaveEvent(event) ? (
+        <Tappable
+          selected={saved}
+          onPress={onToggleSaved}
+          hitSlop={slopTo(26)}
+          accessibilityLabel={saved ? `Remove ${title} from my day` : `Add ${title} to my day`}
+        >
+          <Ionicons name={saved ? 'checkmark-circle' : 'add-circle-outline'} size={26} color={MAROON} />
+        </Tappable>
+      ) : null}
+    </View>
   );
 };
 
 // -------------------------------------------------------------------- screen
 
 const EventsScreen = () => {
+  const { user } = useAppContext();
+  const uid = user?.uid;
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [events, setEvents] = useState(null); // null = not loaded / failed, [] = empty
+  const [savedKeys, setSavedKeys] = useState(() => new Set()); // events added to my day
+
+  useEffect(() => {
+    let alive = true;
+    loadSavedEvents(AsyncStorage, uid).then((list) => {
+      if (alive) setSavedKeys(new Set(list.map((e) => e.key)));
+    });
+    return () => { alive = false; };
+  }, [uid]);
+
+  const toggleSaved = useCallback(async (event) => {
+    try {
+      const res = await toggleSavedEvent(AsyncStorage, uid, event);
+      setSavedKeys(new Set(res.events.map((e) => e.key)));
+      toast.show({ message: res.saved ? 'Added to your day. It shows on Home that day.' : 'Removed from your day.' });
+    } catch (e) {
+      toast.show({ message: "Couldn't save that event. Try again." });
+    }
+  }, [uid, toast]);
 
   const load = useCallback(async () => {
     // campus-api never throws (contract: null/[] on failure), but stay defensive.
@@ -138,7 +183,15 @@ const EventsScreen = () => {
       style={s.container}
       data={sorted}
       keyExtractor={(item, index) => item.instanceKey ?? String(item.id ?? index)}
-      renderItem={({ item }) => <EventCard event={item} onPress={() => openEvent(item)} />}
+      renderItem={({ item }) => (
+        <EventCard
+          event={item}
+          onPress={() => openEvent(item)}
+          saved={savedKeys.has(savedEventKey(item))}
+          onToggleSaved={() => toggleSaved(item)}
+        />
+      )}
+      extraData={savedKeys}
       contentContainerStyle={sorted.length === 0 ? s.emptyContainer : s.content}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={MAROON} colors={[MAROON]} />
@@ -183,6 +236,7 @@ const s = StyleSheet.create({
     backgroundColor: '#FFFFFF', borderRadius: 12, padding: 12, marginBottom: 10,
     borderWidth: 1, borderColor: '#F0F0F0',
   },
+  cardMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   badge: {
     width: 48, height: 52, borderRadius: 10, backgroundColor: MAROON,
     alignItems: 'center', justifyContent: 'center',

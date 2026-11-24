@@ -14,6 +14,7 @@ import { useAppContext } from '../AppContext';
 import {
   fetchSchedule, saveSchedule, getSectionsByClassNumbers,
   addSectionToSchedule, removeSectionFromSchedule,
+  clearSchedule, restoreSectionsToSchedule,
   searchCourses, getCourseSections, fetchBuildings,
   fetchDegreeProgress, fetchUserCoreProgress,
   fetchWatches, addWatch, removeWatch,
@@ -666,6 +667,33 @@ const ScheduleScreen = () => {
     );
   };
 
+  // Clear the whole term. Confirmed first; the toast's Undo puts the classes
+  // back (merged with anything added since). Seat watches are left alone.
+  const confirmClear = () => {
+    const n = sections.length;
+    showAlert(
+      `Clear your ${TERM.label} schedule?`,
+      `This removes ${n === 1 ? 'the 1 class' : `all ${n} classes`} from this schedule. Seat watches stay.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear schedule',
+          style: 'destructive',
+          onPress: async () => {
+            const termCode = TERM.code;
+            const res = await persistChange(() => clearSchedule(uid, termCode));
+            if (!res) return;
+            toast.show({
+              message: 'Schedule cleared.',
+              actionLabel: 'Undo',
+              onAction: undoFor(termCode, () => restoreSectionsToSchedule(uid, termCode, res.cleared)),
+            });
+          },
+        },
+      ]
+    );
+  };
+
   // ------------------------------------------------------------ seat watches
   // Optimistic flip of the bell + Watching list; reverted with an alert if the
   // Firestore write fails. `section` is a full legacy row so the Watching list
@@ -876,6 +904,17 @@ const ScheduleScreen = () => {
               </ScrollView>
             </View>
           )}
+
+          <TouchableOpacity
+            style={s.clearRow}
+            onPress={confirmClear}
+            disabled={saving}
+            accessibilityRole="button"
+            accessibilityLabel={`Clear ${TERM.label} schedule`}
+          >
+            <Ionicons name="trash-outline" size={14} color={DANGER.fg} />
+            <Text style={s.clearRowText}>Clear schedule</Text>
+          </TouchableOpacity>
         </>
       )}
 
@@ -924,6 +963,7 @@ const ScheduleScreen = () => {
         }
         section={detailSection}
         sections={null}
+        termLabel={TERM.label}
         onClose={() => setDetailSection(null)}
         onRemove={(sec) => {
           // Confirm only once the detail modal is gone (see modal-sequencing.js).
@@ -1197,6 +1237,13 @@ const s = StyleSheet.create({
   unschedDetail: { fontSize: 12, color: STONE, marginTop: 1 },
 
   // Watching (seat watches)
+  // "Clear schedule" under the grid (44 pt tall: a full touch target)
+  clearRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    minHeight: 44,
+  },
+  clearRowText: { fontFamily: FONT_MED, fontSize: 15, color: DANGER.fg },
+
   watchWrap: {
     borderTopWidth: 1, borderTopColor: '#F0F0F0',
     paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6,

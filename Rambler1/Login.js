@@ -96,7 +96,7 @@ const Login = ({ navigation }) => {
   return (
     <BackgroundImage source={require('./assets/Backgrounds/Wallpaper-01.jpg')}>
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <LogoImage source={require('./assets/Icons/Logo-02.png')} />
+        <LogoImage source={require('./assets/Icons/Mark-maroon.png')} />
         <TitleText1>Rambler Registrar</TitleText1>
         <TextField
           label="Email"

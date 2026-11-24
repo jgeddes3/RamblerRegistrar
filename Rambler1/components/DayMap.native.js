@@ -15,13 +15,16 @@ import { MAROON } from '../theme';
 
 // stops: [{ latitude, longitude, campus, title, description }] in visit order.
 // home: { latitude, longitude } | null.
-const DayMap = ({ stops = [], home = null }) => {
+// extras: [{ latitude, longitude, title, description }] — pins only (saved
+// campus events): on the map and in its frame, but not part of the route.
+const DayMap = ({ stops = [], home = null, extras = [] }) => {
   const points = [
     ...(home ? [{ latitude: Number(home.latitude), longitude: Number(home.longitude), campus: null }] : []),
     ...stops.map((p) => ({ latitude: p.latitude, longitude: p.longitude, campus: p.campus || null })),
   ];
   const pointsKey = points.map((p) => `${p.latitude},${p.longitude},${p.campus}`).join(';');
   const segments = useMemo(() => buildSegments(points), [pointsKey]);
+  const framed = [...points, ...extras];
 
   const [routes, setRoutes] = useState(null);
   useEffect(() => {
@@ -35,10 +38,10 @@ const DayMap = ({ stops = [], home = null }) => {
     return () => { alive = false; };
   }, [segments]);
 
-  if (!points.length) return null;
+  if (!framed.length) return null;
 
-  const lats = points.map((p) => p.latitude);
-  const lons = points.map((p) => p.longitude);
+  const lats = framed.map((p) => p.latitude);
+  const lons = framed.map((p) => p.longitude);
   const region = {
     latitude: (Math.min(...lats) + Math.max(...lats)) / 2,
     longitude: (Math.min(...lons) + Math.max(...lons)) / 2,
@@ -47,7 +50,7 @@ const DayMap = ({ stops = [], home = null }) => {
   };
 
   return (
-    <MapView style={s.map} initialRegion={region} key={points.map((p) => p.latitude).join(',')}>
+    <MapView style={s.map} initialRegion={region} key={framed.map((p) => p.latitude).join(',')}>
       {home ? (
         <Marker
           coordinate={{ latitude: Number(home.latitude), longitude: Number(home.longitude) }}
@@ -62,6 +65,15 @@ const DayMap = ({ stops = [], home = null }) => {
           title={p.title}
           description={p.description}
           pinColor={MAROON}
+        />
+      ))}
+      {extras.map((p, i) => (
+        <Marker
+          key={`extra-${p.latitude},${p.longitude},${i}`}
+          coordinate={{ latitude: p.latitude, longitude: p.longitude }}
+          title={p.title}
+          description={p.description}
+          pinColor="teal"
         />
       ))}
       {segments.map((seg, i) => {

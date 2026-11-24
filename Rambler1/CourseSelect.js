@@ -119,7 +119,7 @@ const CourseSelect =() => {
               <Text style={s.backButtonText}>Back</Text>
             </TouchableOpacity>
           </View>
-          <Image source={require('./assets/Icons/Logo2-02.png')} style={s.headerLogo} />
+          <Image source={require('./assets/Icons/Mark-white.png')} style={s.headerLogo} />
           <View style={s.headerSide}>
             <StepCounter route="CourseSelect" />
           </View>

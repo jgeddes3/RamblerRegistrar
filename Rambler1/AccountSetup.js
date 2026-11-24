@@ -43,9 +43,13 @@ const AccountSetup =() => {
   const [policyVisible, setPolicyVisible] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsVisible, setTermsVisible] = useState(false);
+  // "Do not sell or share my personal information", offered on both
+  // documents. There's no account yet, so it's held here and saved with the
+  // profile when the account is created.
+  const [saleOptOut, setSaleOptOut] = useState(false);
   const [submitted, setSubmitted] = useState(false); // Next pressed once: show field errors
   const passwordRef = useRef(null);
-  const { selectedProgram, selectedProgram2, selectedMinors, selectedCourses, setGraduationYear, setClassYear, setIsHonors, setIsAthlete, quizResults, setUser, setIsLoggedIn, setPrivacyPolicyVersion, setTermsVersion } = useAppContext();
+  const { selectedProgram, selectedProgram2, selectedMinors, selectedCourses, setGraduationYear, setClassYear, setIsHonors, setIsAthlete, quizResults, setUser, setIsLoggedIn, setPrivacyPolicyVersion, setTermsVersion, setDataSaleOptOut } = useAppContext();
 
   const navigation = useNavigation();
   useOnboardingDraft('AccountSetup');
@@ -92,6 +96,9 @@ const AccountSetup =() => {
           isAthlete: isAthlete,
           privacyPolicyVersion: POLICY_VERSION,
           termsVersion: TERMS_VERSION,
+          // Recorded only when chosen: leaving the switch off is not a
+          // decision to stamp with a time.
+          ...(saleOptOut ? { dataSaleOptOut: true } : {}),
         },
         quiz: quizResults
           ? {
@@ -124,6 +131,7 @@ const AccountSetup =() => {
       // the profile write above failed, the gate re-prompts on next cold start.
       setPrivacyPolicyVersion(POLICY_VERSION);
       setTermsVersion(TERMS_VERSION);
+      if (saleOptOut) setDataSaleOptOut(true);
     } catch (error) {
       const code = error.code;
       if (code === 'auth/email-already-in-use' || code === 'auth/credential-already-in-use') {
@@ -149,7 +157,7 @@ const AccountSetup =() => {
               <Text style={s.backButtonText}>Back</Text>
             </TouchableOpacity>
           </View>
-          <Image source={require('./assets/Icons/Logo2-02.png')} style={s.headerLogo} />
+          <Image source={require('./assets/Icons/Mark-white.png')} style={s.headerLogo} />
           <View style={s.headerSide}>
             <StepCounter route="AccountSetup" />
           </View>
@@ -307,6 +315,8 @@ const AccountSetup =() => {
           mode="consent"
           onAccept={() => { setPolicyAccepted(true); setPolicyVisible(false); }}
           onDecline={() => setPolicyVisible(false)}
+          optOut={saleOptOut}
+          onOptOutChange={setSaleOptOut}
         />
         <PrivacyPolicyModal
           visible={termsVisible}
@@ -316,6 +326,8 @@ const AccountSetup =() => {
           agreeLabel="I agree to the Terms of Service"
           onAccept={() => { setTermsAccepted(true); setTermsVisible(false); }}
           onDecline={() => setTermsVisible(false)}
+          optOut={saleOptOut}
+          onOptOutChange={setSaleOptOut}
         />
       </View>
     </BackgroundImage>

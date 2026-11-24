@@ -24,7 +24,7 @@ const mockCtx = {
   quizResults: null,
 };
 for (const k of ['setGraduationYear', 'setClassYear', 'setIsHonors', 'setIsAthlete', 'setUser', 'setIsLoggedIn',
-  'setPrivacyPolicyVersion', 'setTermsVersion']) mockCtx[k] = jest.fn();
+  'setPrivacyPolicyVersion', 'setTermsVersion', 'setDataSaleOptOut']) mockCtx[k] = jest.fn();
 jest.mock('../AppContext', () => ({ useAppContext: () => mockCtx }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ goBack: jest.fn() }) }));
 // Picker stand-in: a press picks its first real option.
@@ -39,22 +39,29 @@ jest.mock('@react-native-picker/picker', () => {
   return { Picker };
 });
 // Consent modals: accepting is a press, without the long scroll-to-agree.
+// "opt out" stands in for the document's do-not-sell switch.
 jest.mock('../components/PrivacyPolicyModal', () => {
   const { Text } = require('react-native');
-  return ({ visible, onAccept, agreeLabel }) =>
-    visible ? <Text onPress={onAccept}>{agreeLabel || 'I agree to the Privacy Policy'}</Text> : null;
+  return ({ visible, onAccept, agreeLabel, onOptOutChange }) =>
+    visible ? (
+      <>
+        {onOptOutChange ? <Text onPress={() => onOptOutChange(true)}>opt out</Text> : null}
+        <Text onPress={onAccept}>{agreeLabel || 'I agree to the Privacy Policy'}</Text>
+      </>
+    ) : null;
 });
 jest.mock('../styleComponents/BackgroundImage', () => ({ children }) => children);
 
 import AccountSetup from '../AccountSetup';
 import { PENDING_SIGNUP_KEY } from '../signup-save';
 
-const signUp = async () => {
+const signUp = async ({ optOut = false } = {}) => {
   await render(<AccountSetup />);
   for (const picker of screen.getAllByText('pick')) await fireEvent.press(picker);
   await fireEvent.changeText(screen.getByLabelText('Email'), 'sam@example.edu');
   await fireEvent.changeText(screen.getByLabelText('Password'), 'hunter22');
   await fireEvent.press(screen.getByLabelText('Read and agree to the Terms of Service'));
+  if (optOut) await fireEvent.press(screen.getByText('opt out'));
   await fireEvent.press(screen.getByText('I agree to the Terms of Service'));
   await fireEvent.press(screen.getByLabelText('Read and agree to the Privacy Policy'));
   await fireEvent.press(screen.getByText('I agree to the Privacy Policy'));
@@ -66,6 +73,21 @@ beforeEach(() => {
   mockStore.clear();
   mockSaveProfile.mockReset();
   mockCtx.setIsLoggedIn.mockClear();
+  mockCtx.setDataSaleOptOut.mockClear();
+});
+
+test('opting out on a document is saved with the new account', async () => {
+  mockSaveProfile.mockResolvedValue({ success: true });
+  await signUp({ optOut: true });
+  expect(mockSaveProfile).toHaveBeenCalledWith('u1', expect.objectContaining({ dataSaleOptOut: true }));
+  expect(mockCtx.setDataSaleOptOut).toHaveBeenCalledWith(true);
+});
+
+test('leaving the switch alone records no choice either way', async () => {
+  mockSaveProfile.mockResolvedValue({ success: true });
+  await signUp();
+  expect(mockSaveProfile.mock.calls[0][1]).not.toHaveProperty('dataSaleOptOut');
+  expect(mockCtx.setDataSaleOptOut).not.toHaveBeenCalled();
 });
 
 test('a failed profile save is kept on the phone, and the user still gets in', async () => {

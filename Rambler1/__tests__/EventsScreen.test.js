@@ -13,8 +13,12 @@ jest.mock(
   }),
   { virtual: true }
 );
+jest.mock('../AppContext', () => ({ useAppContext: () => ({ user: { uid: 'u1' } }) }));
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import EventsScreen from '../screens/EventsScreen';
+import { ToastProvider, ToastHost } from '../components/ui/Toast';
+import { loadSavedEvents } from '../saved-events';
 
 const EVENTS_FIXTURE = [
   {
@@ -47,8 +51,9 @@ const EVENTS_FIXTURE = [
   },
 ];
 
-beforeEach(() => {
+beforeEach(async () => {
   mockGetEvents.mockReset();
+  await AsyncStorage.clear();
 });
 
 describe('EventsScreen', () => {
@@ -83,5 +88,46 @@ describe('EventsScreen', () => {
     await render(<EventsScreen />);
     expect(await screen.findByText('Events unavailable right now')).toBeTruthy();
     expect(screen.getByText('Pull down to try again.')).toBeTruthy();
+  });
+
+  test('the add button saves an event to my day and takes it back off', async () => {
+    // Tomorrow, so the saved event isn't pruned as past.
+    const start = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    mockGetEvents.mockResolvedValue([
+      { ...EVENTS_FIXTURE[0], instanceKey: `101|${start}`, start, end: null },
+      { ...EVENTS_FIXTURE[1], id: 103, title: 'Undated Mixer', start: null, allDay: false },
+    ]);
+    const openSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+
+    await render(<ToastProvider><EventsScreen /><ToastHost /></ToastProvider>);
+
+    const add = await screen.findByRole('button', { name: 'Add Welcome Week Kickoff to my day' });
+    // An event with no start can't be placed on a day: no button.
+    expect(screen.queryByRole('button', { name: 'Add Undated Mixer to my day' })).toBeNull();
+
+    await fireEvent.press(add);
+    const remove = await screen.findByRole('button', { name: 'Remove Welcome Week Kickoff from my day' });
+    expect(screen.getByText('Added to your day. It shows on Home that day.')).toBeTruthy();
+    expect((await loadSavedEvents(AsyncStorage, 'u1')).map((e) => e.title)).toEqual(['Welcome Week Kickoff']);
+    // Adding is its own button: it must not open the event page.
+    expect(openSpy).not.toHaveBeenCalled();
+
+    await fireEvent.press(remove);
+    expect(await screen.findByRole('button', { name: 'Add Welcome Week Kickoff to my day' })).toBeTruthy();
+    expect(await loadSavedEvents(AsyncStorage, 'u1')).toEqual([]);
+
+    openSpy.mockRestore();
+  });
+
+  test('events already saved show as added when the screen opens', async () => {
+    const start = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    const event = { ...EVENTS_FIXTURE[0], instanceKey: `101|${start}`, start, end: null };
+    await AsyncStorage.setItem('@rambler_saved_events', JSON.stringify({
+      uid: 'u1', events: [{ key: event.instanceKey, title: event.title, start, end: null, allDay: false, location: null, url: null }],
+    }));
+    mockGetEvents.mockResolvedValue([event]);
+
+    await render(<EventsScreen />);
+    expect(await screen.findByRole('button', { name: 'Remove Welcome Week Kickoff from my day' })).toBeTruthy();
   });
 });

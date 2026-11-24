@@ -23,6 +23,7 @@ import PendingSaveBanner from './components/PendingSaveBanner';
 import { ToastProvider, ToastHost } from './components/ui/Toast';
 import MenuOverlay from './components/MenuOverlay';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
+import useDataSaleOptOut from './components/ui/useDataSaleOptOut';
 import ProfileScreen from './screens/ProfileScreen';
 
 // Auth screens
@@ -68,7 +69,9 @@ const AuthStack = () => (
       headerShown: false,
       gestureEnabled: false,
       animationEnabled: false,
-      cardStyle: { backgroundColor: 'transparent' },
+      // flex: 1 keeps a card the height of the window on web; without it the
+      // card grows to its content and the screen cannot scroll.
+      cardStyle: { flex: 1, backgroundColor: 'transparent' },
     }}
   >
     <Stack.Screen name="Login" component={Login} />
@@ -118,7 +121,7 @@ const MoreStack = () => (
       headerShadowVisible: false,
       headerStyle: { backgroundColor: '#FFFFFF' },
       headerBackTitleVisible: false,
-      cardStyle: { backgroundColor: '#FFFFFF' },
+      cardStyle: { flex: 1, backgroundColor: '#FFFFFF' },
     }}
   >
     <Stack.Screen name="MoreHome" component={MoreScreen} options={{ headerShown: false }} />
@@ -239,6 +242,9 @@ const LegalConsentGate = () => {
     termsVersion, setTermsVersion,
   } = useAppContext();
   const [saving, setSaving] = useState(false);
+  // The opt-out switch sits on both documents: agreeing and opting out are
+  // separate choices, and the second shouldn't need a trip to Profile.
+  const optOut = useDataSaleOptOut();
 
   const realUser = !!user && !user.isAnonymous;
   const needsTerms =
@@ -299,12 +305,16 @@ const LegalConsentGate = () => {
         agreeLabel="I agree to the Terms of Service"
         onAccept={acceptTerms}
         onDecline={declineWith('Terms of Service')}
+        optOut={optOut.optedOut}
+        onOptOutChange={optOut.available ? optOut.setOptedOut : undefined}
       />
       <PrivacyPolicyModal
         visible={!needsTerms && needsPrivacy && !declining}
         mode="consent"
         onAccept={acceptPrivacy}
         onDecline={declineWith('Privacy Policy')}
+        optOut={optOut.optedOut}
+        onOptOutChange={optOut.available ? optOut.setOptedOut : undefined}
       />
     </>
   );

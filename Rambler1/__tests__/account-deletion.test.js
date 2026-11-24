@@ -199,3 +199,54 @@ describe('schedule writes are queued (two quick "+" taps keep both)', () => {
     expect(stored.sort()).toEqual(['100', '202']);
   });
 });
+
+describe('clearSchedule and its Undo', () => {
+  const { clearSchedule, restoreSectionsToSchedule, addSectionToSchedule } = require('../firestore-data');
+  let stored;
+  let name;
+  beforeEach(() => {
+    stored = ['100', '200', '300'];
+    name = 'Plan A';
+    fs.getDoc.mockReset().mockImplementation(async () => ({
+      exists: () => true, data: () => ({ termCode: '1266', sectionIds: [...stored], name }), metadata: { fromCache: false },
+    }));
+    fs.setDoc.mockReset().mockImplementation(async (_ref, payload) => { stored = payload.sectionIds; });
+  });
+
+  test('empties the schedule, keeps its name, and reports what it held', async () => {
+    expect(await clearSchedule('u1', '1266')).toEqual({ cleared: ['100', '200', '300'] });
+    expect(stored).toEqual([]);
+    expect(fs.setDoc.mock.calls[0][1].name).toBe('Plan A');
+  });
+
+  test('an already-empty schedule is left alone', async () => {
+    stored = [];
+    expect(await clearSchedule('u1', '1266')).toEqual({ cleared: [] });
+    expect(fs.setDoc).not.toHaveBeenCalled();
+  });
+
+  test('a failed write reports failure, not a clear', async () => {
+    fs.setDoc.mockRejectedValue(new Error('offline'));
+    expect(await clearSchedule('u1', '1266')).toBeNull();
+    expect(stored).toEqual(['100', '200', '300']);
+  });
+
+  test('Undo puts the classes back and keeps one added since the clear', async () => {
+    const { cleared } = await clearSchedule('u1', '1266');
+    await addSectionToSchedule('u1', '1266', '900');
+    expect(await restoreSectionsToSchedule('u1', '1266', cleared)).toEqual({ restored: true });
+    expect(stored).toEqual(['900', '100', '200', '300']);
+  });
+
+  test('Undo never doubles a class that is already back', async () => {
+    stored = ['100'];
+    await restoreSectionsToSchedule('u1', '1266', ['100', '200']);
+    expect(stored).toEqual(['100', '200']);
+  });
+
+  test('Undo that would pass 40 sections says full and writes nothing', async () => {
+    stored = Array.from({ length: 39 }, (_, i) => String(1000 + i));
+    expect(await restoreSectionsToSchedule('u1', '1266', ['1', '2'])).toEqual({ full: true });
+    expect(fs.setDoc).not.toHaveBeenCalled();
+  });
+});
